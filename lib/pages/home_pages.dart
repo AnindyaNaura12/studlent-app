@@ -77,21 +77,41 @@ class HomePage extends StatelessWidget {
                 // ══════════════════════
                 // HERO TEXT
                 // ══════════════════════
-                const Text(
-                  "Turn Student Talent Into Your Best Solution.",
-                  style: TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.bold,
-                    height: 1.3,
+                RichText(
+                  textAlign: TextAlign.center, 
+                  text: TextSpan(
+                    style: const TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      height: 1.3,
+                      color: Colors.black,
+                    ),
+                    children: [
+                      const TextSpan(text: "Turn Student Talent\nInto Your "),
+                      TextSpan(
+                        text: "Best Solution",
+                        style: TextStyle(
+                          color: Colors.orange,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const TextSpan(text: "."),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 20),
-                Text(
-                  "Connect with skilled students ready to deliver quality work, fast and affordable",
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[700],
-                    height: 1.5,
+
+                const SizedBox(height: 5),
+
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 500),
+                  child: Text(
+                    textAlign: TextAlign.center,
+                    "Connect with skilled students ready to deliver quality work, fast and affordable",
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: Colors.grey[700],
+                      height: 1.6,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 30),
@@ -101,10 +121,30 @@ class HomePage extends StatelessWidget {
                 // ══════════════════════
                 ClipRRect(
                   borderRadius: BorderRadius.circular(20),
-                  child: Image.asset(
-                    'assets/images/hero_student.png',
-                    width: double.infinity,
-                    fit: BoxFit.cover,
+                  child: Stack(
+                    children: [
+                      Image.asset(
+                        'assets/images/hero_student.png',
+                        width: double.infinity,
+                        height: 220,
+                        fit: BoxFit.cover,
+                      ),
+
+                      // 🔥 Gradient overlay
+                      Container(
+                        height: 220,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.black.withOpacity(0.3),
+                              Colors.transparent,
+                            ],
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
 
@@ -123,7 +163,7 @@ class HomePage extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 12),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -171,7 +211,7 @@ class HomePage extends StatelessWidget {
                   childAspectRatio: 2.1,
                   children: const [
                     CategoryCard(
-                        title: "Website\nDevelopment",
+                        title: "Website Development",
                         iconPath:
                             "assets/images/categories/website_development.png"),
                     CategoryCard(
@@ -191,7 +231,7 @@ class HomePage extends StatelessWidget {
                         iconPath:
                             "assets/images/categories/image_editing.png"),
                     CategoryCard(
-                        title: "Writing &\nTranslation",
+                        title: "Writing & Translation",
                         iconPath:
                             "assets/images/categories/writing_translation.png"),
                   ],
@@ -202,7 +242,7 @@ class HomePage extends StatelessWidget {
                 // ══════════════════════
                 const SizedBox(height: 32),
                 const Text(
-                  "Most Popular Freelancer\nin Writing Translation",
+                  "Most Popular Freelancer in Writing Translation",
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -259,61 +299,87 @@ class HomePage extends StatelessWidget {
                 // ══════════════════════
                 // CTA — Make It All Happen
                 // ══════════════════════
-                const SizedBox(height: 32),
+                const SizedBox(height: 40),
+
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 20, vertical: 22),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 26),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Colors.grey.withOpacity(0.15),
-                      width: 1,
+                    borderRadius: BorderRadius.circular(20),
+
+                    // 🔥 Gradient biar nggak flat
+                    gradient: const LinearGradient(
+                      colors: [
+                        Color(0xFFFFE0B2),
+                        Color(0xFFFFB74D),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
+
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
+                        color: Colors.orange.withOpacity(0.25),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
                       ),
                     ],
                   ),
+
                   child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      const Expanded(
-                        child: Text(
-                          "Make It All Happen With Freelancer",
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                            height: 1.25,
-                          ),
+
+                      // 🔥 TEXT AREA
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+
+                            const Text(
+                              "Make It All Happen",
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black,
+                              ),
+                            ),
+
+                            const SizedBox(height: 6),
+
+                            Text(
+                              "Hire talented students or start selling your skills today.",
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.black.withOpacity(0.7),
+                                height: 1.4,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
+
                       const SizedBox(width: 16),
+
+                      // 🔥 BUTTON (lebih hidup)
                       ElevatedButton(
                         onPressed: () {},
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange,
-                          foregroundColor: Colors.black,
+                          backgroundColor: const Color(0xFFFFE0B2),
+                          foregroundColor: Colors.orange.shade900,
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 18,
+                            horizontal: 20,
                             vertical: 16,
                           ),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(32),
+                            borderRadius: BorderRadius.circular(30),
                           ),
                           elevation: 0,
                         ),
                         child: const Text(
-                          "JOIN NOW",
+                          "Join Now",
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
-                            letterSpacing: 0.5,
                           ),
                         ),
                       ),
@@ -414,29 +480,41 @@ class HomePage extends StatelessWidget {
                               ),
 
                               // 3 foto portrait — rata bawah, foto 1 & 3 identik, foto 2 tengah lebih tinggi
-                              Padding(
-                                padding: const EdgeInsets.only(right: 0),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  crossAxisAlignment: CrossAxisAlignment.end,
+                              SizedBox(
+                                width: 140,
+                                height: 150,
+                                child: Stack(
+                                  alignment: Alignment.bottomCenter,
                                   children: [
-                                    _personPhoto(
-                                      'assets/images/freelancers/promo_person_1.png',
-                                      width: 45,
-                                      height: 105,
+
+                                    // 🔹 LEFT PHOTO
+                                    Positioned(
+                                      left: 0,
+                                      bottom: 0,
+                                      child: _personPhoto(
+                                        'assets/images/freelancers/promo_person_1.png',
+                                        width: 55,
+                                        height: 110,
+                                      ),
                                     ),
-                                    const SizedBox(width: 5),
-                                    _personPhoto(
-                                      'assets/images/freelancers/promo_person_2.png',
-                                      width: 45,
-                                      height: 130,
+
+                                    // 🔹 RIGHT PHOTO
+                                    Positioned(
+                                      right: 0,
+                                      bottom: 0,
+                                      child: _personPhoto(
+                                        'assets/images/freelancers/promo_person_3.png',
+                                        width: 55,
+                                        height: 110,
+                                      ),
                                     ),
-                                    const SizedBox(width: 5),
-                                    _personPhoto(
-                                      'assets/images/freelancers/promo_person_3.png',
-                                      width: 45,
-                                      height: 105,
+
+                                    // 🔹 CENTER PHOTO (FOCUS)
+                                    Positioned(
+                                      bottom: 0,
+                                      child: _centerPhoto(
+                                        'assets/images/freelancers/promo_person_2.png',
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -514,6 +592,25 @@ class HomePage extends StatelessWidget {
       ),
     );
   }
+
+  Widget _centerPhoto(String path) {
+  return Container(
+    decoration: BoxDecoration(
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.1),
+          blurRadius: 10,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    ),
+    child: _personPhoto(
+      path,
+      width: 65,
+      height: 140,
+    ),
+  );
+}
 
   BottomNavigationBarItem _buildNavItem(String iconPath, String label) {
     return BottomNavigationBarItem(
