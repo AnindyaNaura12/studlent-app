@@ -1,16 +1,38 @@
 import 'package:flutter/material.dart';
-import 'login_page.dart';
+import '../../controllers/auth_controller.dart';
 
-class RegisterPage extends StatelessWidget {
+class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
+
+  @override
+  State<RegisterPage> createState() => _RegisterPageState();
+}
+
+class _RegisterPageState extends State<RegisterPage> {
+  final AuthController _controller = AuthController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onRegisterPressed() {
+    final error = _controller.register();
+    if (error != null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error)));
+      return;
+    }
+    // TODO: navigasi ke LoginPage setelah register sukses
+    Navigator.pop(context);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
         width: double.infinity,
-
-        //BACKGROUND
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
@@ -18,26 +40,16 @@ class RegisterPage extends StatelessWidget {
             colors: [Color(0xFFFFB74D), Color(0xFFFFE0B2)],
           ),
         ),
-
         child: Column(
           children: [
             const SizedBox(height: 60),
-
-            // 🔵 LOGO
-            Image.asset(
-              'assets/images/logo_studlent.png',
-              height: 70,
-            ),
-
+            Image.asset('assets/images/logo_studlent.png', height: 70),
             const SizedBox(height: 30),
-
-            // 🔵 REGISTER CARD
             Expanded(
               child: Container(
                 width: double.infinity,
                 margin: const EdgeInsets.symmetric(horizontal: 20),
                 padding: const EdgeInsets.fromLTRB(24, 36, 24, 20),
-
                 decoration: const BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.only(
@@ -45,13 +57,10 @@ class RegisterPage extends StatelessWidget {
                     topRight: Radius.circular(40),
                   ),
                 ),
-
                 child: SingleChildScrollView(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-
-                      // 🔥 TITLE
                       const Center(
                         child: Text(
                           "Create Account",
@@ -61,39 +70,32 @@ class RegisterPage extends StatelessWidget {
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 30),
-
-                      // 🔵 USERNAME
                       _buildLabel("Username"),
-                      _buildTextField(hint: "Enter your username"),
-
+                      _buildTextField(
+                        controller: _controller.usernameController,
+                        hint: "Enter your username",
+                      ),
                       const SizedBox(height: 20),
-
-                      // 🔵 Phone Number
                       _buildLabel("Phone Number"),
-                      _buildTextField(hint: "Enter your phone number"),
-
+                      _buildTextField(
+                        controller: _controller.phoneController,
+                        hint: "Enter your phone number",
+                      ),
                       const SizedBox(height: 20),
-
-                      // 🔵 PASSWORD
                       _buildLabel("Password"),
                       _buildTextField(
+                        controller: _controller.passwordController,
                         hint: "Enter your password",
                         isPassword: true,
                         suffixIcon: Icons.visibility_off,
                       ),
-
                       const SizedBox(height: 35),
-
-                      // BUTTON
                       SizedBox(
                         width: double.infinity,
                         height: 50,
                         child: ElevatedButton(
-                          onPressed: () {
-                            // TODO: proses register
-                          },
+                          onPressed: _onRegisterPressed,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.orange,
                             shape: RoundedRectangleBorder(
@@ -109,15 +111,10 @@ class RegisterPage extends StatelessWidget {
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 20),
-
-                      // 🔵 BACK TO LOGIN
                       Center(
                         child: TextButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                          },
+                          onPressed: () => Navigator.pop(context),
                           child: const Text(
                             "Already have an account? Sign In",
                             style: TextStyle(color: Colors.orange),
@@ -135,22 +132,18 @@ class RegisterPage extends StatelessWidget {
     );
   }
 
-  // 🔵 LABEL
   Widget _buildLabel(String text) {
     return Padding(
       padding: const EdgeInsets.only(left: 6, bottom: 6),
       child: Text(
         text,
-        style: const TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: 14,
-        ),
+        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
       ),
     );
   }
 
-  // 🔵 TEXT FIELD
   Widget _buildTextField({
+    required TextEditingController controller,
     required String hint,
     bool isPassword = false,
     IconData? suffixIcon,
@@ -161,14 +154,16 @@ class RegisterPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(25),
       ),
       child: TextField(
+        controller: controller,
         obscureText: isPassword,
         decoration: InputDecoration(
           hintText: hint,
           border: InputBorder.none,
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          suffixIcon:
-              suffixIcon != null ? Icon(suffixIcon, color: Colors.grey) : null,
+          suffixIcon: suffixIcon != null
+              ? Icon(suffixIcon, color: Colors.grey)
+              : null,
         ),
       ),
     );

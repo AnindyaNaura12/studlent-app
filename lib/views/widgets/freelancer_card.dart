@@ -1,26 +1,10 @@
 import 'package:flutter/material.dart';
+import '../../models/freelancer_model.dart';
 
 class FreelancerCard extends StatelessWidget {
-  final String name;
-  final double rating;
-  final int reviewCount;
-  final String experience;
-  final String skills;
-  final String university;
-  final String price;
-  final String imagePath;
+  final FreelancerModel freelancer;
 
-  const FreelancerCard({
-    super.key,
-    required this.name,
-    required this.rating,
-    required this.reviewCount,
-    required this.experience,
-    required this.skills,
-    required this.university,
-    required this.price,
-    required this.imagePath,
-  });
+  const FreelancerCard({super.key, required this.freelancer});
 
   @override
   Widget build(BuildContext context) {
@@ -42,15 +26,14 @@ class FreelancerCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ── Foto ──
+          // Foto
           ClipRRect(
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(16)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
             child: SizedBox(
               height: 160,
               width: double.infinity,
               child: Image.asset(
-                imagePath,
+                freelancer.imagePath,
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => Container(
                   color: Colors.grey[200],
@@ -60,43 +43,39 @@ class FreelancerCard extends StatelessWidget {
             ),
           ),
 
-          // ── Info bawah ──
+          // Info
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Nama (kuning) + Rating (tebal)
                 Row(
                   children: [
                     Text(
-                      name,
+                      freelancer.name,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
-                        color: Color(0xFFFFB74D), // kuning sesuai mockup
+                        color: Color(0xFFFFB74D),
                       ),
                     ),
                     const Spacer(),
                     const Icon(Icons.star, color: Colors.orange, size: 13),
                     const SizedBox(width: 2),
                     Text(
-                      '$rating ($reviewCount)',
+                      '${freelancer.rating} (${freelancer.reviewCount})',
                       style: const TextStyle(
                         fontSize: 11,
                         color: Colors.black87,
-                        fontWeight: FontWeight.bold, // rating dicetak tebal
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 6),
-
-                // Experience + Skills
                 Text(
-                  '$experience\nExpert in $skills.',
+                  '${freelancer.experience}\nExpert in ${freelancer.skills}.',
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey[700],
@@ -105,20 +84,14 @@ class FreelancerCard extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-
                 const SizedBox(height: 4),
-
-                // University
                 Text(
-                  university,
+                  freelancer.university,
                   style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-
                 const SizedBox(height: 12),
-
-                // Harga — pill orange, font hitam
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 9),
@@ -127,12 +100,12 @@ class FreelancerCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(24),
                   ),
                   child: Text(
-                    price,
+                    freelancer.price,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 13,
-                      color: Colors.black, // harga warna hitam
+                      color: Colors.black,
                     ),
                   ),
                 ),

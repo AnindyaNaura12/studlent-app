@@ -4,22 +4,14 @@ class FeatureItem extends StatelessWidget {
   final String iconPath;
   final String label;
 
-  const FeatureItem({
-    super.key,
-    required this.iconPath,
-    required this.label,
-  });
+  const FeatureItem({super.key, required this.iconPath, required this.label});
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: Column(
         children: [
-          Image.asset(
-            iconPath,
-            height: 45,
-            fit: BoxFit.contain,
-          ),
+          Image.asset(iconPath, height: 45, fit: BoxFit.contain),
           const SizedBox(height: 12),
           Text(
             label,
