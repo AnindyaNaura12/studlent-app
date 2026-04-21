@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'home_content.dart';
 import 'profile_page.dart';
+import 'bookings_page.dart'; // Import Halaman BookingsPage
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -16,7 +17,7 @@ class _HomePageState extends State<HomePage> {
     const HomeContent(),
     const Center(child: Text("Services")),
     const Center(child: Text("Chat")),
-    const Center(child: Text("Bookings")),
+    const BookingsPage(), // Menggunakan BookingsPage yang sudah dibuat
     const ProfilePage(),
   ];
 
@@ -24,18 +25,12 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: _pages,
-      ),
+      body: IndexedStack(index: _selectedIndex, children: _pages),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: Colors.white,
           border: Border(
-            top: BorderSide(
-              color: Colors.grey.withOpacity(0.2),
-              width: 1,
-            ),
+            top: BorderSide(color: Colors.grey.withOpacity(0.2), width: 1),
           ),
         ),
         child: BottomNavigationBar(
