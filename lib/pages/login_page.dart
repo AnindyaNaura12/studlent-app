@@ -1,69 +1,47 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
-import '../../controllers/auth_controller.dart';
 import 'register_page.dart';
 
-class LoginPage extends StatefulWidget {
+class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
-
-  @override
-  State<LoginPage> createState() => _LoginPageState();
-}
-
-class _LoginPageState extends State<LoginPage> {
-  final AuthController _controller = AuthController();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _onLoginPressed() {
-    final error = _controller.login();
-    if (error != null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(error)));
-      return;
-    }
-    // TODO: navigasi ke HomePage setelah login sukses
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
         width: double.infinity,
+
+        // 🔥 BACKGROUND GRADIENT
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFFFFB74D), Color(0xFFFFE0B2)],
+            colors: [
+              Color(0xFFFFB74D),
+              Color(0xFFFFE0B2),
+            ],
           ),
         ),
+
         child: Column(
           children: [
             const SizedBox(height: 80),
-            Align(
-              alignment: Alignment.topLeft,
-              child: IconButton(
-                icon: const Icon(
-                  Icons.arrow_back,
-                  color: Colors.white,
-                  size: 30,
-                ),
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-              ),
+
+            // 🔵 LOGO
+            Image.asset(
+              'assets/images/logo_studlent.png',
+              height: 80,
             ),
-            Image.asset('assets/images/logo_studlent.png', height: 80),
+
             const SizedBox(height: 30),
+
+            // 🔵 LOGIN CARD
             Expanded(
               child: Container(
                 width: double.infinity,
                 margin: const EdgeInsets.symmetric(horizontal: 20),
                 padding: const EdgeInsets.all(28),
+
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: const BorderRadius.only(
@@ -78,10 +56,13 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ],
                 ),
+
                 child: SingleChildScrollView(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+
+                      // HEADLINE
                       Center(
                         child: RichText(
                           textAlign: TextAlign.center,
@@ -96,29 +77,38 @@ class _LoginPageState extends State<LoginPage> {
                               TextSpan(text: "Welcome to\n"),
                               TextSpan(
                                 text: "Studlent",
-                                style: TextStyle(color: Colors.orange),
+                                style: TextStyle(
+                                  color: Colors.orange,
+                                ),
                               ),
                               TextSpan(text: ", Login Now!"),
                             ],
                           ),
                         ),
                       ),
+
                       const SizedBox(height: 40),
+
+                      // 🔵 USERNAME
                       _buildLabel("Username"),
                       _buildTextField(
-                        controller: _controller.usernameController,
                         hint: "Enter your username",
                         icon: Icons.person,
                       ),
+
                       const SizedBox(height: 20),
+
+                      // 🔵 PASSWORD
                       _buildLabel("Password"),
                       _buildTextField(
-                        controller: _controller.passwordController,
                         hint: "Enter your password",
                         icon: Icons.lock,
                         isPassword: true,
                       ),
+
                       const SizedBox(height: 20),
+
+                      // 🔥 LOGIN BUTTON (gradient + shadow)
                       SizedBox(
                         width: double.infinity,
                         height: 55,
@@ -126,7 +116,10 @@ class _LoginPageState extends State<LoginPage> {
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(30),
                             gradient: const LinearGradient(
-                              colors: [Color(0xFFFF9800), Color(0xFFFFB74D)],
+                              colors: [
+                                Color(0xFFFF9800),
+                                Color(0xFFFFB74D),
+                              ],
                             ),
                             boxShadow: [
                               BoxShadow(
@@ -137,7 +130,9 @@ class _LoginPageState extends State<LoginPage> {
                             ],
                           ),
                           child: ElevatedButton(
-                            onPressed: _onLoginPressed,
+                            onPressed: () {
+                              // TODO: Navigasi ke Home
+                            },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.transparent,
                               shadowColor: Colors.transparent,
@@ -156,7 +151,10 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                       ),
+
                       const SizedBox(height: 20),
+
+                      // 🔵 REGISTER TEXT
                       Center(
                         child: Text.rich(
                           TextSpan(
@@ -174,7 +172,7 @@ class _LoginPageState extends State<LoginPage> {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (_) => const RegisterPage(),
+                                        builder: (context) => const RegisterPage(),
                                       ),
                                     );
                                   },
@@ -194,18 +192,22 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
+  // 🔵 LABEL
   Widget _buildLabel(String text) {
     return Padding(
       padding: const EdgeInsets.only(left: 8, bottom: 8),
       child: Text(
         text,
-        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+        style: const TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 15,
+        ),
       ),
     );
   }
 
+  // 🔵 TEXT FIELD (IMPROVED)
   Widget _buildTextField({
-    required TextEditingController controller,
     required String hint,
     required IconData icon,
     bool isPassword = false,
@@ -216,7 +218,6 @@ class _LoginPageState extends State<LoginPage> {
         borderRadius: BorderRadius.circular(25),
       ),
       child: TextField(
-        controller: controller,
         obscureText: isPassword,
         decoration: InputDecoration(
           hintText: hint,

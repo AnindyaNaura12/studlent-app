@@ -1,6 +1,6 @@
-// lib/views/pages/bookings_page.dart
-
 import 'package:flutter/material.dart';
+import '../../controllers/booking_controller.dart';
+import '../../models/booking_model.dart';
 
 class BookingsPage extends StatefulWidget {
   const BookingsPage({super.key});
@@ -10,110 +10,98 @@ class BookingsPage extends StatefulWidget {
 }
 
 class _BookingsPageState extends State<BookingsPage> {
-  String selectedFilter = 'All';
-
-  List<Booking> get filteredBookings {
-    if (selectedFilter == 'All') return bookings;
-    if (selectedFilter == 'Active') {
-      return bookings.where((b) => b.status == 'In Progress').toList();
-    }
-    if (selectedFilter == 'Done') {
-      return bookings.where((b) => b.status == 'Done').toList();
-    }
-    return bookings;
-  }
+  final controller = BookingController();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF7F7FB),
+
       body: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header dengan gradient oranye ke putih
+
+            // HEADER
             Container(
               width: double.infinity,
+              padding: const EdgeInsets.all(20),
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
+                  colors: [Color(0xFFFFC46B), Colors.white],
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Color(0xFFFFD9A0), Colors.white],
                 ),
               ),
-              padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
-              child: const Center(
-                child: Text(
-                  'My Bookings',
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
+              child: const Text(
+                "My Bookings",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ),
 
-            // Filter buttons
+            // FILTER
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  _buildFilterButton('All'),
-                  const SizedBox(width: 12),
-                  _buildFilterButton('Active'),
-                  const SizedBox(width: 12),
-                  _buildFilterButton('Done'),
+                  _filter("All"),
+                  const SizedBox(width: 8),
+                  _filter("Active"),
+                  const SizedBox(width: 8),
+                  _filter("Done"),
                 ],
               ),
             ),
 
-            // List of bookings
+            // LIST
             Expanded(
               child: ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: filteredBookings.length,
+                itemCount: controller.filteredBookings.length,
                 itemBuilder: (context, index) {
-                  return _buildBookingItem(filteredBookings[index]);
+                  return _bookingCard(controller.filteredBookings[index]);
                 },
               ),
             ),
           ],
         ),
       ),
-
-      // Bottom Navigation Bar
     );
   }
 
-  Widget _buildFilterButton(String label) {
-    final bool isSelected = selectedFilter == label;
+  // FILTER BUTTON
+  Widget _filter(String text) {
+    final isActive = controller.selectedFilter == text;
+
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() => selectedFilter = label),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
+        onTap: () {
+          setState(() {
+            controller.setFilter(text);
+          });
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: const Color(0xFFF5A623),
+            color: isActive ? const Color(0xFFFFA726) : Colors.white,
             borderRadius: BorderRadius.circular(30),
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: Colors.orange.withOpacity(0.4),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ]
-                : [],
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 6,
+              )
+            ],
           ),
-          child: Center(
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: Color.fromARGB(255, 0, 0, 0),
-                fontWeight: FontWeight.bold,
-                fontSize: 15,
-              ),
+          child: Text(
+            text,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: isActive ? Colors.white : Colors.black54,
             ),
           ),
         ),
@@ -121,153 +109,152 @@ class _BookingsPageState extends State<BookingsPage> {
     );
   }
 
-  Widget _buildBookingItem(Booking booking) {
+  // BOOKING CARD (lebih modern)
+  Widget _bookingCard(Booking b) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F0E8),
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+
+          // ================= TOP SECTION =================
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Profile Image
+
+              // IMAGE
               ClipRRect(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
                 child: Image.asset(
-                  booking.image,
-                  width: 90,
-                  height: 90,
+                  b.image,
+                  width: 70,
+                  height: 70,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    width: 90,
-                    height: 90,
-                    color: Colors.grey[300],
-                    child: const Icon(
-                      Icons.person,
-                      size: 40,
-                      color: Colors.grey,
-                    ),
-                  ),
                 ),
               ),
-              const SizedBox(width: 14),
 
-              // Booking details
+              const SizedBox(width: 12),
+
+              // INFO
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      booking.serviceName,
+                      b.serviceName,
                       style: const TextStyle(
-                        fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black,
+                        fontSize: 14,
                       ),
                     ),
-                    const SizedBox(height: 2),
                     Text(
-                      booking.providerName,
+                      b.providerName,
                       style: const TextStyle(
-                        fontSize: 13,
-                        color: Colors.black54,
+                        color: Colors.grey,
+                        fontSize: 12,
                       ),
                     ),
                     const SizedBox(height: 6),
-                    RichText(
-                      text: TextSpan(
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.black,
-                        ),
-                        children: [
-                          const TextSpan(text: 'Total: '),
-                          TextSpan(
-                            text: 'Rp. ${booking.total}',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-
-                    // Status badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 5,
-                        horizontal: 20,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _getStatusColor(booking.status),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        booking.status,
-                        style: TextStyle(
-                          color: booking.status == 'Pending'
-                              ? Colors.black
-                              : const Color.fromARGB(255, 0, 0, 0),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                        ),
+                    Text(
+                      "Rp ${b.total}",
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
                       ),
                     ),
                   ],
                 ),
               ),
+
+              // STATUS
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: _statusColor(b.status),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  b.status,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
             ],
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
 
-          // Order Date, Deadline, and View Details row
+          // ================= DATE SECTION =================
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+
+              // ORDER DATE
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Order Date:',
-                    style: TextStyle(fontSize: 12, color: Colors.black54),
+                    "Order Date",
+                    style: TextStyle(fontSize: 11, color: Colors.grey),
                   ),
-                  Text(booking.orderDate, style: const TextStyle(fontSize: 13)),
+                  Text(
+                    b.orderDate,
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  ),
                 ],
               ),
-              const SizedBox(width: 24),
+
+              // DEADLINE
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Deadline:',
-                    style: TextStyle(fontSize: 12, color: Colors.black54),
+                    "Deadline",
+                    style: TextStyle(fontSize: 11, color: Colors.grey),
                   ),
-                  Text(booking.deadline, style: const TextStyle(fontSize: 13)),
+                  Text(
+                    b.deadline,
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  ),
                 ],
               ),
-              const Spacer(),
-              // View Details button
+
+              // VIEW DETAILS BUTTON
               GestureDetector(
-                onTap: () {},
+                onTap: () {
+                  // nanti bisa navigasi ke detail page
+                },
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    vertical: 10,
-                    horizontal: 16,
+                    horizontal: 14,
+                    vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF5A623),
-                    borderRadius: BorderRadius.circular(24),
+                    color: const Color(0xFFFFA726),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Text(
-                    'View Details',
+                    "View Details",
                     style: TextStyle(
-                      color: Color.fromARGB(255, 0, 0, 0),
+                      fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      fontSize: 13,
+                      color: Colors.black,
                     ),
                   ),
                 ),
@@ -279,66 +266,16 @@ class _BookingsPageState extends State<BookingsPage> {
     );
   }
 
-  Color _getStatusColor(String status) {
+  Color _statusColor(String status) {
     switch (status) {
-      case 'In Progress':
-        return const Color(0xFF7BB8F0); // biru muda
-      case 'Done':
-        return const Color(0xFF4CAF50); // hijau
-      case 'Pending':
-        return const Color(0xFFFFEB3B); // kuning
+      case "Done":
+        return Colors.green.withOpacity(0.2);
+      case "In Progress":
+        return Colors.blue.withOpacity(0.2);
+      case "Pending":
+        return Colors.orange.withOpacity(0.2);
       default:
-        return Colors.grey;
+        return Colors.grey.withOpacity(0.2);
     }
   }
 }
-
-class Booking {
-  final String serviceName;
-  final String providerName;
-  final String total;
-  final String orderDate;
-  final String deadline;
-  final String status;
-  final String image;
-
-  Booking({
-    required this.serviceName,
-    required this.providerName,
-    required this.total,
-    required this.orderDate,
-    required this.deadline,
-    required this.status,
-    required this.image,
-  });
-}
-
-List<Booking> bookings = [
-  Booking(
-    serviceName: 'Website Development',
-    providerName: 'Jessica Jung',
-    total: '550.000',
-    orderDate: '24 July, 2026',
-    deadline: '12 October, 2026',
-    status: 'In Progress',
-    image: 'assets/images/freelancers/freelancer_1.png',
-  ),
-  Booking(
-    serviceName: 'Write & Translation',
-    providerName: 'Jisoo Park',
-    total: '250.000',
-    orderDate: '24 July, 2026',
-    deadline: '12 October, 2026',
-    status: 'Done',
-    image: 'assets/images/freelancers/freelancer_2.png',
-  ),
-  Booking(
-    serviceName: 'Write & Translation',
-    providerName: 'Jisoo Park',
-    total: '250.000',
-    orderDate: '24 July, 2026',
-    deadline: '12 October, 2026',
-    status: 'Pending',
-    image: 'assets/images/freelancers/freelancer_3.png',
-  ),
-];

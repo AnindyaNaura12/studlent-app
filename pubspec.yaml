@@ -24,6 +24,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/logo_studlent.png
+    - assets/images/cover_regist.png
     - assets/images/hero_student.png
     - assets/images/icons/
     - assets/images/categories/

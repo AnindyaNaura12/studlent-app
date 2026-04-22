@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import '../../models/freelancer_model.dart';
+import '/models/services_model.dart';
 
-class FreelancerCard extends StatelessWidget {
-  final FreelancerModel freelancer;
+class ServiceCard extends StatelessWidget {
+  final ServiceModel service;
 
-  const FreelancerCard({super.key, required this.freelancer});
+  const ServiceCard({super.key, required this.service});
 
   @override
   Widget build(BuildContext context) {
@@ -26,14 +26,15 @@ class FreelancerCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Foto
+
+          // IMAGE
           ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
             child: SizedBox(
               height: 160,
               width: double.infinity,
               child: Image.asset(
-                freelancer.imagePath,
+                service.imagePath,
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => Container(
                   color: Colors.grey[200],
@@ -43,17 +44,18 @@ class FreelancerCard extends StatelessWidget {
             ),
           ),
 
-          // Info
+          // INFO
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
               children: [
+
+                // NAME + RATING
                 Row(
                   children: [
                     Text(
-                      freelancer.name,
+                      service.name,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
@@ -64,7 +66,7 @@ class FreelancerCard extends StatelessWidget {
                     const Icon(Icons.star, color: Colors.orange, size: 13),
                     const SizedBox(width: 2),
                     Text(
-                      '${freelancer.rating} (${freelancer.reviewCount})',
+                      '${service.rating} (${service.totalReviews})',
                       style: const TextStyle(
                         fontSize: 11,
                         color: Colors.black87,
@@ -73,9 +75,12 @@ class FreelancerCard extends StatelessWidget {
                     ),
                   ],
                 ),
+
                 const SizedBox(height: 6),
+
+                // SKILLS
                 Text(
-                  '${freelancer.experience}\nExpert in ${freelancer.skills}.',
+                  service.skills,
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey[700],
@@ -84,14 +89,20 @@ class FreelancerCard extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
+
                 const SizedBox(height: 4),
+
+                // UNIVERSITY
                 Text(
-                  freelancer.university,
+                  service.university,
                   style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
+
                 const SizedBox(height: 12),
+
+                // PRICE BUTTON
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 9),
@@ -100,7 +111,7 @@ class FreelancerCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(24),
                   ),
                   child: Text(
-                    freelancer.price,
+                    service.price,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,

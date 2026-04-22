@@ -1,20 +1,20 @@
-class FreelancerModel {
+class ServiceModel {
   final String name;
-  final double rating;
-  final int reviewCount;
-  final String experience;
-  final String skills;
   final String university;
+  final String skills;
+  final double rating;
+  final int totalReviews;
   final String price;
+  final String experience;
   final String imagePath;
 
-  FreelancerModel({
+  ServiceModel({
     required this.name,
-    required this.rating,
-    required this.reviewCount,
     required this.experience,
-    required this.skills,
     required this.university,
+    required this.skills,
+    required this.rating,
+    required this.totalReviews,
     required this.price,
     required this.imagePath,
   });

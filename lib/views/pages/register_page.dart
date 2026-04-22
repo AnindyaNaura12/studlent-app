@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import '../../controllers/auth_controller.dart';
+import 'login_page.dart';
+import 'register_cover_page.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -43,6 +46,23 @@ class _RegisterPageState extends State<RegisterPage> {
         child: Column(
           children: [
             const SizedBox(height: 60),
+            Align(
+              alignment: Alignment.topLeft,
+              child: IconButton(
+                icon: const Icon(
+                  Icons.arrow_back,
+                  color: Colors.white,
+                  size: 30,
+                ),
+                onPressed: () {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => RegisterCoverPage()),
+                    (route) => false,
+                  );
+                },
+                              ),
+            ),
             Image.asset('assets/images/logo_studlent.png', height: 70),
             const SizedBox(height: 30),
             Expanded(
@@ -112,15 +132,35 @@ class _RegisterPageState extends State<RegisterPage> {
                         ),
                       ),
                       const SizedBox(height: 20),
-                      Center(
-                        child: TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text(
-                            "Already have an account? Sign In",
-                            style: TextStyle(color: Colors.orange),
+                      SizedBox(
+                        width: double.infinity,
+                        child: Center(
+                          child: RichText(
+                            text: TextSpan(
+                              style: const TextStyle(
+                                color: Colors.grey, // 👈 teks utama jadi abu-abu
+                                fontWeight: FontWeight.normal,
+                              ),
+                              children: [
+                                const TextSpan(
+                                  text: "Already have an account? ",
+                                ),
+                                TextSpan(
+                                  text: "Sign In",
+                                  style: const TextStyle(
+                                    color: Color(0xFFFFB84C),
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  recognizer: TapGestureRecognizer()
+                                    ..onTap = () {
+                                      _controller.goToLogin(context);
+                                    },
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
+                      )
                     ],
                   ),
                 ),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../controllers/home_controller.dart';
+import '../../controllers/services_controller.dart';
+import '../../controllers/auth_controller.dart';
 import '../widgets/feature_item.dart';
 import '../widgets/category_card.dart';
 import '../widgets/freelancer_card.dart';
@@ -13,11 +15,12 @@ class HomeContent extends StatefulWidget {
 
 class _HomeContentState extends State<HomeContent> {
   final HomeController _controller = HomeController();
+  final AuthController _controllerAuth = AuthController();
 
   @override
   Widget build(BuildContext context) {
     final categories = _controller.getCategories();
-    final freelancers = _controller.getPopularFreelancers();
+    final services = ServiceController.getServices();
 
     return SafeArea(
       child: SingleChildScrollView(
@@ -104,7 +107,6 @@ class _HomeContentState extends State<HomeContent> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const TextSpan(text: "."),
                   ],
                 ),
               ),
@@ -241,8 +243,8 @@ class _HomeContentState extends State<HomeContent> {
                 physics: const BouncingScrollPhysics(),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: freelancers
-                      .map((f) => FreelancerCard(freelancer: f))
+                  children: services
+                      .map((s) => ServiceCard(service: s))
                       .toList(),
                 ),
               ),
@@ -297,11 +299,14 @@ class _HomeContentState extends State<HomeContent> {
                       ),
                     ),
                     const SizedBox(width: 16),
+                   const SizedBox(width: 16),
                     ElevatedButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        _controllerAuth.goToRegisterCover(context);
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFFFE0B2),
-                        foregroundColor: Colors.orange.shade900,
+                        foregroundColor: Colors.orange,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 20,
                           vertical: 16,

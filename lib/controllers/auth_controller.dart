@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../views/pages/register_cover_page.dart';
+import '../views/pages/register_page.dart';
+import '../views/pages/login_page.dart';
 
 class AuthController {
   final TextEditingController usernameController = TextEditingController();
@@ -39,4 +42,27 @@ class AuthController {
     passwordController.dispose();
     phoneController.dispose();
   }
+
+  void goToRegister(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const RegisterPage()),
+    );
+  }
+
+  void goToRegisterCover(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RegisterCoverPage(),
+      ),
+    );
+  }
+
+  void goToLogin(BuildContext context) {
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (_) => const LoginPage()),
+  );
+}
 }

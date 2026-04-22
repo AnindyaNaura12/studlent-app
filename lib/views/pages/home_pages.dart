@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'home_content.dart';
 import 'profile_page.dart';
-import 'bookings_page.dart'; // Import Halaman BookingsPage
+import 'bookings_page.dart'; 
+import 'services_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -15,7 +16,7 @@ class _HomePageState extends State<HomePage> {
 
   final List<Widget> _pages = [
     const HomeContent(),
-    const Center(child: Text("Services")),
+    const ServicesPage(),
     const Center(child: Text("Chat")),
     const BookingsPage(), // Menggunakan BookingsPage yang sudah dibuat
     const ProfilePage(),

@@ -1,4 +1,4 @@
-import '../models/freelancer_model.dart';
+import '../models/services_model.dart';
 import '../models/category_model.dart';
 
 class HomeController {
@@ -33,32 +33,32 @@ class HomeController {
   }
 
   /// Daftar freelancer populer
-  List<FreelancerModel> getPopularFreelancers() {
+  List<ServiceModel> getPopularServices() {
     return [
-      FreelancerModel(
+      ServiceModel(
         name: 'Carla',
         rating: 4.9,
-        reviewCount: 200,
+        totalReviews: 200,
         experience: '3 years of experience.',
         skills: 'Java, CSS',
         university: 'Universitas Brawijaya',
         price: 'Rp. 200.000',
         imagePath: 'assets/images/freelancers/freelancer_1.png',
       ),
-      FreelancerModel(
+      ServiceModel(
         name: 'Carla',
         rating: 4.9,
-        reviewCount: 200,
+        totalReviews: 200,
         experience: '3 years of experience',
         skills: 'Java, CSS',
         university: 'Politeknik Negeri Malang',
         price: 'Rp. 250.000',
         imagePath: 'assets/images/freelancers/freelancer_2.png',
       ),
-      FreelancerModel(
+      ServiceModel(
         name: 'Reza',
         rating: 4.8,
-        reviewCount: 150,
+        totalReviews: 150,
         experience: '2 years of experience',
         skills: 'Python, UI/UX',
         university: 'Universitas Negeri Malang',
