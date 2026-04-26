@@ -36,7 +36,7 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF3E0),
+      backgroundColor: Colors.orange.shade50,
       body: _controller.isFreelancer
           ? _buildFreelancerProfile()
           : _buildClientProfile(),
@@ -81,7 +81,9 @@ class _ProfilePageState extends State<ProfilePage> {
                         onTap: () => _showJoinFreelanceDialog(context),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 18, vertical: 10),
+                            horizontal: 18,
+                            vertical: 10,
+                          ),
                           decoration: BoxDecoration(
                             color: const Color(0xFFFFB74D),
                             borderRadius: BorderRadius.circular(25),
@@ -112,7 +114,9 @@ class _ProfilePageState extends State<ProfilePage> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                        color: const Color(0xFFFFB74D), width: 3),
+                      color: const Color(0xFFFFB74D),
+                      width: 3,
+                    ),
                   ),
                   child: CircleAvatar(
                     radius: 48,
@@ -165,8 +169,11 @@ class _ProfilePageState extends State<ProfilePage> {
                   Expanded(child: _statItem(user.totalSpent, "Total Spent")),
                   _verticalDivider(),
                   Expanded(
-                      child: _statItem(
-                          "${user.completedOrders}", "Completed Orders")),
+                    child: _statItem(
+                      "${user.completedOrders}",
+                      "Completed Orders",
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -234,117 +241,137 @@ class _ProfilePageState extends State<ProfilePage> {
     final user = _controller.getFreelancerUser();
     final menuItems = _controller.getFreelancerMenuItems();
 
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          const SizedBox(height: 50),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      "My Profile",
+    // Kode baru dimulai di sini
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFFFE0B2), Color(0xFFFFF3E0)],
+        ),
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
+            const SizedBox(height: 50),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        "My Profile",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: () {},
+                        icon: const Icon(
+                          Icons.edit,
+                          size: 16,
+                          color: Colors.black,
+                        ),
+                        label: const Text(
+                          "Edit Profile",
+                          style: TextStyle(color: Colors.black),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFFB74D),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 15),
+                  CircleAvatar(
+                    radius: 50,
+                    backgroundColor: Colors.orange.withOpacity(0.2),
+                    child: CircleAvatar(
+                      radius: 46,
+                      backgroundImage: AssetImage(user.avatarPath),
+                      onBackgroundImageError: (_, __) {},
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    user.username,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    user.specialty,
+                    style: const TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
+                  Text(
+                    "Student of ${user.university}",
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Text(
+                      "Freelancer",
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: 12,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    ElevatedButton.icon(
-                      onPressed: () {},
-                      icon: const Icon(Icons.edit,
-                          size: 16, color: Colors.black),
-                      label: const Text(
-                        "Edit Profile",
-                        style: TextStyle(color: Colors.black),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFFB74D),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 15),
-                CircleAvatar(
-                  radius: 50,
-                  backgroundColor: Colors.orange.withOpacity(0.2),
-                  child: CircleAvatar(
-                    radius: 46,
-                    backgroundImage: AssetImage(user.avatarPath),
-                    onBackgroundImageError: (_, __) {},
                   ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  user.username,
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  user.specialty,
-                  style: const TextStyle(fontSize: 14, color: Colors.grey),
-                ),
-                Text(
-                  "Student of ${user.university}",
-                  style: const TextStyle(fontSize: 14),
-                ),
-                const SizedBox(height: 6),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text(
-                    "Freelancer",
-                    style: TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
-          _buildToggle(),
-          const SizedBox(height: 25),
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 20),
-            padding: const EdgeInsets.symmetric(vertical: 20),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF0EBE0),
-              borderRadius: BorderRadius.circular(20),
+            const SizedBox(height: 20),
+            _buildToggle(),
+            const SizedBox(height: 25),
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0EBE0),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _statItem("${user.services}", "Services"),
+                  _statItem("⭐ ${user.rating}", "Rating"),
+                  _statItem(user.earned, "Earned"),
+                ],
+              ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _statItem("${user.services}", "Services"),
-                _statItem("⭐ ${user.rating}", "Rating"),
-                _statItem(user.earned, "Earned"),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(
-              children: menuItems
-                  .map((item) => _menuItem(
+            const SizedBox(height: 20),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                children: menuItems
+                    .map(
+                      (item) => _menuItem(
                         item['title'] as String,
                         hasTag: item['hasTag'] as bool,
-                      ))
-                  .toList(),
+                      ),
+                    )
+                    .toList(),
+              ),
             ),
-          ),
-          const SizedBox(height: 100),
-        ],
+            const SizedBox(height: 100),
+          ],
+        ),
       ),
     );
   }
@@ -384,12 +411,7 @@ class _ProfilePageState extends State<ProfilePage> {
           color: active ? const Color(0xFFFFB74D) : Colors.transparent,
           borderRadius: BorderRadius.circular(25),
           boxShadow: active
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 4,
-                  )
-                ]
+              ? [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4)]
               : [],
         ),
         child: Text(
@@ -408,10 +430,7 @@ class _ProfilePageState extends State<ProfilePage> {
       children: [
         Text(
           value,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
         const SizedBox(height: 4),
         Text(
@@ -424,11 +443,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _verticalDivider() {
-    return Container(
-      height: 40,
-      width: 1,
-      color: Colors.grey.withOpacity(0.3),
-    );
+    return Container(height: 40, width: 1, color: Colors.grey.withOpacity(0.3));
   }
 
   Widget _editableField({
@@ -473,8 +488,11 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           GestureDetector(
             onTap: () => _showEditDialog(context, label, controller),
-            child: const Icon(Icons.edit_outlined,
-                size: 20, color: Colors.black54),
+            child: const Icon(
+              Icons.edit_outlined,
+              size: 20,
+              color: Colors.black54,
+            ),
           ),
         ],
       ),
@@ -533,8 +551,7 @@ class _ProfilePageState extends State<ProfilePage> {
       onTap: () => _controller.onMenuTap(title),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -557,9 +574,10 @@ class _ProfilePageState extends State<ProfilePage> {
             const Text(
               ">",
               style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.black54,
-                  fontWeight: FontWeight.w500),
+                fontSize: 16,
+                color: Colors.black54,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),
@@ -572,20 +590,20 @@ class _ProfilePageState extends State<ProfilePage> {
   // ─────────────────────────────────────────────
 
   void _showEditDialog(
-      BuildContext context, String label, TextEditingController controller) {
+    BuildContext context,
+    String label,
+    TextEditingController controller,
+  ) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text("Edit $label"),
         content: TextField(
           controller: controller,
           decoration: InputDecoration(
             hintText: "Enter new $label",
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
         actions: [
@@ -597,14 +615,14 @@ class _ProfilePageState extends State<ProfilePage> {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFFFB74D),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             onPressed: () {
               setState(() {});
               Navigator.pop(ctx);
             },
-            child: const Text("Save",
-                style: TextStyle(color: Colors.black)),
+            child: const Text("Save", style: TextStyle(color: Colors.black)),
           ),
         ],
       ),
@@ -615,8 +633,7 @@ class _ProfilePageState extends State<ProfilePage> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(
           children: [
             Icon(Icons.star, color: Color(0xFFFFB74D)),
@@ -633,14 +650,17 @@ class _ProfilePageState extends State<ProfilePage> {
               style: TextStyle(fontSize: 14, color: Colors.black87),
             ),
             SizedBox(height: 16),
-            Text("✅  Buat profil freelancer",
-                style: TextStyle(fontSize: 13)),
+            Text("✅  Buat profil freelancer", style: TextStyle(fontSize: 13)),
             SizedBox(height: 6),
-            Text("✅  Tawarkan skill & layananmu",
-                style: TextStyle(fontSize: 13)),
+            Text(
+              "✅  Tawarkan skill & layananmu",
+              style: TextStyle(fontSize: 13),
+            ),
             SizedBox(height: 6),
-            Text("✅  Dapatkan penghasilan tambahan",
-                style: TextStyle(fontSize: 13)),
+            Text(
+              "✅  Dapatkan penghasilan tambahan",
+              style: TextStyle(fontSize: 13),
+            ),
           ],
         ),
         actions: [
@@ -652,7 +672,8 @@ class _ProfilePageState extends State<ProfilePage> {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFFFB74D),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             onPressed: () {
               Navigator.pop(ctx);
@@ -660,8 +681,10 @@ class _ProfilePageState extends State<ProfilePage> {
                 _controller.isFreelancer = true;
               });
             },
-            child: const Text("Daftar Sekarang",
-                style: TextStyle(color: Colors.black)),
+            child: const Text(
+              "Daftar Sekarang",
+              style: TextStyle(color: Colors.black),
+            ),
           ),
         ],
       ),
