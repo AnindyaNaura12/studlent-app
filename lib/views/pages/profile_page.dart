@@ -49,187 +49,173 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _buildClientProfile() {
     final user = _controller.getClientUser();
 
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          // ── HEADER ──
-          Container(
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0xFFFFE0B2), Color(0xFFFFF3E0)],
-              ),
-            ),
-            child: Column(
-              children: [
-                const SizedBox(height: 55),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        "My Profile",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () => _showJoinFreelanceDialog(context),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 18,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFB74D),
-                            borderRadius: BorderRadius.circular(25),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.orange.withOpacity(0.3),
-                                blurRadius: 8,
-                                offset: const Offset(0, 3),
-                              ),
-                            ],
-                          ),
-                          child: const Text(
-                            "Join Freelance",
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-                // Avatar
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: const Color(0xFFFFB74D),
-                      width: 3,
-                    ),
-                  ),
-                  child: CircleAvatar(
-                    radius: 48,
-                    backgroundColor: Colors.orange.withOpacity(0.2),
-                    child: CircleAvatar(
-                      radius: 44,
-                      backgroundImage: AssetImage(user.avatarPath),
-                      onBackgroundImageError: (_, __) {},
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  user.username,
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  user.email,
-                  style: const TextStyle(fontSize: 13, color: Colors.black54),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  user.location,
-                  style: const TextStyle(fontSize: 13, color: Colors.black54),
-                ),
-                const SizedBox(height: 20),
-                _buildToggle(),
-                const SizedBox(height: 24),
-              ],
-            ),
-          ),
-
-          // ── STATS ──
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 20),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF0EBE0),
-                borderRadius: BorderRadius.circular(20),
-              ),
+    // Membungkus seluruh halaman dengan Container yang memiliki background gradient
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFFFE0B2), Color(0xFFFFF3E0)],
+        ),
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
+            // ── HEADER ──
+            // Container gradien lama dihapus dan diganti dengan susunan konten biasa
+            const SizedBox(height: 55),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Expanded(child: _statItem("${user.myOrders}", "My Orders")),
-                  _verticalDivider(),
-                  Expanded(child: _statItem(user.totalSpent, "Total Spent")),
-                  _verticalDivider(),
-                  Expanded(
-                    child: _statItem(
-                      "${user.completedOrders}",
-                      "Completed Orders",
+                  const Text(
+                    "My Profile",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  GestureDetector(
+                    onTap: () => _showJoinFreelanceDialog(context),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFB74D),
+                        borderRadius: BorderRadius.circular(25),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.orange.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: const Text(
+                        "Join Freelance",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-
-          const SizedBox(height: 20),
-
-          // ── EDITABLE FIELDS ──
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(
-              children: [
-                _editableField(
-                  label: "Name",
-                  displayText: _nameController.text.isNotEmpty
-                      ? _nameController.text
-                      : user.name,
-                  controller: _nameController,
+            const SizedBox(height: 20),
+            // Avatar
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFFFFB74D), width: 3),
+              ),
+              child: CircleAvatar(
+                radius: 48,
+                backgroundColor: Colors.orange.withOpacity(0.2),
+                child: CircleAvatar(
+                  radius: 44,
+                  backgroundImage: AssetImage(user.avatarPath),
+                  onBackgroundImageError: (_, __) {},
                 ),
-                const SizedBox(height: 12),
-                _editableField(
-                  label: "Username",
-                  displayText: _usernameController.text.isNotEmpty
-                      ? _usernameController.text
-                      : user.username,
-                  controller: _usernameController,
-                ),
-                const SizedBox(height: 12),
-                _editableField(
-                  label: "Email",
-                  displayText: _emailController.text.isNotEmpty
-                      ? _emailController.text
-                      : user.email,
-                  controller: _emailController,
-                ),
-                const SizedBox(height: 12),
-                _passwordField(),
-              ],
+              ),
             ),
-          ),
-
-          const SizedBox(height: 12),
-
-          // ── BOTTOM MENU ──
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(
-              children: _controller
-                  .getClientMenuItems()
-                  .map((item) => _menuItem(item['title'] as String))
-                  .toList(),
+            const SizedBox(height: 12),
+            Text(
+              user.username,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
-          ),
+            const SizedBox(height: 4),
+            Text(
+              user.email,
+              style: const TextStyle(fontSize: 13, color: Colors.black54),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              user.location,
+              style: const TextStyle(fontSize: 13, color: Colors.black54),
+            ),
+            const SizedBox(height: 20),
+            _buildToggle(),
+            const SizedBox(height: 24),
 
-          const SizedBox(height: 100),
-        ],
+            // ── STATS ──
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0EBE0),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(child: _statItem("${user.myOrders}", "My Orders")),
+                    _verticalDivider(),
+                    Expanded(child: _statItem(user.totalSpent, "Total Spent")),
+                    _verticalDivider(),
+                    Expanded(
+                      child: _statItem(
+                        "${user.completedOrders}",
+                        "Completed Orders",
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // ── EDITABLE FIELDS ──
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                children: [
+                  _editableField(
+                    label: "Name",
+                    displayText: _nameController.text.isNotEmpty
+                        ? _nameController.text
+                        : user.name,
+                    controller: _nameController,
+                  ),
+                  const SizedBox(height: 12),
+                  _editableField(
+                    label: "Username",
+                    displayText: _usernameController.text.isNotEmpty
+                        ? _usernameController.text
+                        : user.username,
+                    controller: _usernameController,
+                  ),
+                  const SizedBox(height: 12),
+                  _editableField(
+                    label: "Email",
+                    displayText: _emailController.text.isNotEmpty
+                        ? _emailController.text
+                        : user.email,
+                    controller: _emailController,
+                  ),
+                  const SizedBox(height: 12),
+                  _passwordField(),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // ── BOTTOM MENU ──
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                children: _controller
+                    .getClientMenuItems()
+                    .map((item) => _menuItem(item['title'] as String))
+                    .toList(),
+              ),
+            ),
+            const SizedBox(height: 100),
+          ],
+        ),
       ),
     );
   }
