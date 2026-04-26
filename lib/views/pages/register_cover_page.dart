@@ -10,140 +10,165 @@ class RegisterCoverPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    // 🔥 SCALE SYSTEM
+    double scale(double size) => size * (screenWidth / 375);
+
     return Scaffold(
       body: Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFFFFD59E), Color(0xFFFFF8EE)],
+        width: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFFFD59E), Color(0xFFFFF8EE)],
+          ),
         ),
-      ),
-      child: SafeArea(
-        child: Stack(
-          children: [
+        child: SafeArea(
+          child: Stack(
+            children: [
 
-            // ===================== MAIN CONTENT =====================
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 28),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
+              // ================= MAIN CONTENT =================
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: scale(24)),
+                child: Column(
+                  children: [
 
-                  const Spacer(),
+                    SizedBox(height: scale(20)),
 
-                  Image.asset(
-                    'assets/images/logo_studlent.png',
-                    width: 160,
-                  ),
+                    const Spacer(),
 
-                  const SizedBox(height: 30),
-
-                  const Text(
-                    "Start Earning with\nYour Skills",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
+                    // LOGO
+                    Image.asset(
+                      'assets/images/logo_studlent.png',
+                      width: scale(140),
                     ),
-                  ),
 
-                  const SizedBox(height: 12),
+                    SizedBox(height: scale(24)),
 
-                  const Text(
-                    "Join Studlent and offer your services to real clients.",
-                    textAlign: TextAlign.center,
-                  ),
-
-                  const SizedBox(height: 35),
-
-                  Image.asset(
-                    'assets/images/cover_regist.png',
-                    height: 350,
-                    fit: BoxFit.contain,
-                  ),
-
-                  const Spacer(),
-
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const RegisterPage(),
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF3B82F6),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      child: const Text(
-                        "Create Freelance Account",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
+                    // TITLE
+                    Text(
+                      "Start Earning with\nYour Skills",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: scale(22),
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                  ),
 
-                  const SizedBox(height: 18),
+                    SizedBox(height: scale(10)),
 
-                  Wrap(
-                    alignment: WrapAlignment.center,
-                    children: [
-                      const Text("Want to become a freelancer? Start by "),
-                      GestureDetector(
-                        onTap: () {
-                          _controller.goToRegister(context);
+                    // SUBTITLE
+                    Text(
+                      "Join Studlent and offer your services to real clients.",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: scale(13),
+                        color: Colors.black54,
+                      ),
+                    ),
+
+                    SizedBox(height: scale(30)),
+
+                    // IMAGE
+                    Image.asset(
+                      'assets/images/cover_regist.png',
+                      height: scale(260),
+                      fit: BoxFit.contain,
+                    ),
+
+                    const Spacer(),
+
+                    // BUTTON
+                    SizedBox(
+                      width: double.infinity,
+                      height: scale(48),
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const RegisterPage(),
+                            ),
+                          );
                         },
-                        child: const Text(
-                          "creating a user account",
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF3B82F6),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(scale(12)),
+                          ),
+                        ),
+                        child: Text(
+                          "Create Freelance Account",
                           style: TextStyle(
-                            color: Color(0xFFFFB84C),
+                            color: Colors.white,
                             fontWeight: FontWeight.bold,
+                            fontSize: scale(14),
                           ),
                         ),
                       ),
-                      const Text("."),
-                    ],
-                  ),
+                    ),
 
-                  const SizedBox(height: 20),
-                ],
-              ),
-            ),
+                    SizedBox(height: scale(14)),
 
-            // ===================== BACK BUTTON =====================
-            Align(
-              alignment: Alignment.topLeft,
-              child: IconButton(
-                icon: const Icon(
-                  Icons.arrow_back,
-                  color: Colors.white,
-                  size: 30,
+                    // TEXT LINK
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      children: [
+                        Text(
+                          "Want to become a freelancer? Start by ",
+                          style: TextStyle(fontSize: scale(12)),
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            _controller.goToRegister(context);
+                          },
+                          child: Text(
+                            "creating a user account",
+                            style: TextStyle(
+                              fontSize: scale(12),
+                              color: const Color(0xFFFFB84C),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          ".",
+                          style: TextStyle(fontSize: scale(12)),
+                        ),
+                      ],
+                    ),
+
+                    SizedBox(height: scale(20)),
+                  ],
                 ),
-                onPressed: () {
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(builder: (_) => const HomePage()),
-                    (route) => false,
-                  );
-                },
               ),
-            ),
 
-          ],
+              // ================= BACK BUTTON =================
+              Positioned(
+                top: scale(10),
+                left: scale(10),
+                child: IconButton(
+                  icon: Icon(
+                    Icons.arrow_back,
+                    color: Colors.white,
+                    size: scale(24),
+                  ),
+                  onPressed: () {
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const HomePage()),
+                      (route) => false,
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-    ),
     );
   }
 }

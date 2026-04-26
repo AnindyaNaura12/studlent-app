@@ -26,11 +26,15 @@ class _LoginPageState extends State<LoginPage> {
           .showSnackBar(SnackBar(content: Text(error)));
       return;
     }
-    // TODO: navigasi ke HomePage setelah login sukses
   }
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    // 🔥 SCALE SYSTEM
+    double scale(double size) => size * (screenWidth / 375);
+
     return Scaffold(
       body: Container(
         width: double.infinity,
@@ -43,38 +47,49 @@ class _LoginPageState extends State<LoginPage> {
         ),
         child: Column(
           children: [
-            const SizedBox(height: 80),
-            Align(
-              alignment: Alignment.topLeft,
-              child: IconButton(
-                icon: const Icon(
-                  Icons.arrow_back,
-                  color: Colors.white,
-                  size: 30,
+            SizedBox(height: scale(50)),
+
+            // ================= BACK BUTTON =================
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: scale(16)),
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: IconButton(
+                  icon: Icon(
+                    Icons.arrow_back,
+                    color: Colors.white,
+                    size: scale(24),
+                  ),
+                  onPressed: () => Navigator.pop(context),
                 ),
-                onPressed: () {
-                  Navigator.pop(context);
-                },
               ),
             ),
-            Image.asset('assets/images/logo_studlent.png', height: 80),
-            const SizedBox(height: 30),
+
+            // ================= LOGO =================
+            Image.asset(
+              'assets/images/logo_studlent.png',
+              height: scale(60),
+            ),
+
+            SizedBox(height: scale(20)),
+
+            // ================= FORM CONTAINER =================
             Expanded(
               child: Container(
                 width: double.infinity,
-                margin: const EdgeInsets.symmetric(horizontal: 20),
-                padding: const EdgeInsets.all(28),
+                margin: EdgeInsets.symmetric(horizontal: scale(20)),
+                padding: EdgeInsets.all(scale(24)),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(40),
-                    topRight: Radius.circular(40),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(scale(30)),
+                    topRight: Radius.circular(scale(30)),
                   ),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.08),
-                      blurRadius: 20,
-                      offset: const Offset(0, -5),
+                      blurRadius: scale(20),
+                      offset: Offset(0, -scale(5)),
                     ),
                   ],
                 ),
@@ -82,17 +97,19 @@ class _LoginPageState extends State<LoginPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+
+                      // ================= TITLE =================
                       Center(
                         child: RichText(
                           textAlign: TextAlign.center,
-                          text: const TextSpan(
+                          text: TextSpan(
                             style: TextStyle(
-                              fontSize: 24,
+                              fontSize: scale(20),
                               fontWeight: FontWeight.bold,
                               height: 1.3,
                               color: Colors.black,
                             ),
-                            children: [
+                            children: const [
                               TextSpan(text: "Welcome to\n"),
                               TextSpan(
                                 text: "Studlent",
@@ -103,36 +120,45 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 40),
-                      _buildLabel("Username"),
+
+                      SizedBox(height: scale(30)),
+
+                      _buildLabel("Username", scale),
                       _buildTextField(
                         controller: _controller.usernameController,
                         hint: "Enter your username",
                         icon: Icons.person,
+                        scale: scale,
                       ),
-                      const SizedBox(height: 20),
-                      _buildLabel("Password"),
+
+                      SizedBox(height: scale(16)),
+
+                      _buildLabel("Password", scale),
                       _buildTextField(
                         controller: _controller.passwordController,
                         hint: "Enter your password",
                         icon: Icons.lock,
                         isPassword: true,
+                        scale: scale,
                       ),
-                      const SizedBox(height: 20),
+
+                      SizedBox(height: scale(20)),
+
+                      // ================= BUTTON =================
                       SizedBox(
                         width: double.infinity,
-                        height: 55,
+                        height: scale(50),
                         child: Container(
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(30),
+                            borderRadius: BorderRadius.circular(scale(30)),
                             gradient: const LinearGradient(
                               colors: [Color(0xFFFF9800), Color(0xFFFFB74D)],
                             ),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.orange.withOpacity(0.3),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
+                                blurRadius: scale(10),
+                                offset: Offset(0, scale(4)),
                               ),
                             ],
                           ),
@@ -142,39 +168,48 @@ class _LoginPageState extends State<LoginPage> {
                               backgroundColor: Colors.transparent,
                               shadowColor: Colors.transparent,
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
+                                borderRadius:
+                                    BorderRadius.circular(scale(30)),
                               ),
                             ),
-                            child: const Text(
+                            child: Text(
                               "Sign In",
                               style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 18,
+                                fontSize: scale(16),
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 20),
+
+                      SizedBox(height: scale(16)),
+
+                      // ================= REGISTER =================
                       Center(
                         child: Text.rich(
                           TextSpan(
                             text: "Don't have an account? ",
-                            style: TextStyle(color: Colors.grey[600]),
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: scale(12),
+                            ),
                             children: [
                               TextSpan(
                                 text: "Sign Up",
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Colors.orange,
                                   fontWeight: FontWeight.bold,
+                                  fontSize: scale(12),
                                 ),
                                 recognizer: TapGestureRecognizer()
                                   ..onTap = () {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (_) => const RegisterPage(),
+                                        builder: (_) =>
+                                            const RegisterPage(),
                                       ),
                                     );
                                   },
@@ -194,35 +229,45 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  Widget _buildLabel(String text) {
+  // ================= LABEL =================
+  Widget _buildLabel(String text, double Function(double) scale) {
     return Padding(
-      padding: const EdgeInsets.only(left: 8, bottom: 8),
+      padding: EdgeInsets.only(left: scale(6), bottom: scale(6)),
       child: Text(
         text,
-        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: scale(13),
+        ),
       ),
     );
   }
 
+  // ================= TEXTFIELD =================
   Widget _buildTextField({
     required TextEditingController controller,
     required String hint,
     required IconData icon,
+    required double Function(double) scale,
     bool isPassword = false,
   }) {
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFFF5F5F5),
-        borderRadius: BorderRadius.circular(25),
+        borderRadius: BorderRadius.circular(scale(25)),
       ),
       child: TextField(
         controller: controller,
         obscureText: isPassword,
+        style: TextStyle(fontSize: scale(13)),
         decoration: InputDecoration(
           hintText: hint,
-          prefixIcon: Icon(icon, color: Colors.grey),
+          hintStyle: TextStyle(fontSize: scale(12)),
+          prefixIcon: Icon(icon, color: Colors.grey, size: scale(18)),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 16),
+          contentPadding: EdgeInsets.symmetric(
+            vertical: scale(14),
+          ),
         ),
       ),
     );

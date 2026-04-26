@@ -8,45 +8,60 @@ class ServiceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    // 🔥 SCALE SYSTEM (biar konsisten sama page lain)
+    double scale(double size) => size * (screenWidth / 375);
+
     return Container(
-      width: 190,
-      margin: const EdgeInsets.only(right: 14, bottom: 4),
+      width: scale(180), // 🔥 responsive (dari 190)
+      margin: EdgeInsets.only(right: scale(14), bottom: scale(4)),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(scale(16)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.09),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+            blurRadius: scale(10),
+            offset: Offset(0, scale(3)),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
         children: [
 
-          // IMAGE
+          // ================= IMAGE =================
           ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(scale(16)),
+            ),
             child: SizedBox(
-              height: 160,
+              height: scale(150),
               width: double.infinity,
               child: Image.asset(
                 service.imagePath,
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => Container(
                   color: Colors.grey[200],
-                  child: const Icon(Icons.person, size: 52, color: Colors.grey),
+                  child: Icon(
+                    Icons.person,
+                    size: scale(50),
+                    color: Colors.grey,
+                  ),
                 ),
               ),
             ),
           ),
 
-          // INFO
+          // ================= INFO =================
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+            padding: EdgeInsets.fromLTRB(
+              scale(12),
+              scale(10),
+              scale(12),
+              scale(12),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -54,68 +69,74 @@ class ServiceCard extends StatelessWidget {
                 // NAME + RATING
                 Row(
                   children: [
-                    Text(
-                      service.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                        color: Color(0xFFFFB74D),
+                    Expanded(
+                      child: Text(
+                        service.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: scale(13),
+                          color: const Color(0xFFFFB74D),
+                        ),
                       ),
                     ),
-                    const Spacer(),
-                    const Icon(Icons.star, color: Colors.orange, size: 13),
-                    const SizedBox(width: 2),
+                    SizedBox(width: scale(4)),
+                    Icon(Icons.star, color: Colors.orange, size: scale(12)),
+                    SizedBox(width: scale(2)),
                     Text(
-                      '${service.rating} (${service.totalReviews})',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Colors.black87,
+                      '${service.rating}',
+                      style: TextStyle(
+                        fontSize: scale(10),
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ],
                 ),
 
-                const SizedBox(height: 6),
+                SizedBox(height: scale(6)),
 
                 // SKILLS
                 Text(
                   service.skills,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[700],
-                    height: 1.45,
-                  ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: scale(11),
+                    color: Colors.grey[700],
+                    height: 1.4,
+                  ),
                 ),
 
-                const SizedBox(height: 4),
+                SizedBox(height: scale(4)),
 
                 // UNIVERSITY
                 Text(
                   service.university,
-                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: scale(10),
+                    color: Colors.grey[600],
+                  ),
                 ),
 
-                const SizedBox(height: 12),
+                SizedBox(height: scale(10)),
 
                 // PRICE BUTTON
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 9),
+                  padding: EdgeInsets.symmetric(vertical: scale(8)),
                   decoration: BoxDecoration(
                     color: const Color(0xFFFFB74D),
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius: BorderRadius.circular(scale(20)),
                   ),
                   child: Text(
                     service.price,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: 13,
+                      fontSize: scale(12),
                       color: Colors.black,
                     ),
                   ),

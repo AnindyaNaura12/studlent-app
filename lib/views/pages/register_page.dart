@@ -138,7 +138,7 @@ class _RegisterPageState extends State<RegisterPage> {
                           child: RichText(
                             text: TextSpan(
                               style: const TextStyle(
-                                color: Colors.grey, // 👈 teks utama jadi abu-abu
+                                color: Colors.grey, 
                                 fontWeight: FontWeight.normal,
                               ),
                               children: [

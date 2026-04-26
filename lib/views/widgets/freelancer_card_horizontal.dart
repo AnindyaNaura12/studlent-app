@@ -4,47 +4,140 @@ import '/models/services_model.dart';
 class FreelancerCardHorizontal extends StatelessWidget {
   final ServiceModel service;
 
-  const FreelancerCardHorizontal({super.key, required this.service});
+  const FreelancerCardHorizontal({
+    super.key,
+    required this.service,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    // 🔥 SCALE SYSTEM
+    double scale(double size) => size * (screenWidth / 375);
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 15),
-      padding: const EdgeInsets.all(12),
+      margin: EdgeInsets.only(bottom: scale(14)),
+      padding: EdgeInsets.all(scale(12)),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(25),
+        borderRadius: BorderRadius.circular(scale(20)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5))
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: scale(10),
+            offset: Offset(0, scale(5)),
+          )
         ],
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+
+          // ================= IMAGE =================
           ClipRRect(
-            borderRadius: BorderRadius.circular(15),
-            child: Image.asset(service.imagePath, width: 100, height: 100, fit: BoxFit.cover),
+            borderRadius: BorderRadius.circular(scale(14)),
+            child: Image.asset(
+              service.imagePath,
+              width: scale(90),   // 🔥 responsive image
+              height: scale(90),
+              fit: BoxFit.cover,
+            ),
           ),
-          const SizedBox(width: 12),
+
+          SizedBox(width: scale(12)),
+
+          // ================= CONTENT =================
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("Video Editing", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)), // Hardcoded sesuai desain
-                Text(service.name, style: TextStyle(color: Color(0xFFFFB84C), fontWeight: FontWeight.bold)),
-                Text(service.skills, style: TextStyle(fontSize: 11, color: Colors.grey), maxLines: 2),
-                const SizedBox(height: 5),
-                Text(service.university, style: TextStyle(fontSize: 11)),
+
+                // CATEGORY (hardcoded)
+                Text(
+                  "Video Editing",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: scale(13),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+
+                // NAME
+                Text(
+                  service.name,
+                  style: TextStyle(
+                    color: const Color(0xFFFFB84C),
+                    fontWeight: FontWeight.bold,
+                    fontSize: scale(12),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+
+                // SKILLS
+                Text(
+                  service.skills,
+                  style: TextStyle(
+                    fontSize: scale(10),
+                    color: Colors.grey,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+
+                SizedBox(height: scale(4)),
+
+                // UNIVERSITY
+                Text(
+                  service.university,
+                  style: TextStyle(
+                    fontSize: scale(10),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+
+                SizedBox(height: scale(6)),
+
+                // ================= BOTTOM ROW =================
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(children: [
-                      Icon(Icons.star, color: Colors.amber, size: 14),
-                      Text(" ${service.rating} (${service.totalReviews})", style: TextStyle(fontSize: 11)),
-                    ]),
+
+                    // RATING
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.star,
+                          color: Colors.amber,
+                          size: scale(12),
+                        ),
+                        Text(
+                          " ${service.rating} (${service.totalReviews})",
+                          style: TextStyle(fontSize: scale(10)),
+                        ),
+                      ],
+                    ),
+
+                    // PRICE
                     Container(
-                      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(color: Color(0xFFFFB84C), borderRadius: BorderRadius.circular(15)),
-                      child: Text("Rp ${service.price}", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: scale(10),
+                        vertical: scale(4),
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFB84C),
+                        borderRadius: BorderRadius.circular(scale(15)),
+                      ),
+                      child: Text(
+                        "${service.price}",
+                        style: TextStyle(
+                          fontSize: scale(10),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ],
                 ),

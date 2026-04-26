@@ -16,25 +16,31 @@ class CategoryItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    // 🔥 SCALE SYSTEM (sama seperti page lain)
+    double scale(double size) => size * (screenWidth / 375);
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(scale(15)),
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          width: 100,
-          margin: const EdgeInsets.only(right: 12),
+          width: scale(90), // 🔥 responsive width
+          margin: EdgeInsets.only(right: scale(12)),
+          padding: EdgeInsets.symmetric(vertical: scale(10)),
           decoration: BoxDecoration(
             color: isSelected
-                ? const Color(0xFFFFA726) // oranye lebih soft
+                ? const Color(0xFFFFA726)
                 : const Color(0xFFFFB84C).withOpacity(0.85),
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: BorderRadius.circular(scale(15)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.08),
-                blurRadius: 6,
-                offset: const Offset(0, 3),
+                blurRadius: scale(6),
+                offset: Offset(0, scale(3)),
               ),
             ],
           ),
@@ -46,19 +52,19 @@ class CategoryItem extends StatelessWidget {
                 duration: const Duration(milliseconds: 200),
                 child: Image.asset(
                   iconPath,
-                  width: 30,
-                  height: 30,
+                  width: scale(26), // 🔥 responsive icon
+                  height: scale(26),
                 ),
               ),
 
-              const SizedBox(height: 8),
+              SizedBox(height: scale(6)),
 
               Text(
                 title,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
-                  fontSize: 12,
+                  fontSize: scale(11), // 🔥 responsive text
                   color: isSelected ? Colors.white : Colors.black87,
                 ),
               ),

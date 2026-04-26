@@ -14,55 +14,70 @@ class _BookingsPageState extends State<BookingsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    // 🔥 SCALE SYSTEM
+    double scale(double size) => size * (screenWidth / 375);
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F7FB),
+      backgroundColor: const Color(0xFFFFF8EE),
 
       body: SafeArea(
         child: Column(
           children: [
 
-            // HEADER
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFFFFC46B), Colors.white],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
+            // ================= HEADER =================
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                scale(20),
+                scale(16),
+                scale(20),
+                scale(4),
               ),
-              child: const Text(
+              child: Text(
                 "My Bookings",
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 26,
+                  fontSize: scale(20), // 🔥 sedikit diperkecil biar proporsional
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ),
 
-            // FILTER
+            // ================= FILTER =================
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.symmetric(
+                horizontal: scale(16),
+                vertical: scale(6),
+              ),
               child: Row(
                 children: [
-                  _filter("All"),
-                  const SizedBox(width: 8),
-                  _filter("Active"),
-                  const SizedBox(width: 8),
-                  _filter("Done"),
+                  _filter("All", scale),
+                  SizedBox(width: scale(8)),
+                  _filter("Active", scale),
+                  SizedBox(width: scale(8)),
+                  _filter("Done", scale),
                 ],
               ),
             ),
 
-            // LIST
+            SizedBox(height: scale(6)), // 🔥 spacing kecil biar lebih lega
+
+            // ================= LIST =================
             Expanded(
               child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: EdgeInsets.fromLTRB(
+                  scale(16),
+                  scale(4),
+                  scale(16),
+                  scale(16),
+                ),
                 itemCount: controller.filteredBookings.length,
                 itemBuilder: (context, index) {
-                  return _bookingCard(controller.filteredBookings[index]);
+                  return _bookingCard(
+                    controller.filteredBookings[index],
+                    scale,
+                  );
                 },
               ),
             ),
@@ -72,8 +87,8 @@ class _BookingsPageState extends State<BookingsPage> {
     );
   }
 
-  // FILTER BUTTON
-  Widget _filter(String text) {
+  // ================= FILTER BUTTON =================
+  Widget _filter(String text, double Function(double) scale) {
     final isActive = controller.selectedFilter == text;
 
     return Expanded(
@@ -85,14 +100,14 @@ class _BookingsPageState extends State<BookingsPage> {
         },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 10),
+          padding: EdgeInsets.symmetric(vertical: scale(9)),
           decoration: BoxDecoration(
             color: isActive ? const Color(0xFFFFA726) : Colors.white,
-            borderRadius: BorderRadius.circular(30),
+            borderRadius: BorderRadius.circular(scale(25)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 6,
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: scale(5),
               )
             ],
           ),
@@ -100,7 +115,8 @@ class _BookingsPageState extends State<BookingsPage> {
             text,
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontWeight: FontWeight.bold,
+              fontSize: scale(12),
+              fontWeight: FontWeight.w600,
               color: isActive ? Colors.white : Colors.black54,
             ),
           ),
@@ -109,19 +125,19 @@ class _BookingsPageState extends State<BookingsPage> {
     );
   }
 
-  // BOOKING CARD (lebih modern)
-  Widget _bookingCard(Booking b) {
+  // ================= BOOKING CARD =================
+  Widget _bookingCard(Booking b, double Function(double) scale) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(14),
+      margin: EdgeInsets.only(bottom: scale(12)),
+      padding: EdgeInsets.all(scale(12)),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(scale(16)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: scale(8),
+            offset: Offset(0, scale(3)),
           ),
         ],
       ),
@@ -129,22 +145,22 @@ class _BookingsPageState extends State<BookingsPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
 
-          // ================= TOP SECTION =================
+          // ================= TOP =================
           Row(
             children: [
 
               // IMAGE
               ClipRRect(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(scale(10)),
                 child: Image.asset(
                   b.image,
-                  width: 70,
-                  height: 70,
+                  width: scale(60),
+                  height: scale(60),
                   fit: BoxFit.cover,
                 ),
               ),
 
-              const SizedBox(width: 12),
+              SizedBox(width: scale(10)),
 
               // INFO
               Expanded(
@@ -153,24 +169,26 @@ class _BookingsPageState extends State<BookingsPage> {
                   children: [
                     Text(
                       b.serviceName,
-                      style: const TextStyle(
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 14,
+                        fontSize: scale(13),
                       ),
                     ),
                     Text(
                       b.providerName,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.grey,
-                        fontSize: 12,
+                        fontSize: scale(11),
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    SizedBox(height: scale(4)),
                     Text(
                       "Rp ${b.total}",
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        fontSize: scale(12),
                       ),
                     ),
                   ],
@@ -179,18 +197,18 @@ class _BookingsPageState extends State<BookingsPage> {
 
               // STATUS
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
+                padding: EdgeInsets.symmetric(
+                  horizontal: scale(8),
+                  vertical: scale(5),
                 ),
                 decoration: BoxDecoration(
                   color: _statusColor(b.status),
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(scale(18)),
                 ),
                 child: Text(
                   b.status,
-                  style: const TextStyle(
-                    fontSize: 11,
+                  style: TextStyle(
+                    fontSize: scale(10),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -198,9 +216,9 @@ class _BookingsPageState extends State<BookingsPage> {
             ],
           ),
 
-          const SizedBox(height: 14),
+          SizedBox(height: scale(12)),
 
-          // ================= DATE SECTION =================
+          // ================= BOTTOM =================
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -209,13 +227,16 @@ class _BookingsPageState extends State<BookingsPage> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     "Order Date",
-                    style: TextStyle(fontSize: 11, color: Colors.grey),
+                    style: TextStyle(
+                      fontSize: scale(9),
+                      color: Colors.grey,
+                    ),
                   ),
                   Text(
                     b.orderDate,
-                    style: const TextStyle(fontWeight: FontWeight.w500),
+                    style: TextStyle(fontSize: scale(11)),
                   ),
                 ],
               ),
@@ -224,37 +245,37 @@ class _BookingsPageState extends State<BookingsPage> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     "Deadline",
-                    style: TextStyle(fontSize: 11, color: Colors.grey),
+                    style: TextStyle(
+                      fontSize: scale(9),
+                      color: Colors.grey,
+                    ),
                   ),
                   Text(
                     b.deadline,
-                    style: const TextStyle(fontWeight: FontWeight.w500),
+                    style: TextStyle(fontSize: scale(11)),
                   ),
                 ],
               ),
 
-              // VIEW DETAILS BUTTON
+              // BUTTON
               GestureDetector(
-                onTap: () {
-                  // nanti bisa navigasi ke detail page
-                },
+                onTap: () {},
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 8,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: scale(12),
+                    vertical: scale(7),
                   ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFFFA726),
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(scale(18)),
                   ),
-                  child: const Text(
-                    "View Details",
+                  child: Text(
+                    "Details",
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: scale(11),
                       fontWeight: FontWeight.bold,
-                      color: Colors.black,
                     ),
                   ),
                 ),
@@ -266,6 +287,7 @@ class _BookingsPageState extends State<BookingsPage> {
     );
   }
 
+  // ================= STATUS COLOR =================
   Color _statusColor(String status) {
     switch (status) {
       case "Done":

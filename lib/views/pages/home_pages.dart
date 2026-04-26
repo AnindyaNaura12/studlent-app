@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'home_content.dart';
-import 'profile_page.dart';
+import 'freelance_profile_page.dart';
 import 'bookings_page.dart'; 
 import 'services_page.dart';
 import 'chat_list_page.dart';
