@@ -235,21 +235,67 @@ class _HomeContentState extends State<HomeContent> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        "Make It All Happen",
-                        style: TextStyle(
-                          fontSize: scale(18),
-                          fontWeight: FontWeight.bold,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Make It All Happen",
+                            style: TextStyle(
+                              fontSize: scale(18),
+                              fontWeight: FontWeight.bold,
+                              height: 1.2,
+                            ),
+                          ),
+
+                          SizedBox(height: scale(6)),
+
+                          Text(
+                            "Connect with skilled students and get your work done faster.",
+                            style: TextStyle(
+                              fontSize: scale(12),
+                              color: Colors.black87.withOpacity(0.7),
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    ElevatedButton(
-                      onPressed: () {
-                        _controllerAuth.goToRegisterCover(context);
-                      },
-                      child: Text(
-                        "Join Now",
-                        style: TextStyle(fontSize: scale(14)),
+
+                    SizedBox(width: scale(12)),
+
+                    // BUTTON UPGRADE
+                    Container(
+                      decoration: BoxDecoration(
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.orange.withOpacity(0.25),
+                            blurRadius: 12,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: ElevatedButton(
+                        onPressed: () {
+                          _controllerAuth.goToRegisterCover(context);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFFA726),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: scale(18),
+                            vertical: scale(12),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: Text(
+                          "Start Now",
+                          style: TextStyle(
+                            fontSize: scale(14),
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        ),
                       ),
                     ),
                   ],

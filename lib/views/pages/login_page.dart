@@ -26,13 +26,12 @@ class _LoginPageState extends State<LoginPage> {
           .showSnackBar(SnackBar(content: Text(error)));
       return;
     }
+    // TODO: navigasi ke HomePage setelah login sukses
   }
 
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-
-    // 🔥 SCALE SYSTEM
     double scale(double size) => size * (screenWidth / 375);
 
     return Scaffold(
@@ -45,185 +44,189 @@ class _LoginPageState extends State<LoginPage> {
             colors: [Color(0xFFFFB74D), Color(0xFFFFE0B2)],
           ),
         ),
-        child: Column(
-          children: [
-            SizedBox(height: scale(50)),
-
-            // ================= BACK BUTTON =================
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: scale(16)),
-              child: Align(
-                alignment: Alignment.topLeft,
-                child: IconButton(
-                  icon: Icon(
-                    Icons.arrow_back,
-                    color: Colors.white,
-                    size: scale(24),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // ================= BACK BUTTON =================
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: scale(16)),
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: IconButton(
+                    icon: Icon(
+                      Icons.arrow_back,
+                      color: Colors.white,
+                      size: scale(24),
+                    ),
+                    onPressed: () => Navigator.pop(context),
                   ),
-                  onPressed: () => Navigator.pop(context),
                 ),
               ),
-            ),
 
-            // ================= LOGO =================
-            Image.asset(
-              'assets/images/logo_studlent.png',
-              height: scale(60),
-            ),
+              // ================= LOGO =================
+              Image.asset(
+                'assets/images/logo_studlent.png',
+                height: scale(70),
+              ),
 
-            SizedBox(height: scale(20)),
+              SizedBox(height: scale(20)),
 
-            // ================= FORM CONTAINER =================
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                margin: EdgeInsets.symmetric(horizontal: scale(20)),
-                padding: EdgeInsets.all(scale(24)),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(scale(30)),
-                    topRight: Radius.circular(scale(30)),
+              // ================= FORM CONTAINER =================
+              Expanded(
+                child: Container(
+                  width: double.infinity,
+                  margin: EdgeInsets.symmetric(horizontal: scale(20)),
+                  padding: EdgeInsets.fromLTRB(
+                    scale(24),
+                    scale(32),
+                    scale(24),
+                    scale(24),
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.08),
-                      blurRadius: scale(20),
-                      offset: Offset(0, -scale(5)),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(scale(40)),
+                      topRight: Radius.circular(scale(40)),
                     ),
-                  ],
-                ),
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-
-                      // ================= TITLE =================
-                      Center(
-                        child: RichText(
-                          textAlign: TextAlign.center,
-                          text: TextSpan(
-                            style: TextStyle(
-                              fontSize: scale(20),
-                              fontWeight: FontWeight.bold,
-                              height: 1.3,
-                              color: Colors.black,
-                            ),
-                            children: const [
-                              TextSpan(text: "Welcome to\n"),
-                              TextSpan(
-                                text: "Studlent",
-                                style: TextStyle(color: Colors.orange),
-                              ),
-                              TextSpan(text: ", Login Now!"),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      SizedBox(height: scale(30)),
-
-                      _buildLabel("Username", scale),
-                      _buildTextField(
-                        controller: _controller.usernameController,
-                        hint: "Enter your username",
-                        icon: Icons.person,
-                        scale: scale,
-                      ),
-
-                      SizedBox(height: scale(16)),
-
-                      _buildLabel("Password", scale),
-                      _buildTextField(
-                        controller: _controller.passwordController,
-                        hint: "Enter your password",
-                        icon: Icons.lock,
-                        isPassword: true,
-                        scale: scale,
-                      ),
-
-                      SizedBox(height: scale(20)),
-
-                      // ================= BUTTON =================
-                      SizedBox(
-                        width: double.infinity,
-                        height: scale(50),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(scale(30)),
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFFFF9800), Color(0xFFFFB74D)],
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.orange.withOpacity(0.3),
-                                blurRadius: scale(10),
-                                offset: Offset(0, scale(4)),
-                              ),
-                            ],
-                          ),
-                          child: ElevatedButton(
-                            onPressed: _onLoginPressed,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.transparent,
-                              shadowColor: Colors.transparent,
-                              shape: RoundedRectangleBorder(
-                                borderRadius:
-                                    BorderRadius.circular(scale(30)),
-                              ),
-                            ),
-                            child: Text(
-                              "Sign In",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: scale(16),
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      SizedBox(height: scale(16)),
-
-                      // ================= REGISTER =================
-                      Center(
-                        child: Text.rich(
-                          TextSpan(
-                            text: "Don't have an account? ",
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: scale(12),
-                            ),
-                            children: [
-                              TextSpan(
-                                text: "Sign Up",
-                                style: TextStyle(
-                                  color: Colors.orange,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: scale(12),
-                                ),
-                                recognizer: TapGestureRecognizer()
-                                  ..onTap = () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) =>
-                                            const RegisterPage(),
-                                      ),
-                                    );
-                                  },
-                              ),
-                            ],
-                          ),
-                        ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.08),
+                        blurRadius: scale(20),
+                        offset: Offset(0, -scale(5)),
                       ),
                     ],
                   ),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // ================= TITLE =================
+                        Center(
+                          child: RichText(
+                            textAlign: TextAlign.center,
+                            text: TextSpan(
+                              style: TextStyle(
+                                fontSize: scale(22),
+                                fontWeight: FontWeight.bold,
+                                height: 1.4,
+                                color: Colors.black,
+                              ),
+                              children: const [
+                                TextSpan(text: 'Welcome to\n'),
+                                TextSpan(
+                                  text: 'Studlent',
+                                  style: TextStyle(color: Colors.orange),
+                                ),
+                                TextSpan(text: ', Login Now!'),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        SizedBox(height: scale(32)),
+
+                        // ================= USERNAME =================
+                        _buildLabel('Username', scale),
+                        _buildTextField(
+                          controller: _controller.usernameController,
+                          hint: 'Enter your username',
+                          icon: Icons.person_outline,
+                          scale: scale,
+                        ),
+
+                        SizedBox(height: scale(18)),
+
+                        // ================= PASSWORD =================
+                        _buildLabel('Password', scale),
+                        _buildPasswordField(scale),
+
+                        SizedBox(height: scale(28)),
+
+                        // ================= SIGN IN BUTTON =================
+                        SizedBox(
+                          width: double.infinity,
+                          height: scale(52),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(scale(30)),
+                              gradient: const LinearGradient(
+                                colors: [
+                                  Color(0xFFFF9800),
+                                  Color(0xFFFFB74D),
+                                ],
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.orange.withOpacity(0.3),
+                                  blurRadius: scale(10),
+                                  offset: Offset(0, scale(4)),
+                                ),
+                              ],
+                            ),
+                            child: ElevatedButton(
+                              onPressed: _onLoginPressed,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                shadowColor: Colors.transparent,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius:
+                                      BorderRadius.circular(scale(30)),
+                                ),
+                              ),
+                              child: Text(
+                                'Sign In',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: scale(17),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        SizedBox(height: scale(18)),
+
+                        // ================= SIGN UP LINK =================
+                        Center(
+                          child: RichText(
+                            text: TextSpan(
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: scale(13),
+                              ),
+                              children: [
+                                const TextSpan(text: "Don't have an account? "),
+                                TextSpan(
+                                  text: 'Sign Up',
+                                  style: TextStyle(
+                                    color: Colors.orange,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: scale(13),
+                                  ),
+                                  recognizer: TapGestureRecognizer()
+                                    ..onTap = () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => const RegisterPage(),
+                                        ),
+                                      );
+                                    },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        SizedBox(height: scale(8)),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -232,41 +235,73 @@ class _LoginPageState extends State<LoginPage> {
   // ================= LABEL =================
   Widget _buildLabel(String text, double Function(double) scale) {
     return Padding(
-      padding: EdgeInsets.only(left: scale(6), bottom: scale(6)),
+      padding: EdgeInsets.only(left: scale(4), bottom: scale(8)),
       child: Text(
         text,
         style: TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: scale(13),
+          fontWeight: FontWeight.bold,
+          fontSize: scale(14),
+          color: Colors.black,
         ),
       ),
     );
   }
 
-  // ================= TEXTFIELD =================
+  // ================= TEXT FIELD =================
   Widget _buildTextField({
     required TextEditingController controller,
     required String hint,
     required IconData icon,
     required double Function(double) scale,
-    bool isPassword = false,
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F5F5),
-        borderRadius: BorderRadius.circular(scale(25)),
+        color: const Color(0xFFF2F2F2),
+        borderRadius: BorderRadius.circular(scale(30)),
       ),
       child: TextField(
         controller: controller,
-        obscureText: isPassword,
-        style: TextStyle(fontSize: scale(13)),
+        style: TextStyle(fontSize: scale(14)),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: TextStyle(fontSize: scale(12)),
-          prefixIcon: Icon(icon, color: Colors.grey, size: scale(18)),
+          hintStyle: TextStyle(color: Colors.grey, fontSize: scale(13)),
+          prefixIcon: Icon(icon, color: Colors.grey, size: scale(20)),
           border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(
-            vertical: scale(14),
+          contentPadding: EdgeInsets.symmetric(vertical: scale(15)),
+        ),
+      ),
+    );
+  }
+
+  // ================= PASSWORD FIELD =================
+  Widget _buildPasswordField(double Function(double) scale) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF2F2F2),
+        borderRadius: BorderRadius.circular(scale(30)),
+      ),
+      child: TextField(
+        controller: _controller.passwordController,
+        obscureText: _controller.obscureLoginPassword,
+        style: TextStyle(fontSize: scale(14)),
+        decoration: InputDecoration(
+          hintText: 'Enter your password',
+          hintStyle: TextStyle(color: Colors.grey, fontSize: scale(13)),
+          prefixIcon:
+              Icon(Icons.lock_outline, color: Colors.grey, size: scale(20)),
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(vertical: scale(15)),
+          suffixIcon: IconButton(
+            icon: Icon(
+              _controller.obscureLoginPassword
+                  ? Icons.visibility_off_outlined
+                  : Icons.visibility_outlined,
+              color: Colors.grey,
+              size: scale(20),
+            ),
+            onPressed: () => _controller.toggleLoginPasswordVisibility(
+              () => setState(() {}),
+            ),
           ),
         ),
       ),

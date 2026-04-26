@@ -49,7 +49,7 @@ class RegisterCoverPage extends StatelessWidget {
 
                     // TITLE
                     Text(
-                      "Start Earning with\nYour Skills",
+                      "Get Your Work Done\nWith Skilled Students",
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: scale(22),
@@ -61,7 +61,7 @@ class RegisterCoverPage extends StatelessWidget {
 
                     // SUBTITLE
                     Text(
-                      "Join Studlent and offer your services to real clients.",
+                      "Join Studlent and find skilled students ready \nto help with your projects",
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: scale(13),
@@ -100,7 +100,7 @@ class RegisterCoverPage extends StatelessWidget {
                           ),
                         ),
                         child: Text(
-                          "Create Freelance Account",
+                          "Create Account",
                           style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
@@ -112,35 +112,6 @@ class RegisterCoverPage extends StatelessWidget {
 
                     SizedBox(height: scale(14)),
 
-                    // TEXT LINK
-                    Wrap(
-                      alignment: WrapAlignment.center,
-                      children: [
-                        Text(
-                          "Want to become a freelancer? Start by ",
-                          style: TextStyle(fontSize: scale(12)),
-                        ),
-                        GestureDetector(
-                          onTap: () {
-                            _controller.goToRegister(context);
-                          },
-                          child: Text(
-                            "creating a user account",
-                            style: TextStyle(
-                              fontSize: scale(12),
-                              color: const Color(0xFFFFB84C),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          ".",
-                          style: TextStyle(fontSize: scale(12)),
-                        ),
-                      ],
-                    ),
-
-                    SizedBox(height: scale(20)),
                   ],
                 ),
               ),
