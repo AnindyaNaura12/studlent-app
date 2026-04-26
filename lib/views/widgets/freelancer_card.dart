@@ -10,45 +10,39 @@ class ServiceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
 
-    // 🔥 SCALE SYSTEM (biar konsisten sama page lain)
-    double scale(double size) => size * (screenWidth / 375);
+    // Scale dengan clamp agar tidak overflow di layar kecil/besar
+    double s(double size) =>
+        (size * (screenWidth / 375)).clamp(size * 0.75, size * 1.3);
 
     return Container(
-      width: scale(180), // 🔥 responsive (dari 190)
-      margin: EdgeInsets.only(right: scale(14), bottom: scale(4)),
+      width: s(180),
+      margin: EdgeInsets.only(right: s(14), bottom: s(4)),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(scale(16)),
+        borderRadius: BorderRadius.circular(s(16)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.09),
-            blurRadius: scale(10),
-            offset: Offset(0, scale(3)),
+            blurRadius: s(10),
+            offset: Offset(0, s(3)),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-
           // ================= IMAGE =================
           ClipRRect(
-            borderRadius: BorderRadius.vertical(
-              top: Radius.circular(scale(16)),
-            ),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(s(16))),
             child: SizedBox(
-              height: scale(150),
+              height: s(150),
               width: double.infinity,
               child: Image.asset(
                 service.imagePath,
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => Container(
                   color: Colors.grey[200],
-                  child: Icon(
-                    Icons.person,
-                    size: scale(50),
-                    color: Colors.grey,
-                  ),
+                  child: Icon(Icons.person, size: s(50), color: Colors.grey),
                 ),
               ),
             ),
@@ -56,17 +50,11 @@ class ServiceCard extends StatelessWidget {
 
           // ================= INFO =================
           Padding(
-            padding: EdgeInsets.fromLTRB(
-              scale(12),
-              scale(10),
-              scale(12),
-              scale(12),
-            ),
+            padding: EdgeInsets.fromLTRB(s(12), s(10), s(12), s(12)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-
-                // NAME + RATING
+                // ================= NAME + RATING =================
                 Row(
                   children: [
                     Expanded(
@@ -76,68 +64,66 @@ class ServiceCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: scale(13),
+                          fontSize: s(13),
                           color: const Color(0xFFFFB74D),
                         ),
                       ),
                     ),
-                    SizedBox(width: scale(4)),
-                    Icon(Icons.star, color: Colors.orange, size: scale(12)),
-                    SizedBox(width: scale(2)),
+                    SizedBox(width: s(4)),
+                    Icon(Icons.star, color: Colors.orange, size: s(12)),
+                    SizedBox(width: s(2)),
                     Text(
                       '${service.rating}',
                       style: TextStyle(
-                        fontSize: scale(10),
+                        fontSize: s(10),
                         fontWeight: FontWeight.bold,
+                        color: Colors.black87,
                       ),
                     ),
                   ],
                 ),
 
-                SizedBox(height: scale(6)),
+                SizedBox(height: s(6)),
 
-                // SKILLS
+                // ================= SKILLS =================
                 Text(
                   service.skills,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: scale(11),
+                    fontSize: s(11),
                     color: Colors.grey[700],
                     height: 1.4,
                   ),
                 ),
 
-                SizedBox(height: scale(4)),
+                SizedBox(height: s(4)),
 
-                // UNIVERSITY
+                // ================= UNIVERSITY =================
                 Text(
                   service.university,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: scale(10),
-                    color: Colors.grey[600],
-                  ),
+                  style: TextStyle(fontSize: s(10), color: Colors.grey[600]),
                 ),
 
-                SizedBox(height: scale(10)),
+                SizedBox(height: s(10)),
 
-                // PRICE BUTTON
+                // ================= PRICE BUTTON =================
                 Container(
                   width: double.infinity,
-                  padding: EdgeInsets.symmetric(vertical: scale(8)),
+                  padding: EdgeInsets.symmetric(vertical: s(8)),
                   decoration: BoxDecoration(
                     color: const Color(0xFFFFB74D),
-                    borderRadius: BorderRadius.circular(scale(20)),
+                    borderRadius: BorderRadius.circular(s(20)),
                   ),
                   child: Text(
                     service.price,
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: scale(12),
-                      color: Colors.black,
+                      fontSize: s(12),
+                      color: Colors.white,
                     ),
                   ),
                 ),

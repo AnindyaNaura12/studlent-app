@@ -10,19 +10,20 @@ class CategoryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
 
-    // 🔥 SCALE SYSTEM
-    double scale(double size) => size * (screenWidth / 375);
+    // Scale dengan clamp agar tidak overflow di layar kecil/besar
+    double s(double size) =>
+        (size * (screenWidth / 375)).clamp(size * 0.75, size * 1.3);
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(scale(18)),
+        borderRadius: BorderRadius.circular(s(18)),
         onTap: () {
           // TODO: navigasi ke halaman kategori
         },
         child: Ink(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(scale(18)),
+            borderRadius: BorderRadius.circular(s(18)),
             gradient: const LinearGradient(
               colors: [Color(0xFFFFD8A8), Color(0xFFFFB74D)],
               begin: Alignment.topLeft,
@@ -31,39 +32,49 @@ class CategoryCard extends StatelessWidget {
             boxShadow: [
               BoxShadow(
                 color: Colors.orange.withOpacity(0.25),
-                blurRadius: scale(12),
-                offset: Offset(0, scale(6)),
+                blurRadius: s(12),
+                offset: Offset(0, s(6)),
               ),
             ],
           ),
           child: Padding(
-            padding: EdgeInsets.all(scale(12)), // 🔥 responsive padding
+            padding: EdgeInsets.all(s(12)),
             child: Row(
               children: [
+                // ================= ICON =================
                 Container(
-                  padding: EdgeInsets.all(scale(8)),
+                  padding: EdgeInsets.all(s(8)),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.6),
-                    borderRadius: BorderRadius.circular(scale(10)),
+                    borderRadius: BorderRadius.circular(s(10)),
                   ),
                   child: Image.asset(
                     category.iconPath,
-                    width: scale(26), // 🔥 responsive icon
-                    height: scale(26),
+                    width: s(26),
+                    height: s(26),
+                    // Fallback jika gambar gagal load
+                    errorBuilder: (_, __, ___) => Icon(
+                      Icons.category_outlined,
+                      size: s(26),
+                      color: Colors.orange,
+                    ),
                   ),
                 ),
 
-                SizedBox(width: scale(10)),
+                SizedBox(width: s(10)),
 
+                // ================= TITLE =================
                 Expanded(
                   child: Text(
                     category.title,
                     style: TextStyle(
-                      fontSize: scale(13), // 🔥 responsive text
+                      fontSize: s(13),
                       fontWeight: FontWeight.bold,
                       color: Colors.black87,
                       height: 1.2,
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],

@@ -4,10 +4,7 @@ import '/models/services_model.dart';
 class FreelancerCardHorizontal extends StatelessWidget {
   final ServiceModel service;
 
-  const FreelancerCardHorizontal({
-    super.key,
-    required this.service,
-  });
+  const FreelancerCardHorizontal({super.key, required this.service});
 
   @override
   Widget build(BuildContext context) {
@@ -27,19 +24,18 @@ class FreelancerCardHorizontal extends StatelessWidget {
             color: Colors.black.withOpacity(0.05),
             blurRadius: scale(10),
             offset: Offset(0, scale(5)),
-          )
+          ),
         ],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-
           // ================= IMAGE =================
           ClipRRect(
             borderRadius: BorderRadius.circular(scale(14)),
             child: Image.asset(
               service.imagePath,
-              width: scale(90),   // 🔥 responsive image
+              width: scale(90), // 🔥 responsive image
               height: scale(90),
               fit: BoxFit.cover,
             ),
@@ -49,10 +45,10 @@ class FreelancerCardHorizontal extends StatelessWidget {
 
           // ================= CONTENT =================
           Expanded(
+            // Ensure the content fits properly
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-
                 // CATEGORY (hardcoded)
                 Text(
                   "Video Editing",
@@ -79,10 +75,7 @@ class FreelancerCardHorizontal extends StatelessWidget {
                 // SKILLS
                 Text(
                   service.skills,
-                  style: TextStyle(
-                    fontSize: scale(10),
-                    color: Colors.grey,
-                  ),
+                  style: TextStyle(fontSize: scale(10), color: Colors.grey),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -92,9 +85,7 @@ class FreelancerCardHorizontal extends StatelessWidget {
                 // UNIVERSITY
                 Text(
                   service.university,
-                  style: TextStyle(
-                    fontSize: scale(10),
-                  ),
+                  style: TextStyle(fontSize: scale(10)),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -105,15 +96,10 @@ class FreelancerCardHorizontal extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-
                     // RATING
                     Row(
                       children: [
-                        Icon(
-                          Icons.star,
-                          color: Colors.amber,
-                          size: scale(12),
-                        ),
+                        Icon(Icons.star, color: Colors.amber, size: scale(12)),
                         Text(
                           " ${service.rating} (${service.totalReviews})",
                           style: TextStyle(fontSize: scale(10)),

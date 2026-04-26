@@ -16,67 +16,89 @@ class ServicesPage extends StatefulWidget {
 class _ServicesPageState extends State<ServicesPage> {
   int selectedIndex = 0;
 
-  final controller = HomeController();
+  // Inisialisasi controller sekali saja di sini, bukan di dalam build()
+  final _homeController = HomeController();
 
   @override
   Widget build(BuildContext context) {
-    List<ServiceModel> services = ServiceController.getServices();
-    final controller = HomeController();
-    final categories = controller.getCategories();
+    final screenWidth = MediaQuery.of(context).size.width;
 
+    // Scale dengan clamp agar tidak overflow di layar kecil/besar
+    double s(double size) =>
+        (size * (screenWidth / 375)).clamp(size * 0.75, size * 1.3);
+
+    final services = ServiceController.getServices();
+    final categories = _homeController.getCategories();
 
     return Scaffold(
       backgroundColor: const Color(0xFFFFF8EE),
-
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          // Mencegah garis hitam / glow effect di Android
+          physics: const ClampingScrollPhysics(),
+          padding: EdgeInsets.symmetric(horizontal: s(20)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              SizedBox(height: s(20)),
 
-              const SizedBox(height: 20),
-
-              // HEADER
-              const Text(
+              // ================= HEADER =================
+              Text(
                 "Hi, Nafila 👋",
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: s(24),
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
               ),
-              const Text("Find the right student service for you"),
+              Text(
+                "Find the right student service for you",
+                style: TextStyle(fontSize: s(13), color: Colors.black54),
+              ),
 
-              const SizedBox(height: 20),
+              SizedBox(height: s(20)),
 
-              // SEARCH
+              // ================= SEARCH =================
               TextField(
+                style: TextStyle(fontSize: s(14)),
                 decoration: InputDecoration(
                   hintText: "What you're looking for?",
-                  prefixIcon: const Icon(Icons.search),
+                  hintStyle: TextStyle(fontSize: s(13), color: Colors.grey),
+                  prefixIcon: Icon(Icons.search, size: s(20)),
                   filled: true,
                   fillColor: Colors.white,
+                  contentPadding: EdgeInsets.symmetric(vertical: s(14)),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(30),
+                    borderRadius: BorderRadius.circular(s(30)),
                     borderSide: BorderSide.none,
                   ),
                 ),
               ),
 
-              const SizedBox(height: 25),
+              SizedBox(height: s(24)),
 
-              // CATEGORY
-              const Text(
+              // ================= CATEGORY TITLE =================
+              Text(
                 "Service Categories",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: s(18),
+                  color: Colors.black87,
+                ),
               ),
 
-              const SizedBox(height: 10),
+              SizedBox(height: s(10)),
 
+              // ================= CATEGORY LIST =================
               SizedBox(
-                height: 100,
-                child: ListView(
+                height: s(100),
+                child: ListView.builder(
                   scrollDirection: Axis.horizontal,
-                  children: List.generate(categories.length, (index) {
+                  // ClampingScrollPhysics untuk horizontal list juga
+                  physics: const ClampingScrollPhysics(),
+                  itemCount: categories.length,
+                  itemBuilder: (context, index) {
                     final cat = categories[index];
-
                     return CategoryItem(
                       title: cat.title,
                       iconPath: cat.iconPath,
@@ -87,54 +109,63 @@ class _ServicesPageState extends State<ServicesPage> {
                         });
                       },
                     );
-                  }),
+                  },
                 ),
               ),
 
-              const SizedBox(height: 20),
+              SizedBox(height: s(20)),
 
-              // RECOMMEND
-              const Text(
+              // ================= RECOMMENDED TITLE =================
+              Text(
                 "Recommended For You",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: s(18),
+                  color: Colors.black87,
+                ),
               ),
 
-              const SizedBox(height: 10),
+              SizedBox(height: s(10)),
 
+              // ================= RECOMMENDED LIST =================
               ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: services.length,
                 itemBuilder: (context, index) {
-                  return FreelancerCardHorizontal(
-                    service: services[index],
-                  );
+                  return FreelancerCardHorizontal(service: services[index]);
                 },
               ),
 
-              const SizedBox(height: 5),
+              SizedBox(height: s(16)),
 
-              // POPULAR
-              const Text(
+              // ================= POPULAR TITLE =================
+              Text(
                 "Popular Services",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: s(18),
+                  color: Colors.black87,
+                ),
               ),
 
-              const SizedBox(height: 10),
+              SizedBox(height: s(10)),
 
+              // ================= POPULAR LIST =================
               SizedBox(
-                height: 320,
+                // Pakai screenWidth-based height agar proporsional di semua layar
+                height: screenWidth * 0.85,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
+                  physics: const ClampingScrollPhysics(),
                   itemCount: services.length,
                   itemBuilder: (context, index) {
-                    return ServiceCard(
-                      service: services[index],
-                    );
+                    return ServiceCard(service: services[index]);
                   },
                 ),
               ),
-              
+
+              SizedBox(height: s(20)),
             ],
           ),
         ),

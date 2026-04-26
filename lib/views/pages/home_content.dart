@@ -25,50 +25,50 @@ class _HomeContentState extends State<HomeContent> {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
 
-    // 🔥 RESPONSIVE SCALE (biar gak over)
-    double scale(double size) => size * (screenWidth / 375);
+    // Scale dengan clamp agar tidak overflow di layar kecil/besar
+    double s(double size) =>
+        (size * (screenWidth / 375)).clamp(size * 0.75, size * 1.3);
 
     return SafeArea(
       child: SingleChildScrollView(
+        // Mencegah garis hitam / glow effect di Android
+        physics: const ClampingScrollPhysics(),
         child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: scale(24),
-            vertical: scale(16),
-          ),
+          padding: EdgeInsets.symmetric(horizontal: s(24), vertical: s(16)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
-              // HEADER
+              // ================= HEADER =================
               Row(
                 children: [
                   Image.asset(
                     'assets/images/logo_studlent.png',
-                    height: scale(40),
+                    height: s(40),
+                    errorBuilder: (_, __, ___) =>
+                        Icon(Icons.school, size: s(40), color: Colors.orange),
                   ),
-                  SizedBox(width: scale(12)),
+
+                  SizedBox(width: s(12)),
 
                   Expanded(
                     child: Container(
-                      height: scale(45),
-                      padding: EdgeInsets.symmetric(horizontal: scale(12)),
+                      height: s(45),
+                      padding: EdgeInsets.symmetric(horizontal: s(12)),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(scale(12)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black12,
-                            blurRadius: scale(6),
-                          ),
+                        borderRadius: BorderRadius.circular(s(12)),
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black12, blurRadius: 6),
                         ],
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.search, color: Colors.grey),
-                          SizedBox(width: scale(8)),
-                          const Expanded(
+                          Icon(Icons.search, color: Colors.grey, size: s(20)),
+                          SizedBox(width: s(8)),
+                          Expanded(
                             child: TextField(
-                              decoration: InputDecoration(
+                              style: TextStyle(fontSize: s(13)),
+                              decoration: const InputDecoration(
                                 hintText: "Search services...",
                                 border: InputBorder.none,
                               ),
@@ -79,30 +79,30 @@ class _HomeContentState extends State<HomeContent> {
                     ),
                   ),
 
-                  SizedBox(width: scale(10)),
+                  SizedBox(width: s(10)),
 
                   Container(
-                    padding: EdgeInsets.all(scale(10)),
+                    padding: EdgeInsets.all(s(10)),
                     decoration: BoxDecoration(
                       color: Colors.orange,
-                      borderRadius: BorderRadius.circular(scale(10)),
+                      borderRadius: BorderRadius.circular(s(10)),
                     ),
-                    child: const Icon(Icons.tune, color: Colors.white),
+                    child: Icon(Icons.tune, color: Colors.white, size: s(20)),
                   ),
                 ],
               ),
 
-              SizedBox(height: scale(30)),
+              SizedBox(height: s(28)),
 
-              // HERO TEXT
+              // ================= HERO TEXT =================
               Center(
                 child: RichText(
                   textAlign: TextAlign.center,
                   text: TextSpan(
                     style: TextStyle(
-                      fontSize: scale(26),
+                      fontSize: s(24),
                       fontWeight: FontWeight.bold,
-                      height: 1.3, // ✅ FIXED
+                      height: 1.3,
                       color: Colors.black,
                     ),
                     children: const [
@@ -116,7 +116,7 @@ class _HomeContentState extends State<HomeContent> {
                 ),
               ),
 
-              SizedBox(height: scale(10)),
+              SizedBox(height: s(10)),
 
               Center(
                 child: ConstrainedBox(
@@ -125,7 +125,7 @@ class _HomeContentState extends State<HomeContent> {
                     "Connect with skilled students ready to deliver quality work, fast and affordable",
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: scale(14),
+                      fontSize: s(13),
                       color: Colors.grey[700],
                       height: 1.5,
                     ),
@@ -133,101 +133,133 @@ class _HomeContentState extends State<HomeContent> {
                 ),
               ),
 
-              SizedBox(height: scale(20)),
+              SizedBox(height: s(20)),
 
-              // HERO IMAGE
+              // ================= HERO IMAGE =================
               ClipRRect(
-                borderRadius: BorderRadius.circular(scale(20)),
+                borderRadius: BorderRadius.circular(s(20)),
                 child: Image.asset(
                   'assets/images/hero_student.png',
                   width: double.infinity,
-                  height: screenHeight * 0.25, // ✅ lebih masuk akal
+                  height: screenHeight * 0.25,
                   fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    width: double.infinity,
+                    height: screenHeight * 0.25,
+                    decoration: BoxDecoration(
+                      color: Colors.orange[100],
+                      borderRadius: BorderRadius.circular(s(20)),
+                    ),
+                    child: Icon(
+                      Icons.image_not_supported,
+                      color: Colors.orange,
+                      size: s(40),
+                    ),
+                  ),
                 ),
               ),
 
-              SizedBox(height: scale(25)),
+              SizedBox(height: s(24)),
 
-              // WHY CHOOSE
+              // ================= WHY CHOOSE =================
               Center(
                 child: Text(
                   "Why Choose Student Talent?",
                   style: TextStyle(
-                    fontSize: scale(18),
+                    fontSize: s(17),
                     fontWeight: FontWeight.bold,
+                    color: Colors.black87,
                   ),
                 ),
               ),
 
-              SizedBox(height: scale(16)),
+              SizedBox(height: s(16)),
 
-              const Row(
+              // Wrap agar tidak overflow di layar sempit
+              Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  FeatureItem(iconPath: "assets/images/icons/faster_delivery.png", label: "Faster\nDelivery"),
-                  FeatureItem(iconPath: "assets/images/icons/student_pricing.png", label: "Student\nPricing"),
-                  FeatureItem(iconPath: "assets/images/icons/verified_portofolios.png", label: "Verified Student\nPortfolios"),
-                  FeatureItem(iconPath: "assets/images/icons/secure_payments.png", label: "Secure\nPayments"),
+                children: const [
+                  FeatureItem(
+                    iconPath: "assets/images/icons/faster_delivery.png",
+                    label: "Faster\nDelivery",
+                  ),
+                  FeatureItem(
+                    iconPath: "assets/images/icons/student_pricing.png",
+                    label: "Student\nPricing",
+                  ),
+                  FeatureItem(
+                    iconPath: "assets/images/icons/verified_portofolios.png",
+                    label: "Verified\nPortfolios",
+                  ),
+                  FeatureItem(
+                    iconPath: "assets/images/icons/secure_payments.png",
+                    label: "Secure\nPayments",
+                  ),
                 ],
               ),
 
-              SizedBox(height: scale(30)),
+              SizedBox(height: s(28)),
 
-              // CATEGORY
+              // ================= CATEGORY TITLE =================
               Center(
                 child: Text(
                   "Service Categories",
                   style: TextStyle(
-                    fontSize: scale(18),
+                    fontSize: s(17),
                     fontWeight: FontWeight.bold,
+                    color: Colors.black87,
                   ),
                 ),
               ),
 
-              SizedBox(height: scale(20)),
+              SizedBox(height: s(16)),
 
+              // ================= CATEGORY GRID =================
               GridView.count(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 crossAxisCount: screenWidth > 600 ? 3 : 2,
-                crossAxisSpacing: scale(12),
-                mainAxisSpacing: scale(12),
+                crossAxisSpacing: s(12),
+                mainAxisSpacing: s(12),
                 childAspectRatio: 2.2,
                 children: categories
                     .map((cat) => CategoryCard(category: cat))
                     .toList(),
               ),
 
-              SizedBox(height: scale(30)),
+              SizedBox(height: s(28)),
 
-              // SERVICES
+              // ================= SERVICES TITLE =================
               Text(
                 "Recommend For You",
                 style: TextStyle(
-                  fontSize: scale(16),
+                  fontSize: s(16),
                   fontWeight: FontWeight.bold,
+                  color: Colors.black87,
                 ),
               ),
 
-              SizedBox(height: scale(12)),
+              SizedBox(height: s(12)),
 
+              // ================= SERVICES LIST =================
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
+                physics: const ClampingScrollPhysics(),
                 child: Row(
                   children: services
-                      .map((s) => ServiceCard(service: s))
+                      .map((svc) => ServiceCard(service: svc))
                       .toList(),
                 ),
               ),
 
-              SizedBox(height: scale(20)),
+              SizedBox(height: s(24)),
 
-              // CTA
+              // ================= CTA BANNER =================
               Container(
                 width: double.infinity,
-                padding: EdgeInsets.all(scale(20)),
+                padding: EdgeInsets.all(s(20)),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(scale(20)),
+                  borderRadius: BorderRadius.circular(s(20)),
                   gradient: const LinearGradient(
                     colors: [Color(0xFFFFE0B2), Color(0xFFFFB74D)],
                   ),
@@ -241,18 +273,17 @@ class _HomeContentState extends State<HomeContent> {
                           Text(
                             "Make It All Happen",
                             style: TextStyle(
-                              fontSize: scale(18),
+                              fontSize: s(17),
                               fontWeight: FontWeight.bold,
                               height: 1.2,
+                              color: Colors.black87,
                             ),
                           ),
-
-                          SizedBox(height: scale(6)),
-
+                          SizedBox(height: s(6)),
                           Text(
                             "Connect with skilled students and get your work done faster.",
                             style: TextStyle(
-                              fontSize: scale(12),
+                              fontSize: s(12),
                               color: Colors.black87.withOpacity(0.7),
                               height: 1.4,
                             ),
@@ -261,9 +292,9 @@ class _HomeContentState extends State<HomeContent> {
                       ),
                     ),
 
-                    SizedBox(width: scale(12)),
+                    SizedBox(width: s(12)),
 
-                    // BUTTON UPGRADE
+                    // ================= START NOW BUTTON =================
                     Container(
                       decoration: BoxDecoration(
                         boxShadow: [
@@ -281,17 +312,18 @@ class _HomeContentState extends State<HomeContent> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFFFA726),
                           padding: EdgeInsets.symmetric(
-                            horizontal: scale(18),
-                            vertical: scale(12),
+                            horizontal: s(16),
+                            vertical: s(12),
                           ),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(s(14)),
                           ),
+                          elevation: 0,
                         ),
                         child: Text(
                           "Start Now",
                           style: TextStyle(
-                            fontSize: scale(14),
+                            fontSize: s(13),
                             fontWeight: FontWeight.bold,
                             color: Colors.black,
                           ),
@@ -301,6 +333,8 @@ class _HomeContentState extends State<HomeContent> {
                   ],
                 ),
               ),
+
+              SizedBox(height: s(16)),
             ],
           ),
         ),
