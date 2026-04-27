@@ -6,8 +6,8 @@ class FreelancerCardHorizontal extends StatelessWidget {
   final VoidCallback? onTap;
 
   const FreelancerCardHorizontal({
-    super.key, 
-    required this.service, 
+    super.key,
+    required this.service,
     this.onTap,
   });
 
@@ -106,7 +106,11 @@ class FreelancerCardHorizontal extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.star, color: Colors.amber, size: scale(12)),
+                          Icon(
+                            Icons.star,
+                            color: Colors.amber,
+                            size: scale(12),
+                          ),
                           Text(
                             " ${service.rating} (${service.totalReviews})",
                             style: TextStyle(fontSize: scale(10)),

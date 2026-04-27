@@ -67,7 +67,10 @@ class _ServicesPageState extends State<ServicesPage> {
                       style: TextStyle(fontSize: s(14)),
                       decoration: InputDecoration(
                         hintText: "What you're looking for?",
-                        hintStyle: TextStyle(fontSize: s(13), color: Colors.grey),
+                        hintStyle: TextStyle(
+                          fontSize: s(13),
+                          color: Colors.grey,
+                        ),
                         prefixIcon: Icon(Icons.search, size: s(20)),
                         filled: true,
                         fillColor: Colors.white,
@@ -115,13 +118,13 @@ class _ServicesPageState extends State<ServicesPage> {
                         context,
                         MaterialPageRoute(
                           builder: (_) =>
-                            ServiceDetailPage(service: services[index]),
+                              ServiceDetailPage(service: services[index]),
                         ),
                       );
                     },
                   );
                 },
-              ),  
+              ),
 
               SizedBox(height: s(16)),
 
