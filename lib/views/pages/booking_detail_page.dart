@@ -137,6 +137,7 @@ class BookingDetailPage extends StatelessWidget {
                   style: TextStyle(
                     fontSize: s(13),
                     fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
                 ),
               ),
