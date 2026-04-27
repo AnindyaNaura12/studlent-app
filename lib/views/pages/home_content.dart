@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import '../pages/filter_page.dart';
 import '../../controllers/home_controller.dart';
 import '../../controllers/services_controller.dart';
 import '../../controllers/auth_controller.dart';
 import '../widgets/feature_item.dart';
+import '../widgets/filter_button.dart';
 import '../widgets/category_card.dart';
 import '../widgets/freelancer_card.dart';
 
@@ -81,13 +83,15 @@ class _HomeContentState extends State<HomeContent> {
 
                   SizedBox(width: s(10)),
 
-                  Container(
-                    padding: EdgeInsets.all(s(10)),
-                    decoration: BoxDecoration(
-                      color: Colors.orange,
-                      borderRadius: BorderRadius.circular(s(10)),
-                    ),
-                    child: Icon(Icons.tune, color: Colors.white, size: s(20)),
+                  FilterButton(
+                    onTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (_) => const FilterSheet(),
+                      );
+                    },
                   ),
                 ],
               ),
