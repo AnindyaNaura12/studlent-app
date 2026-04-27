@@ -1,21 +1,44 @@
+class PackageModel {
+  String price;
+  String deliveryTime;
+  String shortDescription;
+
+  PackageModel({
+    this.price = '',
+    this.deliveryTime = '',
+    this.shortDescription = '',
+  });
+}
+
 class ServiceModel {
+  final String id;
+  String title;
+  String category;
+  String description;
+  String? imagePath;
+  List<String> serviceImages;
+  PackageModel basicPackage;
+
+  // Data tambahan untuk UI
   final String name;
   final String university;
   final String skills;
   final double rating;
   final int totalReviews;
-  final String price;
-  final String experience;
-  final String imagePath;
 
   ServiceModel({
-    required this.name,
-    required this.experience,
-    required this.university,
-    required this.skills,
-    required this.rating,
-    required this.totalReviews,
-    required this.price,
-    required this.imagePath,
-  });
+    required this.id,
+    required this.title,
+    this.category = '',
+    this.description = '',
+    this.imagePath,
+    this.serviceImages = const [],
+    PackageModel? basicPackage,
+    // Default values untuk data tambahan agar tidak wajib diisi saat add service
+    this.name = '',
+    this.university = '',
+    this.skills = '',
+    this.rating = 0.0,
+    this.totalReviews = 0,
+  }) : basicPackage = basicPackage ?? PackageModel();
 }

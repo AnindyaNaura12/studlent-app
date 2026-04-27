@@ -34,10 +34,17 @@ class FreelancerCardHorizontal extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(scale(14)),
             child: Image.asset(
-              service.imagePath,
-              width: scale(90), // 🔥 responsive image
+              // FIX: Menangani null dengan '??'
+              service.imagePath ?? 'assets/images/placeholder.png',
+              width: scale(90),
               height: scale(90),
               fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                width: scale(90),
+                height: scale(90),
+                color: Colors.grey[200],
+                child: const Icon(Icons.broken_image, color: Colors.grey),
+              ),
             ),
           ),
 
@@ -45,13 +52,12 @@ class FreelancerCardHorizontal extends StatelessWidget {
 
           // ================= CONTENT =================
           Expanded(
-            // Ensure the content fits properly
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // CATEGORY (hardcoded)
+                // CATEGORY
                 Text(
-                  "Video Editing",
+                  service.category.isNotEmpty ? service.category : "General",
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: scale(13),
@@ -62,7 +68,7 @@ class FreelancerCardHorizontal extends StatelessWidget {
 
                 // NAME
                 Text(
-                  service.name,
+                  service.name.isNotEmpty ? service.name : service.title,
                   style: TextStyle(
                     color: const Color(0xFFFFB84C),
                     fontWeight: FontWeight.bold,
@@ -74,7 +80,9 @@ class FreelancerCardHorizontal extends StatelessWidget {
 
                 // SKILLS
                 Text(
-                  service.skills,
+                  service.skills.isNotEmpty
+                      ? service.skills
+                      : "No skills listed",
                   style: TextStyle(fontSize: scale(10), color: Colors.grey),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -84,7 +92,7 @@ class FreelancerCardHorizontal extends StatelessWidget {
 
                 // UNIVERSITY
                 Text(
-                  service.university,
+                  service.university.isNotEmpty ? service.university : "No uni",
                   style: TextStyle(fontSize: scale(10)),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -118,10 +126,14 @@ class FreelancerCardHorizontal extends StatelessWidget {
                         borderRadius: BorderRadius.circular(scale(15)),
                       ),
                       child: Text(
-                        "${service.price}",
+                        // FIX: Mengakses harga dari basicPackage
+                        service.basicPackage.price.isNotEmpty
+                            ? service.basicPackage.price
+                            : "Contact",
                         style: TextStyle(
                           fontSize: scale(10),
                           fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
                       ),
                     ),

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '/controllers/services_controller.dart';
+import '/controllers/my_services_controller.dart'; // ← UBAH import
 import '/controllers/home_controller.dart';
 import '/models/services_model.dart';
 import '../widgets/categori_item.dart';
@@ -16,25 +16,25 @@ class ServicesPage extends StatefulWidget {
 class _ServicesPageState extends State<ServicesPage> {
   int selectedIndex = 0;
 
-  // Inisialisasi controller sekali saja di sini, bukan di dalam build()
+  // ← PINDAH KE SINI, bukan di dalam build()
   final _homeController = HomeController();
+  final _servicesController = MyServicesController();
 
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
 
-    // Scale dengan clamp agar tidak overflow di layar kecil/besar
     double s(double size) =>
         (size * (screenWidth / 375)).clamp(size * 0.75, size * 1.3);
 
-    final services = ServiceController.getServices();
+    // ← UBAH: ambil dari _servicesController.services
+    final services = _servicesController.services;
     final categories = _homeController.getCategories();
 
     return Scaffold(
       backgroundColor: const Color(0xFFFFF8EE),
       body: SafeArea(
         child: SingleChildScrollView(
-          // Mencegah garis hitam / glow effect di Android
           physics: const ClampingScrollPhysics(),
           padding: EdgeInsets.symmetric(horizontal: s(20)),
           child: Column(
@@ -94,7 +94,6 @@ class _ServicesPageState extends State<ServicesPage> {
                 height: s(100),
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
-                  // ClampingScrollPhysics untuk horizontal list juga
                   physics: const ClampingScrollPhysics(),
                   itemCount: categories.length,
                   itemBuilder: (context, index) {
@@ -153,7 +152,6 @@ class _ServicesPageState extends State<ServicesPage> {
 
               // ================= POPULAR LIST =================
               SizedBox(
-                // Pakai screenWidth-based height agar proporsional di semua layar
                 height: screenWidth * 0.85,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,

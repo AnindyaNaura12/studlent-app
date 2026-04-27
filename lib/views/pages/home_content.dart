@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../controllers/home_controller.dart';
-import '../../controllers/services_controller.dart';
+import '../../controllers/my_services_controller.dart'; // ← UBAH
 import '../../controllers/auth_controller.dart';
 import '../widgets/feature_item.dart';
 import '../widgets/category_card.dart';
 import '../widgets/freelancer_card.dart';
+import '../../models/services_model.dart' as model1;
 
 class HomeContent extends StatefulWidget {
   const HomeContent({super.key});
@@ -16,22 +17,22 @@ class HomeContent extends StatefulWidget {
 class _HomeContentState extends State<HomeContent> {
   final HomeController _controller = HomeController();
   final AuthController _controllerAuth = AuthController();
+  final MyServicesController _servicesController =
+      MyServicesController(); // ← PINDAH KE SINI
 
   @override
   Widget build(BuildContext context) {
     final categories = _controller.getCategories();
-    final services = ServiceController.getServices();
+    // ← HAPUS: final _servicesController = MyServicesController(); dari sini
 
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
 
-    // Scale dengan clamp agar tidak overflow di layar kecil/besar
     double s(double size) =>
         (size * (screenWidth / 375)).clamp(size * 0.75, size * 1.3);
 
     return SafeArea(
       child: SingleChildScrollView(
-        // Mencegah garis hitam / glow effect di Android
         physics: const ClampingScrollPhysics(),
         child: Padding(
           padding: EdgeInsets.symmetric(horizontal: s(24), vertical: s(16)),
@@ -47,9 +48,7 @@ class _HomeContentState extends State<HomeContent> {
                     errorBuilder: (_, __, ___) =>
                         Icon(Icons.school, size: s(40), color: Colors.orange),
                   ),
-
                   SizedBox(width: s(12)),
-
                   Expanded(
                     child: Container(
                       height: s(45),
@@ -78,9 +77,7 @@ class _HomeContentState extends State<HomeContent> {
                       ),
                     ),
                   ),
-
                   SizedBox(width: s(10)),
-
                   Container(
                     padding: EdgeInsets.all(s(10)),
                     decoration: BoxDecoration(
@@ -175,7 +172,6 @@ class _HomeContentState extends State<HomeContent> {
 
               SizedBox(height: s(16)),
 
-              // Wrap agar tidak overflow di layar sempit
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: const [
@@ -246,8 +242,11 @@ class _HomeContentState extends State<HomeContent> {
                 scrollDirection: Axis.horizontal,
                 physics: const ClampingScrollPhysics(),
                 child: Row(
-                  children: services
-                      .map((svc) => ServiceCard(service: svc))
+                  children: _servicesController.services
+                      .map(
+                        (svc) =>
+                            ServiceCard(service: svc as model1.ServiceModel),
+                      )
                       .toList(),
                 ),
               ),
@@ -291,10 +290,7 @@ class _HomeContentState extends State<HomeContent> {
                         ],
                       ),
                     ),
-
                     SizedBox(width: s(12)),
-
-                    // ================= START NOW BUTTON =================
                     Container(
                       decoration: BoxDecoration(
                         boxShadow: [

@@ -1,6 +1,7 @@
 // ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
 import '../../controllers/profile_controller.dart';
+import 'edit_profile_freelancer_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -256,7 +257,14 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ),
                       ElevatedButton.icon(
-                        onPressed: () {},
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const EditProfileFreelancerPage(),
+                            ),
+                          );
+                        },
                         icon: const Icon(
                           Icons.edit,
                           size: 16,
@@ -534,7 +542,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _menuItem(String title, {bool hasTag = false}) {
     return InkWell(
       borderRadius: BorderRadius.circular(16),
-      onTap: () => _controller.onMenuTap(title),
+      onTap: () => _controller.onMenuTap(title, context),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),

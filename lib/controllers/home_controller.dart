@@ -36,34 +36,47 @@ class HomeController {
   List<ServiceModel> getPopularServices() {
     return [
       ServiceModel(
+        id: '1',
+        title: 'Java Developer Service',
         name: 'Carla',
         rating: 4.9,
         totalReviews: 200,
-        experience: '3 years of experience.',
         skills: 'Java, CSS',
         university: 'Universitas Brawijaya',
-        price: 'Rp. 200.000',
         imagePath: 'assets/images/freelancers/freelancer_1.png',
+        // Masukkan data harga ke dalam basicPackage
+        basicPackage: PackageModel(
+          price: 'Rp. 200.000',
+          deliveryTime: '3 days',
+        ),
       ),
       ServiceModel(
+        id: '2',
+        title: 'UI/UX Design',
         name: 'Carla',
         rating: 4.9,
         totalReviews: 200,
-        experience: '3 years of experience',
         skills: 'Java, CSS',
         university: 'Politeknik Negeri Malang',
-        price: 'Rp. 250.000',
         imagePath: 'assets/images/freelancers/freelancer_2.png',
+        basicPackage: PackageModel(
+          price: 'Rp. 250.000',
+          deliveryTime: '3 days',
+        ),
       ),
       ServiceModel(
+        id: '3',
+        title: 'Python UI/UX',
         name: 'Reza',
         rating: 4.8,
         totalReviews: 150,
-        experience: '2 years of experience',
         skills: 'Python, UI/UX',
         university: 'Universitas Negeri Malang',
-        price: 'Rp. 175.000',
         imagePath: 'assets/images/freelancers/freelancer_3.png',
+        basicPackage: PackageModel(
+          price: 'Rp. 175.000',
+          deliveryTime: '3 days',
+        ),
       ),
     ];
   }
