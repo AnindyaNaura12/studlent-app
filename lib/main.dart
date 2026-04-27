@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'views/pages/home_pages.dart';
+import 'views/pages/register_freelancer_page.dart';
 
 void main() {
   runApp(const MyApp());
