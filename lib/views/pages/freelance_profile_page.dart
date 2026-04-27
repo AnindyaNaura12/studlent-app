@@ -1,11 +1,7 @@
 // ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
 import '../../controllers/profile_controller.dart';
-<<<<<<< HEAD
-import 'edit_profile_freelancer_page.dart';
-=======
 import 'register_freelancer_page.dart'; // ← tambahan import
->>>>>>> d3e82f448ac0a138fd59b06fcc306b6f52dfbe60
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -82,30 +78,6 @@ class _ProfilePageState extends State<ProfilePage> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-<<<<<<< HEAD
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const EditProfileFreelancerPage(),
-                            ),
-                          );
-                        },
-                        icon: const Icon(
-                          Icons.edit,
-                          size: 16,
-                          color: Colors.black,
-                        ),
-                        label: const Text(
-                          "Edit Profile",
-                          style: TextStyle(color: Colors.black),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFFB74D),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-=======
                       GestureDetector(
                         onTap: () => _showJoinFreelanceDialog(context),
                         child: Container(
@@ -128,7 +100,6 @@ class _ProfilePageState extends State<ProfilePage> {
                               fontWeight: FontWeight.bold,
                               fontSize: 13,
                             ),
->>>>>>> d3e82f448ac0a138fd59b06fcc306b6f52dfbe60
                           ),
                         ),
                       ),
