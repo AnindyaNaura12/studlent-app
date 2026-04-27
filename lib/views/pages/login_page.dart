@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
-import '../../controllers/auth_controller.dart';
 import 'register_page.dart';
+import '../widgets/custom_back_button.dart';
+import '../../controllers/auth_controller.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -55,19 +56,8 @@ class _LoginPageState extends State<LoginPage> {
           child: Column(
             children: [
               // ================= BACK BUTTON =================
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: s(8), vertical: s(4)),
-                child: Align(
-                  alignment: Alignment.topLeft,
-                  child: IconButton(
-                    icon: Icon(
-                      Icons.arrow_back,
-                      color: Colors.white,
-                      size: s(24),
-                    ),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ),
+              CustomBackButton(
+                onTap: () => Navigator.pop(context),
               ),
 
               // ================= LOGO =================

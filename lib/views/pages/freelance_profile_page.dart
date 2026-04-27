@@ -1,6 +1,7 @@
 // ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
 import '../../controllers/profile_controller.dart';
+import 'register_freelancer_page.dart'; // ← tambahan import
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -106,7 +107,6 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                // Avatar
                 Container(
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
@@ -228,7 +228,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // ─────────────────────────────────────────────
-  // FREELANCER PROFILE (tidak diubah)
+  // FREELANCER PROFILE
   // ─────────────────────────────────────────────
   Widget _buildFreelancerProfile() {
     final user = _controller.getFreelancerUser();
@@ -297,8 +297,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 const SizedBox(height: 6),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.orange.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(20),
@@ -533,8 +533,7 @@ class _ProfilePageState extends State<ProfilePage> {
       onTap: () => _controller.onMenuTap(title),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -654,14 +653,20 @@ class _ProfilePageState extends State<ProfilePage> {
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
             ),
+            // ── INI YANG DIUBAH ──
             onPressed: () {
-              Navigator.pop(ctx);
-              setState(() {
-                _controller.isFreelancer = true;
-              });
+              Navigator.pop(ctx); // tutup dialog dulu
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const RegisterFreelancerPage(),
+                ),
+              );
             },
-            child: const Text("Daftar Sekarang",
-                style: TextStyle(color: Colors.black)),
+            child: const Text(
+              "Daftar Sekarang",
+              style: TextStyle(color: Colors.black),
+            ),
           ),
         ],
       ),
