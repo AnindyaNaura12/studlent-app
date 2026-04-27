@@ -1,6 +1,7 @@
 // ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
 import '../../controllers/profile_controller.dart';
+import 'register_freelancer_page.dart'; // ← tambahan import
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -98,6 +99,24 @@ class _ProfilePageState extends State<ProfilePage> {
                           fontSize: 13,
                         ),
                       ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                        color: const Color(0xFFFFB74D), width: 3),
+                  ),
+                  child: CircleAvatar(
+                    radius: 48,
+                    backgroundColor: Colors.orange.withOpacity(0.2),
+                    child: CircleAvatar(
+                      radius: 44,
+                      backgroundImage: AssetImage(user.avatarPath),
+                      onBackgroundImageError: (_, __) {},
                     ),
                   ),
                 ],
@@ -221,7 +240,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // ─────────────────────────────────────────────
-  // FREELANCER PROFILE (tidak diubah)
+  // FREELANCER PROFILE
   // ─────────────────────────────────────────────
   Widget _buildFreelancerProfile() {
     final user = _controller.getFreelancerUser();
@@ -293,9 +312,22 @@ class _ProfilePageState extends State<ProfilePage> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  Text(
-                    user.specialty,
-                    style: const TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+                Text(
+                  user.specialty,
+                  style: const TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+                Text(
+                  "Student of ${user.university}",
+                  style: const TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   Text(
                     "Student of ${user.university}",
@@ -661,11 +693,15 @@ class _ProfilePageState extends State<ProfilePage> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
+            // ── INI YANG DIUBAH ──
             onPressed: () {
-              Navigator.pop(ctx);
-              setState(() {
-                _controller.isFreelancer = true;
-              });
+              Navigator.pop(ctx); // tutup dialog dulu
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const RegisterFreelancerPage(),
+                ),
+              );
             },
             child: const Text(
               "Daftar Sekarang",

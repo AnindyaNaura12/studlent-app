@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
-import '../../controllers/auth_controller.dart';
+import '../widgets/custom_back_button.dart';
 import 'register_cover_page.dart';
 import 'terms_conditions_page.dart';
+import '../widgets/agreement_widget.dart';
+import '../../controllers/auth_controller.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -80,22 +82,14 @@ class _RegisterPageState extends State<RegisterPage> {
           child: Column(
             children: [
               // ================= BACK BUTTON =================
-              Align(
-                alignment: Alignment.topLeft,
-                child: IconButton(
-                  icon: const Icon(
-                    Icons.arrow_back,
-                    color: Colors.white,
-                    size: 28,
-                  ),
-                  onPressed: () {
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (_) => RegisterCoverPage()),
-                      (route) => false,
-                    );
-                  },
-                ),
+              CustomBackButton(
+                onTap: () {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => RegisterCoverPage()),
+                    (route) => false,
+                  );
+                },
               ),
 
               // ================= LOGO =================
@@ -160,49 +154,20 @@ class _RegisterPageState extends State<RegisterPage> {
                         const SizedBox(height: 20),
 
                         // ================= TERMS & CONDITIONS =================
-                        Row(
-                          children: [
-                            Checkbox(
-                              value: _controller.agreeToTerms,
-                              onChanged: (val) => _controller.setAgreeToTerms(
-                                val,
-                                () => setState(() {}),
+                        AgreementWidget(
+                          value: _controller.agreeToTerms,
+                          onTap: (val) => setState(() {
+                            _controller.agreeToTerms = val;
+                          }),
+                          text: "Terms & Conditions",
+                          onLinkTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const TermsConditionsPage(),
                               ),
-                              activeColor: Colors.blue,
-                              shape: const CircleBorder(),
-                              side: const BorderSide(color: Colors.grey),
-                            ),
-                            Flexible(
-                              child: RichText(
-                                text: TextSpan(
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.black87,
-                                  ),
-                                  children: [
-                                    const TextSpan(text: 'I agree to the '),
-                                    TextSpan(
-                                      text: 'Terms & Conditions',
-                                      style: const TextStyle(
-                                        color: Color(0xFF3B82F6),
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                      recognizer: TapGestureRecognizer()
-                                        ..onTap = () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (_) =>
-                                                  const TermsConditionsPage(),
-                                            ),
-                                          );
-                                        },
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
+                            );
+                          },
                         ),
                         const SizedBox(height: 28),
 

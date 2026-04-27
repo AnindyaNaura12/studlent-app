@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../controllers/auth_controller.dart';
 import 'register_page.dart';
 import 'home_pages.dart';
+import '../widgets/custom_back_button.dart';
+import '../../controllers/auth_controller.dart';
 
 class RegisterCoverPage extends StatelessWidget {
   RegisterCoverPage({super.key});
@@ -130,16 +131,11 @@ class RegisterCoverPage extends StatelessWidget {
               ),
 
               // ================= BACK BUTTON =================
-              Positioned(
+             Positioned(
                 top: s(6),
                 left: s(6),
-                child: IconButton(
-                  icon: Icon(
-                    Icons.arrow_back,
-                    color: Colors.black54,
-                    size: s(24),
-                  ),
-                  onPressed: () {
+                child: CustomBackButton(
+                  onTap: () {
                     Navigator.pushAndRemoveUntil(
                       context,
                       MaterialPageRoute(builder: (_) => const HomePage()),
