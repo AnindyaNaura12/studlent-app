@@ -90,46 +90,6 @@ class _ServicesPageState extends State<ServicesPage> {
 
               SizedBox(height: s(24)),
 
-<<<<<<< HEAD
-              // ================= CATEGORY TITLE =================
-              Text(
-                "Service Categories",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: s(18),
-                  color: Colors.black87,
-                ),
-              ),
-
-              SizedBox(height: s(10)),
-
-              // ================= CATEGORY LIST =================
-              SizedBox(
-                height: s(100),
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  physics: const ClampingScrollPhysics(),
-                  itemCount: categories.length,
-                  itemBuilder: (context, index) {
-                    final cat = categories[index];
-                    return CategoryItem(
-                      title: cat.title,
-                      iconPath: cat.iconPath,
-                      isSelected: selectedIndex == index,
-                      onTap: () {
-                        setState(() {
-                          selectedIndex = index;
-                        });
-                      },
-                    );
-                  },
-                ),
-              ),
-
-              SizedBox(height: s(20)),
-
-=======
->>>>>>> d3e82f448ac0a138fd59b06fcc306b6f52dfbe60
               // ================= RECOMMENDED TITLE =================
               Text(
                 "Recommended For You",

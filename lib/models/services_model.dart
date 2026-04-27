@@ -12,14 +12,19 @@ class PackageModel {
 
 class ServiceModel {
   final String id;
+
   String title;
   String category;
   String description;
-  String? imagePath;
+
+  // 🔥 FIX: non-nullable biar aman di UI
+  String imagePath;
+
   List<String> serviceImages;
+
   PackageModel basicPackage;
 
-  // Data tambahan untuk UI
+  // UI fields
   final String name;
   final String university;
   final String skills;
@@ -31,14 +36,23 @@ class ServiceModel {
     required this.title,
     this.category = '',
     this.description = '',
-    this.imagePath,
+
+    // 🔥 FIX utama
+    this.imagePath = '',
+
     this.serviceImages = const [],
+
     PackageModel? basicPackage,
-    // Default values untuk data tambahan agar tidak wajib diisi saat add service
+
     this.name = '',
     this.university = '',
     this.skills = '',
     this.rating = 0.0,
     this.totalReviews = 0,
   }) : basicPackage = basicPackage ?? PackageModel();
+
+  // 🔥 supaya UI tetap bisa pakai service.price
+  String get price => basicPackage.price;
+
+  bool get isValid => basicPackage.price.isNotEmpty && rating > 0;
 }

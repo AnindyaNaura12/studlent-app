@@ -80,15 +80,6 @@ class _HomeContentState extends State<HomeContent> {
                     ),
                   ),
                   SizedBox(width: s(10)),
-<<<<<<< HEAD
-                  Container(
-                    padding: EdgeInsets.all(s(10)),
-                    decoration: BoxDecoration(
-                      color: Colors.orange,
-                      borderRadius: BorderRadius.circular(s(10)),
-                    ),
-                    child: Icon(Icons.tune, color: Colors.white, size: s(20)),
-=======
 
                   FilterButton(
                     onTap: () {
@@ -99,7 +90,6 @@ class _HomeContentState extends State<HomeContent> {
                         builder: (_) => const FilterSheet(),
                       );
                     },
->>>>>>> d3e82f448ac0a138fd59b06fcc306b6f52dfbe60
                   ),
                 ],
               ),
