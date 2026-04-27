@@ -15,10 +15,10 @@ class Order extends Model
         'deadline',
         'status'
     ];
-
+    
     public function client()
     {
-        return $this->belongsTo(User::class, 'id_client');
+        return $this->belongsTo(User::class, 'id_client', 'id_user');
     }
 
     public function payment()

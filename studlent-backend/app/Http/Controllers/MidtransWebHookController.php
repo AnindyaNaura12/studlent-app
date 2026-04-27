@@ -1,37 +1,28 @@
 <?php
 
-namespace App\Services;
+namespace App\Http\Controllers;
 
-use Midtrans\Snap;
-use Midtrans\Config;
+use Illuminate\Http\Request;
 
-class MidtransService
+class MidtransWebhookController extends Controller
 {
-    public function __construct()
+    public function callback(Request $request)
     {
-        Config::$serverKey = config('midtrans.server_key');
-        Config::$isProduction = false;
-        Config::$isSanitized = true;
-        Config::$is3ds = true;
-    }
+        $payload = $request->all();
+        
+        // Handle webhook dari Midtrans
+        $orderId = $payload['order_id'];
+        $transactionStatus = $payload['transaction_status'];
 
-    /**
-     * Create Midtrans transaction
-     * @return object
-     */
-    public function createTransaction($order, $amount)
-    {
-        $params = [
-            'transaction_details' => [
-                'order_id' => $order->id_order,
-                'gross_amount' => $amount
-            ],
-            'customer_details' => [
-                'first_name' => $order->client->nama ?? 'Client',
-                'email' => $order->client->email ?? 'email@mail.com'
-            ]
-        ];
+        if ($transactionStatus == 'settlement') {
+            // Update status payment
+            \App\Models\Payment::where('gateway_trx_id', $orderId)
+                ->update([
+                    'status' => 'paid',
+                    'escrow_status' => 'hold'
+                ]);
+        }
 
-        return Snap::createTransaction($params);
+        return response()->json(['message' => 'OK']);
     }
 }

@@ -13,7 +13,13 @@ class PaymentController extends Controller
     {
         $order = Order::findOrFail($orderId);
 
-        $deal = Deal::findOrFail($order->id_deal); // ← sesuaikan kolom foreign key-mu
+       $deal = Deal::where('id_client', $order->id_client)
+            ->where('status', 'accepted')
+            ->first();
+
+        if (!$deal) {
+            return response()->json(['message' => 'Deal tidak ditemukan'], 404);
+        } // ← sesuaikan kolom foreign key-mu
 
         $basePrice = $deal->price;
         $adminFee = 2500;

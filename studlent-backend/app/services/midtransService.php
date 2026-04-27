@@ -4,15 +4,23 @@ namespace App\Services;
 
 use Midtrans\Snap;
 use Midtrans\Config;
+use Illuminate\Support\Facades\Log;
 
 class MidtransService
 {
     public function __construct()
     {
-        Config::$serverKey = config('midtrans.server_key');
+        $key = config('midtrans.server_key');
+        Log::info('Midtrans key: ' . $key);
+        Config::$serverKey = $key;
         Config::$isProduction = false;
         Config::$isSanitized = true;
         Config::$is3ds = true;
+        Config::$curlOptions = [
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_HTTPHEADER => [], // ← tambah ini
+        ];
     }
 
     public function createTransaction($order, $amount)
