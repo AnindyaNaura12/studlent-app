@@ -127,6 +127,7 @@ class BookingDetailPage extends StatelessWidget {
                 onPressed: () {},
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFFFA726),
+                  foregroundColor: Colors.white,
                   padding: EdgeInsets.symmetric(vertical: s(14)),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(s(25)),
@@ -137,7 +138,6 @@ class BookingDetailPage extends StatelessWidget {
                   style: TextStyle(
                     fontSize: s(13),
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
                   ),
                 ),
               ),

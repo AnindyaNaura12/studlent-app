@@ -5,6 +5,7 @@ import '/models/services_model.dart';
 import '../widgets/categori_item.dart';
 import '../widgets/freelancer_card.dart';
 import '../widgets/freelancer_card_horizontal.dart';
+import '../pages/service_detail_page.dart';
 
 class ServicesPage extends StatefulWidget {
   const ServicesPage({super.key});
@@ -133,9 +134,20 @@ class _ServicesPageState extends State<ServicesPage> {
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: services.length,
                 itemBuilder: (context, index) {
-                  return FreelancerCardHorizontal(service: services[index]);
+                  return FreelancerCardHorizontal(
+                    service: services[index],
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                            ServiceDetailPage(service: services[index]),
+                        ),
+                      );
+                    },
+                  );
                 },
-              ),
+              ),  
 
               SizedBox(height: s(16)),
 
