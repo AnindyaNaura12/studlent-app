@@ -6,6 +6,7 @@ class Booking {
   final String deadline;
   final String status;
   final String image;
+  final String note;
 
   Booking({
     required this.serviceName,
@@ -15,5 +16,6 @@ class Booking {
     required this.deadline,
     required this.status,
     required this.image,
+    required this.note,
   });
 }
