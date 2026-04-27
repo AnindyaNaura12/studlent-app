@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import '../pages/filter_page.dart';
 import '../../controllers/home_controller.dart';
 import '../../controllers/my_services_controller.dart'; // ← UBAH
 import '../../controllers/auth_controller.dart';
 import '../widgets/feature_item.dart';
+import '../widgets/filter_button.dart';
 import '../widgets/category_card.dart';
 import '../widgets/freelancer_card.dart';
 import '../../models/services_model.dart' as model1;
@@ -78,6 +80,7 @@ class _HomeContentState extends State<HomeContent> {
                     ),
                   ),
                   SizedBox(width: s(10)),
+<<<<<<< HEAD
                   Container(
                     padding: EdgeInsets.all(s(10)),
                     decoration: BoxDecoration(
@@ -85,6 +88,18 @@ class _HomeContentState extends State<HomeContent> {
                       borderRadius: BorderRadius.circular(s(10)),
                     ),
                     child: Icon(Icons.tune, color: Colors.white, size: s(20)),
+=======
+
+                  FilterButton(
+                    onTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (_) => const FilterSheet(),
+                      );
+                    },
+>>>>>>> d3e82f448ac0a138fd59b06fcc306b6f52dfbe60
                   ),
                 ],
               ),

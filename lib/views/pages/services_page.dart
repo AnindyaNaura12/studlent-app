@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import '/controllers/my_services_controller.dart'; // ← UBAH import
 import '/controllers/home_controller.dart';
 import '/models/services_model.dart';
-import '../widgets/categori_item.dart';
+import '../widgets/filter_button.dart';
 import '../widgets/freelancer_card.dart';
 import '../widgets/freelancer_card_horizontal.dart';
+import '../pages/service_detail_page.dart';
 
 class ServicesPage extends StatefulWidget {
   const ServicesPage({super.key});
@@ -59,24 +60,37 @@ class _ServicesPageState extends State<ServicesPage> {
               SizedBox(height: s(20)),
 
               // ================= SEARCH =================
-              TextField(
-                style: TextStyle(fontSize: s(14)),
-                decoration: InputDecoration(
-                  hintText: "What you're looking for?",
-                  hintStyle: TextStyle(fontSize: s(13), color: Colors.grey),
-                  prefixIcon: Icon(Icons.search, size: s(20)),
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: EdgeInsets.symmetric(vertical: s(14)),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(s(30)),
-                    borderSide: BorderSide.none,
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      style: TextStyle(fontSize: s(14)),
+                      decoration: InputDecoration(
+                        hintText: "What you're looking for?",
+                        hintStyle: TextStyle(fontSize: s(13), color: Colors.grey),
+                        prefixIcon: Icon(Icons.search, size: s(20)),
+                        filled: true,
+                        fillColor: Colors.white,
+                        contentPadding: EdgeInsets.symmetric(vertical: s(14)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(s(30)),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
+                  SizedBox(width: s(10)),
+                  FilterButton(
+                    onTap: () {
+                      // TODO: aksi filter
+                    },
+                  ),
+                ],
               ),
 
               SizedBox(height: s(24)),
 
+<<<<<<< HEAD
               // ================= CATEGORY TITLE =================
               Text(
                 "Service Categories",
@@ -114,6 +128,8 @@ class _ServicesPageState extends State<ServicesPage> {
 
               SizedBox(height: s(20)),
 
+=======
+>>>>>>> d3e82f448ac0a138fd59b06fcc306b6f52dfbe60
               // ================= RECOMMENDED TITLE =================
               Text(
                 "Recommended For You",
@@ -132,9 +148,20 @@ class _ServicesPageState extends State<ServicesPage> {
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: services.length,
                 itemBuilder: (context, index) {
-                  return FreelancerCardHorizontal(service: services[index]);
+                  return FreelancerCardHorizontal(
+                    service: services[index],
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                            ServiceDetailPage(service: services[index]),
+                        ),
+                      );
+                    },
+                  );
                 },
-              ),
+              ),  
 
               SizedBox(height: s(16)),
 

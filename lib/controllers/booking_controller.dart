@@ -12,6 +12,7 @@ class BookingController {
       deadline: '12 October, 2026',
       status: 'In Progress',
       image: 'assets/images/freelancers/freelancer_1.png',
+      note: 'Tolong buatkan website company profile dengan desain modern dan responsive',
     ),
     Booking(
       serviceName: 'Write & Translation',
@@ -21,6 +22,7 @@ class BookingController {
       deadline: '12 October, 2026',
       status: 'Done',
       image: 'assets/images/freelancers/freelancer_2.png',
+      note: 'Tolong translate buku yang sudah saya cantumkan ke Bahasa Indonesia'
     ),
   ];
 
