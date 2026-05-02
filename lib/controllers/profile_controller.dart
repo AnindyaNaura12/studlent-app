@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../views/pages/my_services_page.dart';
 import '../views/pages/my_profile_page.dart';
+import '../views/pages/my_orders_page.dart';
 
 class ProfileController {
   bool isFreelancer = false;
@@ -77,6 +78,14 @@ class ProfileController {
           MaterialPageRoute(builder: (_) => const EditProfileFreelancerPage()),
         );
         break;
+
+      case 'My Orders': // ← TAMBAH INI
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const MyOrdersPage()),
+        );
+        break;
+
       case 'Logout':
         // TODO: logout logic
         break;
