@@ -14,6 +14,11 @@ class MyServicesController {
         deliveryTime: '3 days',
         shortDescription: '2 Modern Concepts + Vector Files + Favicon',
       ),
+      name: 'Nafila Zahra',        // ← TAMBAH
+      university: 'Universitas Brawijaya', // ← TAMBAH
+      skills: 'Figma, Adobe XD, Prototyping', // ← TAMBAH
+      rating: 4.8,                 // ← TAMBAH
+      totalReviews: 24,            // ← TAMBAH
     ),
     ServiceModel(
       id: '2',
@@ -27,6 +32,11 @@ class MyServicesController {
         deliveryTime: '3 days',
         shortDescription: '2 Modern Concepts + Vector Files + Favicon',
       ),
+      name: 'Nafila Zahra',        // ← TAMBAH
+      university: 'Universitas Brawijaya', // ← TAMBAH
+      skills: 'HTML, CSS, Figma',  // ← TAMBAH
+      rating: 4.5,                 // ← TAMBAH
+      totalReviews: 18,            // ← TAMBAH
     ),
   ];
 
