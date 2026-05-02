@@ -7,25 +7,11 @@ class ClientProfilePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
 
-    // 🔥 SCALE SYSTEM
+    // SCALE SYSTEM
     double scale(double size) => size * (screenWidth / 375);
 
     return Scaffold(
       backgroundColor: const Color(0xFFFFF8EE),
-
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFFFF8EE),
-        elevation: 0,
-        centerTitle: true,
-        title: Text(
-          'Profil Saya',
-          style: TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.bold,
-            fontSize: scale(18),
-          ),
-        ),
-      ),
 
       body: SingleChildScrollView(
         child: Column(

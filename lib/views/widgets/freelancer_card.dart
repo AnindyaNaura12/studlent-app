@@ -10,7 +10,6 @@ class ServiceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
 
-    // Scale dengan clamp agar tidak overflow di layar kecil/besar
     double s(double size) =>
         (size * (screenWidth / 375)).clamp(size * 0.75, size * 1.3);
 
@@ -37,8 +36,9 @@ class ServiceCard extends StatelessWidget {
             child: SizedBox(
               height: s(150),
               width: double.infinity,
+              // PERBAIKAN: Menggunakan ?? untuk menangani null
               child: Image.asset(
-                service.imagePath,
+                service.imagePath ?? 'assets/images/placeholder.png',
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => Container(
                   color: Colors.grey[200],
@@ -118,7 +118,8 @@ class ServiceCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(s(20)),
                   ),
                   child: Text(
-                    service.price,
+                    // PERBAIKAN: Mengambil harga dari basicPackage
+                    service.basicPackage.price,
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontWeight: FontWeight.bold,

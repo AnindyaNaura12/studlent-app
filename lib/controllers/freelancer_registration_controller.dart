@@ -9,6 +9,9 @@ class RegistrationController {
   final formKeyStep2 = GlobalKey<FormState>();
 
   FreelancerModel model = FreelancerModel();
+  List<String> bankList = ["BCA", "BRI", "BNI", "Mandiri", "CIMB"];
+
+  String? selectedBank;
 
   // =============================
   // ADD SKILL (ALL CUSTOM)
@@ -43,6 +46,10 @@ class RegistrationController {
   void handleNextStep(BuildContext context) {
     if (formKeyStep1.currentState!.validate()) {
       formKeyStep1.currentState!.save();
+
+      print("Name: ${model.fullName}");
+      print("Bank: ${model.bankName}");
+      print("Rekening: ${model.accountNumber}");
 
       Navigator.push(
         context,

@@ -75,21 +75,23 @@ class _RegisterPageState extends State<RegisterPage> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFFFFB74D), Color(0xFFFFE0B2)],
+            colors: [Color(0xFFFFD59E), Color(0xFFFFF8EE)],
           ),
         ),
         child: SafeArea(
           child: Column(
             children: [
               // ================= BACK BUTTON =================
-              CustomBackButton(
-                onTap: () {
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(builder: (_) => RegisterCoverPage()),
-                    (route) => false,
-                  );
-                },
+              Align(
+                alignment: Alignment.topLeft,
+                child: IconButton(
+                  icon: const Icon(
+                    Icons.arrow_back,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                ),
               ),
 
               // ================= LOGO =================

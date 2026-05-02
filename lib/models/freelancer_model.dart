@@ -6,7 +6,9 @@ class FreelancerModel {
   String university = '';
   String major = '';
   String phoneNumber = '';
-  String bankAccount = '';
+  String? bankName;
+  String? accountNumber;
+  String? accountHolder;
 
   // STEP 2
   List<Skill> selectedSkills = [];

@@ -4,10 +4,10 @@ class MyServicesController {
   List<ServiceModel> services = [
     ServiceModel(
       id: '1',
-      title: 'App Design- StuddyBuddy',
+      title: 'App Design - StuddyBuddy',
       category: 'Design',
       description: 'Modern UI for study group organization',
-      imagePath: null,
+      imagePath: 'assets/images/freelancers/freelancer_1.png',
       serviceImages: [],
       basicPackage: PackageModel(
         price: 'Rp. 180.000',
@@ -19,9 +19,8 @@ class MyServicesController {
       id: '2',
       title: 'Web Design - Organization',
       category: 'Design Web',
-      description:
-          'What You Get:\n• Custom shopify store design / Shopify Redesign & complete ecommerce website development\n• Professional dropshipping website with product optimization\n• Premium theme customization & essential apps',
-      imagePath: 'assets/images/portfolio_sample.png',
+      description: 'What You Get...',
+      imagePath: 'assets/images/freelancers/freelancer_1.png',
       serviceImages: [],
       basicPackage: PackageModel(
         price: 'Rp. 180.000',
@@ -31,15 +30,9 @@ class MyServicesController {
     ),
   ];
 
-  List<String> getCategories() {
-    return categories;
-  }
-
-  // Getter untuk deliveryTimes
-  List<String> getDeliveryTimes() {
-    return deliveryTimes;
-  }
-
+  // =============================================
+  // TAMBAHKAN DUA VARIABEL INI AGAR DROPDOWN BEKERJA
+  // =============================================
   final List<String> categories = [
     'Design',
     'Design Web',
@@ -59,11 +52,6 @@ class MyServicesController {
     '30 days',
   ];
 
-  void deleteService(String id, void Function() refresh) {
-    services.removeWhere((s) => s.id == id);
-    refresh();
-  }
-
   void addService(ServiceModel service, void Function() refresh) {
     services.add(service);
     refresh();
@@ -75,5 +63,10 @@ class MyServicesController {
       services[index] = updated;
       refresh();
     }
+  }
+
+  void deleteService(String id, void Function() refresh) {
+    services.removeWhere((s) => s.id == id);
+    refresh();
   }
 }

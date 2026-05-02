@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/custom_back_button.dart';
 import '../../models/services_model.dart';
 
 class ServiceDetailPage extends StatefulWidget {
@@ -26,21 +27,22 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
     String desc;
     String price;
 
+    // Menangani data berdasarkan tab yang dipilih
     switch (selectedTab) {
       case 0:
         title = "Basic Package";
-        desc = "1 Concept + JPG File";
-        price = "Rp 150.000";
+        desc = service.basicPackage.shortDescription;
+        price = service.basicPackage.price;
         break;
       case 1:
         title = "Standard Package";
         desc = "2 Concepts + Vector Files + Favicon";
-        price = service.price;
+        price = service.basicPackage.price; // Menggunakan harga dari model
         break;
       case 2:
         title = "Premium Package";
         desc = "3 Concepts + All Files + Source + Priority";
-        price = "Rp 500.000";
+        price = "Rp 500.000"; // Sesuaikan jika ada field premium di model
         break;
       default:
         title = "";
@@ -59,28 +61,40 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.arrow_back),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                        const Spacer(),
-                      ],
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          // Back button kiri
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: CustomBackButton(
+                              onTap: () => Navigator.pop(context),
+                            ),
+                          ),
+
+                          // Title tengah
+                          const Text(
+                            'Detail Service',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
 
-                    SizedBox(height: s(6)),
-
                     Text(
-                      "UI/UX Design for Mobile App",
+                      service.title, // Menggunakan title dari model
                       style: TextStyle(
                         fontSize: s(18),
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-
                     SizedBox(height: s(6)),
-
                     Row(
                       children: [
                         const Icon(Icons.star, color: Colors.orange, size: 16),
@@ -92,37 +106,39 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                         const Spacer(),
                         Container(
                           padding: EdgeInsets.symmetric(
-                              horizontal: s(10), vertical: s(4)),
+                            horizontal: s(10),
+                            vertical: s(4),
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.orange.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
-                            "Mobile App",
+                            service.category,
                             style: TextStyle(fontSize: s(10)),
                           ),
-                        )
+                        ),
                       ],
                     ),
-
                     SizedBox(height: s(16)),
-
                     ClipRRect(
                       borderRadius: BorderRadius.circular(s(16)),
                       child: Image.asset(
-                        service.imagePath,
+                        service.imagePath ??
+                            'assets/images/placeholder.png', // Penanganan null
                         width: double.infinity,
                         height: s(180),
                         fit: BoxFit.cover,
                       ),
                     ),
-
                     SizedBox(height: s(16)),
-
                     Row(
                       children: [
                         CircleAvatar(
-                          backgroundImage: AssetImage(service.imagePath),
+                          backgroundImage: AssetImage(
+                            service.imagePath ??
+                                'assets/images/placeholder.png',
+                          ),
                           radius: s(20),
                         ),
                         SizedBox(width: s(10)),
@@ -153,14 +169,12 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                                   color: Colors.white,
                                 ),
                               ),
-                            )
+                            ),
                           ],
-                        )
+                        ),
                       ],
                     ),
-
                     SizedBox(height: s(20)),
-
                     Text(
                       "Package Pricing",
                       style: TextStyle(
@@ -168,9 +182,7 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                         fontSize: s(14),
                       ),
                     ),
-
                     SizedBox(height: s(10)),
-
                     Container(
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(s(20)),
@@ -184,9 +196,7 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                         ],
                       ),
                     ),
-
                     SizedBox(height: s(12)),
-
                     Container(
                       padding: EdgeInsets.all(s(12)),
                       decoration: BoxDecoration(
@@ -212,20 +222,15 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                             ),
                           ),
                           SizedBox(height: s(4)),
+                          Text(desc, style: TextStyle(fontSize: s(11))),
                           Text(
-                            desc,
-                            style: TextStyle(fontSize: s(11)),
-                          ),
-                          Text(
-                            "Delivery: 4 Days",
+                            "Delivery: ${service.basicPackage.deliveryTime}",
                             style: TextStyle(fontSize: s(11)),
                           ),
                         ],
                       ),
                     ),
-
                     SizedBox(height: s(20)),
-
                     Text(
                       "About This Service",
                       style: TextStyle(
@@ -233,21 +238,16 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                         fontSize: s(14),
                       ),
                     ),
-
                     SizedBox(height: s(8)),
-
                     Text(
-                      "Professional UI/UX design for mobile applications with modern and user-friendly interface.",
-                      style: TextStyle(
-                        fontSize: s(12),
-                        color: Colors.black54,
-                      ),
+                      service.description,
+                      style: TextStyle(fontSize: s(12), color: Colors.black54),
                     ),
                   ],
                 ),
               ),
             ),
-
+            // Bottom Action Bar
             Container(
               padding: EdgeInsets.all(s(16)),
               decoration: BoxDecoration(
@@ -256,7 +256,7 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                   BoxShadow(
                     color: Colors.black.withOpacity(0.05),
                     blurRadius: s(10),
-                  )
+                  ),
                 ],
               ),
               child: Row(
@@ -271,30 +271,16 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                   const Spacer(),
                   OutlinedButton(
                     onPressed: () {},
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFFFFA726),
-                      side: const BorderSide(color: Color(0xFFFFA726)),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                    ),
                     child: const Text("Chat Seller"),
                   ),
                   SizedBox(width: s(10)),
                   ElevatedButton(
                     onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFFA726),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                    ),
                     child: const Text("Order Now"),
-                  )
+                  ),
                 ],
               ),
-            )
+            ),
           ],
         ),
       ),
@@ -303,14 +289,9 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
 
   Widget _tab(String text, int index, double Function(double) s) {
     final isActive = selectedTab == index;
-
     return Expanded(
       child: GestureDetector(
-        onTap: () {
-          setState(() {
-            selectedTab = index;
-          });
-        },
+        onTap: () => setState(() => selectedTab = index),
         child: Container(
           padding: EdgeInsets.symmetric(vertical: s(10)),
           decoration: BoxDecoration(
