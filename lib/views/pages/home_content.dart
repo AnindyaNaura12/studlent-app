@@ -25,8 +25,6 @@ class _HomeContentState extends State<HomeContent> {
   @override
   Widget build(BuildContext context) {
     final categories = _controller.getCategories();
-    // ← HAPUS: final _servicesController = MyServicesController(); dari sini
-
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
 

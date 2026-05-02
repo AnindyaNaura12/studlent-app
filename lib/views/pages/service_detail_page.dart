@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/custom_back_button.dart';
 import '../../models/services_model.dart';
 
 class ServiceDetailPage extends StatefulWidget {
@@ -60,16 +61,32 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.arrow_back),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                        const Spacer(),
-                      ],
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          // Back button kiri
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: CustomBackButton(
+                              onTap: () => Navigator.pop(context),
+                            ),
+                          ),
+
+                          // Title tengah
+                          const Text(
+                            'Detail Service',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    SizedBox(height: s(6)),
+
                     Text(
                       service.title, // Menggunakan title dari model
                       style: TextStyle(

@@ -7,21 +7,18 @@ class CustomBackButton extends StatelessWidget {
   const CustomBackButton({
     super.key,
     required this.onTap,
-    this.color = Colors.white,
+    this.color = Colors.black,
   });
-  
+
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.topLeft,
-      child: IconButton(
-        icon: Icon(
-          Icons.arrow_back,
-          color: color,
-          size: 28,
-        ),
-        onPressed: onTap,
+    return IconButton(
+      icon: Icon(
+        Icons.arrow_back,
+        color: color,
+        size: 26,
       ),
+      onPressed: onTap,
     );
   }
 }

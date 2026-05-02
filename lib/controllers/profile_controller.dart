@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../views/pages/my_services_page.dart';
+import '../views/pages/my_profile_page.dart';
 
 class ProfileController {
   bool isFreelancer = false;
@@ -68,6 +69,12 @@ class ProfileController {
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const MyServicesPage()),
+        );
+        break;
+      case 'My Profile':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const EditProfileFreelancerPage()),
         );
         break;
       case 'Logout':

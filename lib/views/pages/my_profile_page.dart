@@ -1,5 +1,6 @@
 // ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
+import '../widgets/custom_back_button.dart';
 import '../../controllers/edit_profile_controller.dart';
 import '../../models/freelancer_profile_model.dart';
 
@@ -46,35 +47,37 @@ class _EditProfileFreelancerPageState extends State<EditProfileFreelancerPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFFFFD59E), Color(0xFFFFF8EE)],
-          ),
-        ),
-        child: SafeArea(
+      backgroundColor: const Color(0xFFFFF8EE),
+
+      body: SafeArea(
           child: Column(
             children: [
               // ── TOP BAR ──
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
-                ),
-                child: Row(
-                  children: [
-                    GestureDetector(
+             Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Back button kiri
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: CustomBackButton(
                       onTap: () => Navigator.pop(context),
-                      child: const Icon(Icons.arrow_back, size: 26),
                     ),
-                    const SizedBox(width: 12),
-                    Image.asset('assets/images/logo_studlent.png', height: 40),
-                  ],
-                ),
+                  ),
+
+                  // Title benar-benar center
+                  const Text(
+                    'My Profile',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                  ),
+                ],
               ),
+            ),
 
               // ── SCROLLABLE CONTENT ──
               Expanded(
@@ -84,26 +87,6 @@ class _EditProfileFreelancerPageState extends State<EditProfileFreelancerPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 10),
-
-                      // ── TITLE ──
-                      const Text(
-                        'My Profile',
-                        style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                      ),
-                      const Text(
-                        'Let clients know who you are',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.white,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-
                       // ── AVATAR ──
                       Center(
                         child: Column(
@@ -217,8 +200,7 @@ class _EditProfileFreelancerPageState extends State<EditProfileFreelancerPage> {
             ],
           ),
         ),
-      ),
-    );
+      );
   }
 
   // ─────────────────────────────────────────────

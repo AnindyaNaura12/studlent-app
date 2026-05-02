@@ -1,5 +1,6 @@
 // ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
+import '../widgets/custom_back_button.dart';
 import '../../models/services_model.dart';
 import '../../controllers/my_services_controller.dart';
 
@@ -64,35 +65,39 @@ class _AddServicePageState extends State<AddServicePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFFFF8EE),
-      bottomNavigationBar: _buildBottomNav(),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // Back button kiri
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: CustomBackButton(
+                        onTap: () => Navigator.pop(context),
+                      ),
+                    ),
 
-              // ── LOGO ──
-              Center(
-                child: Image.asset(
-                  'assets/images/logo_studlent.png',
-                  height: 50,
+                    // Title tengah
+                    const Text(
+                      'Add a new service',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 24),
-
-              // ── TITLE ──
-              const Text(
-                'Add a new service',
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-              ),
-              const SizedBox(height: 24),
-
+              
               // ── SERVICE TITLE ──
               _buildLabel('Service title'),
               _buildTextField(controller: _titleController, hint: ''),
@@ -438,34 +443,6 @@ class _AddServicePageState extends State<AddServicePage> {
               contentPadding: EdgeInsets.all(16),
             ),
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBottomNav() {
-    return BottomNavigationBar(
-      type: BottomNavigationBarType.fixed,
-      selectedItemColor: Colors.orange,
-      unselectedItemColor: Colors.black54,
-      currentIndex: 4,
-      items: const [
-        BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Home'),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.design_services_outlined),
-          label: 'Services',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.chat_bubble_outline),
-          label: 'Chat',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.shopping_cart_outlined),
-          label: 'Bookings',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.person_outline),
-          label: 'Profile',
         ),
       ],
     );

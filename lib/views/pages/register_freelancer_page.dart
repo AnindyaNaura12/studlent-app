@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../widgets/custom_back_button.dart';
+import '../widgets/custom_text_field.dart';
 import '../../controllers/freelancer_registration_controller.dart';
 
 class RegisterFreelancerPage extends StatefulWidget {
@@ -37,15 +38,46 @@ class _RegisterFreelancerPageState
                   key: _controller.formKeyStep1,
                   child: Column(
                     children: [
-                      CustomBackButton(
-                        onTap: () => Navigator.pop(context),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            // Back button kiri
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: CustomBackButton(
+                                onTap: () => Navigator.pop(context),
+                              ),
+                            ),
+
+                            // Title tengah
+                            Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: const [
+                                Text(
+                                  'Freelancer Register',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                                SizedBox(height: 3),
+                                Text(
+                                  'Step 1 of 2',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
 
-                      Image.asset(
-                        'assets/images/logo_studlent.png',
-                        width: 150,
-                      ),
-                      const SizedBox(height: 30),
+                      const SizedBox(height: 10),
                       _buildFormCard(),
                     ],
                   ),
@@ -75,46 +107,86 @@ class _RegisterFreelancerPageState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
 
-          const Center(
-            child: Text(
-              "Step 1 of 2",
-              style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold),
-            ),
-          ),
+          _buildSectionTitle("Personal Information"),
 
-          const SizedBox(height: 25),
-
-          _buildLabel("Full Name"),
-          _buildTextField(
+          CustomTextField(
+            label: "Full Name",
             hint: "Enter your full name",
             onSaved: (v) => _controller.model.fullName = v!,
           ),
 
-          _buildLabel("University"),
-          _buildTextField(
+          CustomTextField(
+            label: "University",
             hint: "e.g. Politeknik Negeri Malang",
             onSaved: (v) => _controller.model.university = v!,
           ),
 
-          _buildLabel("Major"),
-          _buildTextField(
+          CustomTextField(
+            label: "Major",
             hint: "e.g. Informatics Engineering",
             onSaved: (v) => _controller.model.major = v!,
           ),
 
-          _buildLabel("Phone Number"),
-          _buildTextField(
+          CustomTextField(
+            label: "Phone Number",
             hint: "+621234567890",
             keyboardType: TextInputType.phone,
             onSaved: (v) => _controller.model.phoneNumber = v!,
           ),
 
-          _buildLabel("Bank Account"),
-          _buildTextField(
-            hint: "Bank name & account number",
-            onSaved: (v) => _controller.model.bankAccount = v!,
+          _buildSectionTitle("Payment Information"),
+
+          const SizedBox(height: 15),
+
+          const Text(
+            "Bank",
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          DropdownButtonFormField<String>(
+            value: _controller.selectedBank,
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: Colors.grey.shade100,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(15),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 15, vertical: 15),
+            ),
+            items: _controller.bankList
+                .map((bank) => DropdownMenuItem(
+                      value: bank,
+                      child: Text(bank),
+                    ))
+                .toList(),
+            onChanged: (value) {
+              setState(() {
+                _controller.selectedBank = value;
+                _controller.model.bankName = value!;
+              });
+            },
+            validator: (value) => value == null ? "Pilih bank" : null,
+          ),
+
+          CustomTextField(
+            label: "Nomor Rekening",
+            hint: "Masukkan nomor rekening",
+            keyboardType: TextInputType.number,
+            onSaved: (v) => _controller.model.accountNumber = v!,
+          ),
+
+          CustomTextField(
+            label: "Nama Pemilik Rekening",
+            hint: "Sesuai buku tabungan",
+            keyboardType: TextInputType.number,
+            onSaved: (v) => _controller.model.accountHolder = v!,
           ),
 
           const SizedBox(height: 30),
@@ -145,36 +217,17 @@ class _RegisterFreelancerPageState
     );
   }
 
-  Widget _buildLabel(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8, top: 15),
-      child: Text(
-        text,
-        style: const TextStyle(
-            fontWeight: FontWeight.bold, fontSize: 15),
+  Widget _buildSectionTitle(String title) {
+  return Padding(
+    padding: const EdgeInsets.only(top: 20, bottom: 10),
+    child: Text(
+      title,
+      style: const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.bold,
+        color: Color(0xFF3B82F6),
       ),
-    );
-  }
-
-  Widget _buildTextField({
-    TextInputType? keyboardType,
-    required Function(String?) onSaved,
-    required String hint,
-  }) {
-    return TextFormField(
-      keyboardType: keyboardType,
-      onSaved: onSaved,
-      validator: (value) =>
-          value!.isEmpty ? "Field ini wajib diisi" : null,
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey.shade400),
-        contentPadding: const EdgeInsets.symmetric(
-            horizontal: 15, vertical: 15),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15),
-        ),
-      ),
-    );
-  }
+    ),
+  );
+}
 }

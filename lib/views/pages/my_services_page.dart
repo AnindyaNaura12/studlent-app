@@ -1,9 +1,10 @@
 // ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
-import '../../controllers/my_services_controller.dart';
-import '../../models/services_model.dart';
 import 'add_service_page.dart';
 import 'edit_service_page.dart';
+import '../widgets/custom_back_button.dart';
+import '../../controllers/my_services_controller.dart';
+import '../../models/services_model.dart';
 
 class MyServicesPage extends StatefulWidget {
   const MyServicesPage({super.key});
@@ -32,22 +33,28 @@ class _MyServicesPageState extends State<MyServicesPage> {
             children: [
               // ── TOP BAR ──
               Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                child: Row(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Stack(
+                  alignment: Alignment.center,
                   children: [
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: const Icon(Icons.arrow_back, size: 26),
+                    // Back button di kiri
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: CustomBackButton(
+                        onTap: () => Navigator.pop(context),
+                      ),
                     ),
-                    const SizedBox(width: 12),
-                    Image.asset('assets/images/logo_studlent.png', height: 40),
+
+                    const Text(
+                      'My Services',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
               ),
-
               // ── WHITE CARD CONTENT ──
               Expanded(
                 child: Container(
@@ -64,22 +71,6 @@ class _MyServicesPageState extends State<MyServicesPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Title
-                      const Text(
-                        'My Services',
-                        style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                      ),
-                      const Text(
-                        'All services that you provide',
-                        style: TextStyle(fontSize: 13, color: Colors.grey),
-                      ),
-                      const SizedBox(height: 20),
-
-                      // List services
                       Expanded(
                         child: _controller.services.isEmpty
                             ? const Center(

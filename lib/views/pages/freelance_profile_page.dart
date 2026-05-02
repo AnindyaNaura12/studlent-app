@@ -1,8 +1,7 @@
-// ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
 import '../../controllers/profile_controller.dart';
 import 'register_freelancer_page.dart'; // ← tambahan import
-import 'edit_profile_freelancer_page.dart';
+import 'my_profile_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -38,7 +37,7 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF3E0),
+      backgroundColor: const Color(0xFFFFF8EE),
       body: _controller.isFreelancer
           ? _buildFreelancerProfile()
           : _buildClientProfile(),
@@ -57,13 +56,6 @@ class _ProfilePageState extends State<ProfilePage> {
           // ── HEADER ──
           Container(
             width: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0xFFFFE0B2), Color(0xFFFFF3E0)],
-              ),
-            ),
             child: Column(
               children: [
                 const SizedBox(height: 55),
@@ -258,31 +250,6 @@ class _ProfilePageState extends State<ProfilePage> {
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const EditProfileFreelancerPage(),
-                          ),
-                        );
-                      },
-                      icon: const Icon(
-                        Icons.edit,
-                        size: 16,
-                        color: Colors.black,
-                      ),
-                      label: const Text(
-                        'Edit Profile',
-                        style: TextStyle(color: Colors.black),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFFB74D),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
                       ),
                     ),
                   ],

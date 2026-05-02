@@ -1,5 +1,5 @@
-// ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
+import '../widgets/custom_back_button.dart';
 import '../../models/services_model.dart';
 import '../../controllers/my_services_controller.dart';
 
@@ -77,7 +77,7 @@ class _EditServicePageState extends State<EditServicePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFFFF8EE),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -85,36 +85,33 @@ class _EditServicePageState extends State<EditServicePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 16),
-
               // ── TOP BAR ──
-              Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: const Icon(Icons.arrow_back, size: 26),
-                  ),
-                  const SizedBox(width: 12),
-                  Image.asset('assets/images/logo_studlent.png', height: 40),
-                ],
-              ),
-              const SizedBox(height: 24),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // Back button di kiri
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: CustomBackButton(
+                        onTap: () => Navigator.pop(context),
+                      ),
+                    ),
 
-              // ── TITLE ──
-              const Text(
-                'Edit Service',
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
+                    // Title di tengah
+                    const Text(
+                      'Edit Service',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const Text(
-                'Describe your service clearly to get more details',
-                style: TextStyle(fontSize: 13, color: Colors.grey),
-              ),
-              const SizedBox(height: 24),
-
-              // ── TITLE FIELD ──
+             // ── TITLE FIELD ──
               _buildLabel('Title'),
               _buildEditableField(controller: _titleController),
               const SizedBox(height: 16),
