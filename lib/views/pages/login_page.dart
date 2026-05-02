@@ -55,9 +55,18 @@ class _LoginPageState extends State<LoginPage> {
         child: SafeArea(
           child: Column(
             children: [
-              // ================= BACK BUTTON =================
-              CustomBackButton(
-                onTap: () => Navigator.pop(context),
+
+              // ================= HEADER =================
+              SafeArea(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: EdgeInsets.all(s(10)),
+                    child: CustomBackButton(
+                      onTap: () => Navigator.pop(context),
+                    ),
+                  ),
+                ),
               ),
 
               // ================= LOGO =================

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import '../widgets/custom_back_button.dart';
+import '../widgets/custom_text_field.dart';
 import '../widgets/agreement_widget.dart';
 import '../pages/terms_conditions_page.dart';
 import '../pages/freelancer_agreement_page.dart';
@@ -54,15 +55,44 @@ class _RegisterFreelancerStep2PageState
             padding: const EdgeInsets.all(20),
             child: Column(
               children: [
-                CustomBackButton(
-                  onTap: () => Navigator.pop(context),
-                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                      // Back button kiri
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: CustomBackButton(
+                                onTap: () => Navigator.pop(context),
+                              ),
+                            ),
 
-                Image.asset(
-                  'assets/images/logo_studlent.png',
-                  width: 120,
-                ),
-                const SizedBox(height: 20),
+                            // Title tengah
+                            Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: const [
+                                Text(
+                                  'Freelancer Register',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                                SizedBox(height: 3),
+                                Text(
+                                  'Step 2 of 2',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
                 _buildCard(),
               ],
             ),
@@ -84,18 +114,6 @@ class _RegisterFreelancerStep2PageState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
-            const Center(
-              child: Text(
-                "Step 2 of 2",
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 25),
 
             // skills input
             const Text(
@@ -132,28 +150,15 @@ class _RegisterFreelancerStep2PageState
                   .toList(),
             ),
 
-            const SizedBox(height: 20),
-
-            // bio
-            const Text(
-              "Short Bio",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-
             const SizedBox(height: 8),
 
-            TextFormField(
+            CustomTextField(
+              label: "Short Bio",
+              hint: "Tell about yourself...",
               maxLines: 3,
               maxLength: 50,
-              decoration: InputDecoration(
-                hintText: "Tell about yourself...",
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-              ),
               onSaved: (v) => widget.controller.model.bio = v ?? "",
             ),
-
             const SizedBox(height: 10),
 
             AgreementWidget(
