@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/booking_model.dart';
+import 'contact_freelancer_page.dart';
 
 class BookingDetailPage extends StatelessWidget {
   final Booking booking;
@@ -124,7 +125,17 @@ class BookingDetailPage extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ContactFreelancerPage(
+                        freelancerName: booking.providerName,
+                        image: booking.image,
+                      ),
+                    ),
+                  );
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFFFA726),
                   foregroundColor: Colors.white,
