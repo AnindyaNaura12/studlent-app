@@ -27,7 +27,7 @@ class MidtransService
     {
         $params = [
             'transaction_details' => [
-                'order_id' => $order->id_order,
+                'order_id' => 'ORDER-' . $order->id_order . '-' . time(),
                 'gross_amount' => $amount
             ],
             'customer_details' => [
