@@ -1,9 +1,12 @@
+import 'package:flutter/material.dart';
 import '../models/user_model.dart';
+import '../views/pages/my_services_page.dart';
+import '../views/pages/my_profile_page.dart';
+import '../views/pages/my_orders_page.dart';
 
 class ProfileController {
-  bool isFreelancer = false; // default: user baru = Client
+  bool isFreelancer = false;
 
-  /// Data profil pengguna freelancer
   UserModel getFreelancerUser() {
     return UserModel(
       username: 'Sarah Angel',
@@ -20,7 +23,6 @@ class ProfileController {
     );
   }
 
-  /// Data profil pengguna client
   UserModel getClientUser() {
     return UserModel(
       username: 'Sarah Angel',
@@ -42,21 +44,18 @@ class ProfileController {
     return isFreelancer ? getFreelancerUser() : getClientUser();
   }
 
-  /// Menu freelancer
   List<Map<String, dynamic>> getFreelancerMenuItems() {
     return [
-      {'title': 'My Skills', 'hasTag': true},
+      {'title': 'My Profile', 'hasTag': true},
       {'title': 'My Portfolio', 'hasTag': false},
-      {'title': 'Create Service', 'hasTag': false},
-      {'title': 'Privacy Policy', 'hasTag': false},
+      {'title': 'My Orders', 'hasTag': false},
+      {'title': 'My Services', 'hasTag': false}, // ← tap → MyServicesPage
       {'title': 'Logout', 'hasTag': false},
     ];
   }
 
-  /// Menu client
   List<Map<String, dynamic>> getClientMenuItems() {
     return [
-      {'title': 'Privacy Policy', 'hasTag': false},
       {'title': 'Logout', 'hasTag': false},
     ];
   }
@@ -65,8 +64,28 @@ class ProfileController {
     isFreelancer = !isFreelancer;
   }
 
-  void onMenuTap(String title) {
+  void onMenuTap(String title, BuildContext context) {
     switch (title) {
+      case 'My Services':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const MyServicesPage()),
+        );
+        break;
+      case 'My Profile':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const EditProfileFreelancerPage()),
+        );
+        break;
+
+      case 'My Orders': // ← TAMBAH INI
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const MyOrdersPage()),
+        );
+        break;
+
       case 'Logout':
         // TODO: logout logic
         break;

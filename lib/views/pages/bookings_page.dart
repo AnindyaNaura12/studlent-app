@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../controllers/booking_controller.dart';
 import '../../models/booking_model.dart';
+import 'booking_detail_page.dart';
 
 class BookingsPage extends StatefulWidget {
   const BookingsPage({super.key});
@@ -252,7 +253,12 @@ class _BookingsPageState extends State<BookingsPage> {
               // DETAILS BUTTON
               GestureDetector(
                 onTap: () {
-                  // TODO: navigasi ke halaman detail booking
+                  Navigator.push(
+                    context, 
+                    MaterialPageRoute(
+                      builder: (_) => BookingDetailPage(booking: b)
+                      ),
+                    );
                 },
                 child: Container(
                   padding: EdgeInsets.symmetric(
