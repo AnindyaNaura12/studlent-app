@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../widgets/custom_back_button.dart';
 import '../../models/services_model.dart';
+import 'detail_profile_freelancer.dart';
+import '../../controllers/services_controller.dart';
+
 
 class ServiceDetailPage extends StatefulWidget {
   final ServiceModel service;
@@ -14,6 +17,9 @@ class ServiceDetailPage extends StatefulWidget {
 class _ServiceDetailPageState extends State<ServiceDetailPage> {
   int selectedTab = 1;
 
+  final MyServicesController controller =
+      MyServicesController();
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -23,32 +29,23 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
 
     final service = widget.service;
 
-    String title;
-    String desc;
-    String price;
+final title =
+    controller.getPackageTitle(
+  selectedTab,
+);
 
-    // Menangani data berdasarkan tab yang dipilih
-    switch (selectedTab) {
-      case 0:
-        title = "Basic Package";
-        desc = service.basicPackage.shortDescription;
-        price = service.basicPackage.price;
-        break;
-      case 1:
-        title = "Standard Package";
-        desc = "2 Concepts + Vector Files + Favicon";
-        price = service.basicPackage.price; // Menggunakan harga dari model
-        break;
-      case 2:
-        title = "Premium Package";
-        desc = "3 Concepts + All Files + Source + Priority";
-        price = "Rp 500.000"; // Sesuaikan jika ada field premium di model
-        break;
-      default:
-        title = "";
-        desc = "";
-        price = "";
-    }
+final desc =
+    controller.getPackageDescription(
+  selectedTab,
+  service,
+);
+
+final price =
+    controller.getPackagePrice(
+  selectedTab,
+  service,
+);
+
 
     return Scaffold(
       backgroundColor: const Color(0xFFFFF8EE),
@@ -142,36 +139,51 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                           radius: s(20),
                         ),
                         SizedBox(width: s(10)),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              service.name,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: s(13),
-                              ),
-                            ),
-                            SizedBox(height: s(2)),
-                            Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: s(10),
-                                vertical: s(4),
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFFA726),
-                                borderRadius: BorderRadius.circular(s(20)),
-                              ),
-                              child: Text(
-                                "View Profile",
-                                style: TextStyle(
-                                  fontSize: s(10),
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+            
+Column(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    Text(
+      service.name,
+      style: TextStyle(
+        fontWeight: FontWeight.bold,
+        fontSize: s(13),
+      ),
+    ),
+
+    SizedBox(height: s(2)),
+
+    GestureDetector(
+      onTap: () {
+        controller.goToProfile(
+          context,
+          service,
+        );
+      },
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: s(10),
+          vertical: s(4),
+        ),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFA726),
+          borderRadius: BorderRadius.circular(
+            s(20),
+          ),
+        ),
+        child: Text(
+          "View Profile",
+          style: TextStyle(
+            fontSize: s(10),
+            color: Colors.white,
+          ),
+        ),
+      ),
+    ),
+  ],
+)
+
+
                       ],
                     ),
                     SizedBox(height: s(20)),
