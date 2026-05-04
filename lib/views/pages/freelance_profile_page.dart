@@ -1,7 +1,9 @@
+// ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
 import '../../controllers/profile_controller.dart';
-import 'register_freelancer_page.dart'; // ← tambahan import
-import 'my_profile_page.dart';
+import 'register_freelancer_page.dart';
+import 'login_page.dart'; // ← pastikan import ini ada
+import 'register_page.dart'; // ← pastikan import ini ada
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -36,6 +38,11 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    // ← LOGIKA UTAMA: cek isLoggedIn dulu
+    if (!_controller.isLoggedIn) {
+      return _buildGuestProfile();
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFFFF8EE),
       body: _controller.isFreelancer
@@ -45,7 +52,269 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // ─────────────────────────────────────────────
-  // CLIENT PROFILE
+  // GUEST PROFILE (belum login) ← BARU
+  // ─────────────────────────────────────────────
+  Widget _buildGuestProfile() {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: Container(
+        width: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFFFD59E), Colors.white],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Header ──
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 20, 20, 0),
+                child: Text(
+                  'My Profile',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 30),
+
+              // ── Avatar icon ──
+              Center(
+                child: Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.black87, width: 2.5),
+                    color: Colors.transparent,
+                  ),
+                  child: const Icon(
+                    Icons.person_outline,
+                    size: 48,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // ── Welcome text ──
+              const Center(
+                child: Text(
+                  'Welcome to Studlent!',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Center(
+                child: Text(
+                  'Login or register as a client\nto get started',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.black54,
+                    height: 1.5,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // ── Toggle Client / Freelance ──
+              Center(child: _buildGuestToggle()),
+
+              const SizedBox(height: 24),
+
+              // ── Card login/register ──
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: const Color(0xFFE8D8C0),
+                      width: 2,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.06),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      const Text(
+                        "You're not logged in yet",
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _controller.isFreelancer
+                            ? 'Please login or register as a freelancer\nto get started'
+                            : 'Please login or register as a client\nto get started',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.black54,
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Login button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const LoginPage(),
+                              ),
+                            ).then(
+                              (_) => setState(() {
+                                // refresh setelah kembali dari login
+                              }),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFFB74D),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: Text(
+                            _controller.isFreelancer
+                                ? 'Login as Freelance'
+                                : 'Login as Client',
+                            style: const TextStyle(
+                              color: Colors.black,
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Register button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            if (_controller.isFreelancer) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      const RegisterFreelancerPage(),
+                                ),
+                              );
+                            } else {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const RegisterPage(),
+                                ),
+                              );
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFFB74D),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: Text(
+                            _controller.isFreelancer
+                                ? 'Register as Freelance'
+                                : 'Register as Client',
+                            style: const TextStyle(
+                              color: Colors.black,
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGuestToggle() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEDE0D4),
+        borderRadius: BorderRadius.circular(30),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _guestRoleButton('Client', !_controller.isFreelancer),
+          _guestRoleButton('Freelance', _controller.isFreelancer),
+        ],
+      ),
+    );
+  }
+
+  Widget _guestRoleButton(String text, bool active) {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _controller.isFreelancer = text == 'Freelance';
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+        decoration: BoxDecoration(
+          color: active ? const Color(0xFFFFB74D) : Colors.grey.shade300,
+          borderRadius: BorderRadius.circular(25),
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: active ? Colors.black : Colors.black54,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────
+  // CLIENT PROFILE (sudah login)
   // ─────────────────────────────────────────────
   Widget _buildClientProfile() {
     final user = _controller.getClientUser();
@@ -53,7 +322,6 @@ class _ProfilePageState extends State<ProfilePage> {
     return SingleChildScrollView(
       child: Column(
         children: [
-          // ── HEADER ──
           Container(
             width: double.infinity,
             child: Column(
@@ -145,8 +413,6 @@ class _ProfilePageState extends State<ProfilePage> {
               ],
             ),
           ),
-
-          // ── STATS ──
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Container(
@@ -171,10 +437,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ),
           ),
-
           const SizedBox(height: 20),
-
-          // ── EDITABLE FIELDS ──
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(
@@ -207,10 +470,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ],
             ),
           ),
-
           const SizedBox(height: 12),
-
-          // ── BOTTOM MENU ──
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(
@@ -220,7 +480,6 @@ class _ProfilePageState extends State<ProfilePage> {
                   .toList(),
             ),
           ),
-
           const SizedBox(height: 100),
         ],
       ),
@@ -228,7 +487,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // ─────────────────────────────────────────────
-  // FREELANCER PROFILE
+  // FREELANCER PROFILE (sudah login)
   // ─────────────────────────────────────────────
   Widget _buildFreelancerProfile() {
     final user = _controller.getFreelancerUser();
@@ -338,7 +597,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // ─────────────────────────────────────────────
-  // SHARED WIDGETS
+  // SHARED WIDGETS (sama seperti sebelumnya)
   // ─────────────────────────────────────────────
 
   Widget _buildToggle() {
@@ -360,11 +619,9 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _roleButton(String text, bool active) {
     return GestureDetector(
-      onTap: () {
-        setState(() {
-          _controller.isFreelancer = text == "Freelance";
-        });
-      },
+      onTap: () => setState(() {
+        _controller.isFreelancer = text == "Freelance";
+      }),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
@@ -546,10 +803,6 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // ─────────────────────────────────────────────
-  // DIALOGS
-  // ─────────────────────────────────────────────
-
   void _showEditDialog(
     BuildContext context,
     String label,
@@ -636,9 +889,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            // ── INI YANG DIUBAH ──
             onPressed: () {
-              Navigator.pop(ctx); // tutup dialog dulu
+              Navigator.pop(ctx);
               Navigator.push(
                 context,
                 MaterialPageRoute(

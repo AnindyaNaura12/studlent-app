@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/custom_back_button.dart';
 import '../../models/services_model.dart';
+import 'detail_order_page.dart';
 
 class ServiceDetailPage extends StatefulWidget {
   final ServiceModel service;
@@ -275,7 +276,14 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                   ),
                   SizedBox(width: s(10)),
                   ElevatedButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => DetailOrderPage(service: service),
+                        ),
+                      );
+                    },
                     child: const Text("Order Now"),
                   ),
                 ],
