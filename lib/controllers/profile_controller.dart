@@ -6,6 +6,7 @@ import '../views/pages/my_orders_page.dart';
 
 class ProfileController {
   bool isFreelancer = false;
+  bool isLoggedIn = true; // ← TAMBAH INI
 
   UserModel getFreelancerUser() {
     return UserModel(
