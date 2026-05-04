@@ -62,16 +62,32 @@ class FreelancerCardHorizontal extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // ===== TITLE SERVICE (baru) =====
                   Text(
-                    service.category.isNotEmpty ? service.category : "General",
+                    service.title,
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: scale(13),
+                      color: Colors.black87,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
 
+                  // ===== CATEGORY =====
+                  Text(
+                    service.category.isNotEmpty ? service.category : "General",
+                    style: TextStyle(
+                      fontSize: scale(10),
+                      color: Colors.grey,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+
+                  SizedBox(height: scale(2)),
+
+                  // ===== NAMA FREELANCER =====
                   Text(
                     service.name,
                     style: TextStyle(
@@ -83,8 +99,9 @@ class FreelancerCardHorizontal extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
 
+                  // ===== SHORT DESCRIPTION (baru, ganti skills) =====
                   Text(
-                    service.skills,
+                    service.basicPackage.shortDescription,
                     style: TextStyle(fontSize: scale(10), color: Colors.grey),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -92,6 +109,7 @@ class FreelancerCardHorizontal extends StatelessWidget {
 
                   SizedBox(height: scale(4)),
 
+                  // ===== UNIVERSITY =====
                   Text(
                     service.university,
                     style: TextStyle(fontSize: scale(10)),
@@ -101,23 +119,19 @@ class FreelancerCardHorizontal extends StatelessWidget {
 
                   SizedBox(height: scale(6)),
 
+                  // ===== RATING + HARGA =====
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Row(
                         children: [
-                          Icon(
-                            Icons.star,
-                            color: Colors.amber,
-                            size: scale(12),
-                          ),
+                          Icon(Icons.star, color: Colors.amber, size: scale(12)),
                           Text(
                             " ${service.rating} (${service.totalReviews})",
                             style: TextStyle(fontSize: scale(10)),
                           ),
                         ],
                       ),
-
                       Container(
                         padding: EdgeInsets.symmetric(
                           horizontal: scale(10),
@@ -128,7 +142,6 @@ class FreelancerCardHorizontal extends StatelessWidget {
                           borderRadius: BorderRadius.circular(scale(15)),
                         ),
                         child: Text(
-                          // PERBAIKAN: Akses price melalui basicPackage
                           service.basicPackage.price,
                           style: TextStyle(
                             fontSize: scale(10),
