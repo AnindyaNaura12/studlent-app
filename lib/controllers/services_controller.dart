@@ -1,4 +1,7 @@
+import 'package:flutter/material.dart';
+import '../views/pages/detail_profile_freelancer.dart';
 import '../models/services_model.dart';
+import '../views/pages/service_detail_page.dart';
 
 class MyServicesController {
   List<ServiceModel> services = [
@@ -76,4 +79,89 @@ class MyServicesController {
       refresh();
     }
   }
+
+  String getPackageTitle(
+    int selectedTab,
+  ) {
+    switch (selectedTab) {
+      case 0:
+        return "Basic Package";
+
+      case 1:
+        return "Standard Package";
+
+      case 2:
+        return "Premium Package";
+
+      default:
+        return "";
+    }
+  }
+
+  String getPackageDescription(
+    int selectedTab,
+    ServiceModel service,
+  ) {
+    switch (selectedTab) {
+      case 0:
+        return service.basicPackage.shortDescription;
+
+      case 1:
+        return "2 Concepts + Vector Files + Favicon";
+
+      case 2:
+        return "3 Concepts + All Files + Source + Priority";
+
+      default:
+        return "";
+    }
+  }
+
+  String getPackagePrice(
+    int selectedTab,
+    ServiceModel service,
+  ) {
+    switch (selectedTab) {
+      case 0:
+        return service.basicPackage.price;
+
+      case 1:
+        return service.basicPackage.price;
+
+      case 2:
+        return "Rp 500.000";
+
+      default:
+        return "";
+    }
+  }
+
+  void goToProfile(
+    BuildContext context,
+    ServiceModel service,
+  ) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DetailProfileFreelancer(
+          service: service,
+        ),
+      ),
+    );
+  }
+
+  void goToServiceDetail(
+    BuildContext context,
+    ServiceModel service,
+  ) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ServiceDetailPage(
+          service: service,
+        ),
+      ),
+    );
+  }
+
 }

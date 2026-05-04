@@ -6,6 +6,7 @@ import '../widgets/filter_button.dart';
 import '../widgets/freelancer_card.dart';
 import '../widgets/freelancer_card_horizontal.dart';
 import '../pages/service_detail_page.dart';
+import '../pages/filter_page.dart';
 
 class ServicesPage extends StatefulWidget {
   const ServicesPage({super.key});
@@ -85,7 +86,12 @@ class _ServicesPageState extends State<ServicesPage> {
                   SizedBox(width: s(10)),
                   FilterButton(
                     onTap: () {
-                      // TODO: aksi filter
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (_) => const FilterSheet(),
+                      );
                     },
                   ),
                 ],
@@ -148,7 +154,17 @@ class _ServicesPageState extends State<ServicesPage> {
                   physics: const ClampingScrollPhysics(),
                   itemCount: services.length,
                   itemBuilder: (context, index) {
-                    return ServiceCard(service: services[index]);
+                    return ServiceCard(
+                      service: services[index],
+                      onTap: () {                          // ← TAMBAH INI
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ServiceDetailPage(service: services[index]),
+                          ),
+                        );
+                      },
+                    );
                   },
                 ),
               ),
