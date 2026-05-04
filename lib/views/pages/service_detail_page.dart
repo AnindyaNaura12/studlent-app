@@ -5,6 +5,8 @@ import 'detail_order_page.dart';
 import 'detail_profile_freelancer.dart';
 import '../../controllers/services_controller.dart';
 
+import 'detail_order_page.dart';
+
 class ServiceDetailPage extends StatefulWidget {
   final ServiceModel service;
 
