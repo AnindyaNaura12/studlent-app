@@ -5,7 +5,7 @@ import 'detail_order_page.dart';
 import 'detail_profile_freelancer.dart';
 import '../../controllers/services_controller.dart';
 
-
+import 'detail_order_page.dart';
 
 class ServiceDetailPage extends StatefulWidget {
   final ServiceModel service;
@@ -19,8 +19,7 @@ class ServiceDetailPage extends StatefulWidget {
 class _ServiceDetailPageState extends State<ServiceDetailPage> {
   int selectedTab = 1;
 
-  final MyServicesController controller =
-      MyServicesController();
+  final MyServicesController controller = MyServicesController();
 
   @override
   Widget build(BuildContext context) {
@@ -31,23 +30,11 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
 
     final service = widget.service;
 
-final title =
-    controller.getPackageTitle(
-  selectedTab,
-);
+    final title = controller.getPackageTitle(selectedTab);
 
-final desc =
-    controller.getPackageDescription(
-  selectedTab,
-  service,
-);
+    final desc = controller.getPackageDescription(selectedTab, service);
 
-final price =
-    controller.getPackagePrice(
-  selectedTab,
-  service,
-);
-
+    final price = controller.getPackagePrice(selectedTab, service);
 
     return Scaffold(
       backgroundColor: const Color(0xFFFFF8EE),
@@ -141,51 +128,44 @@ final price =
                           radius: s(20),
                         ),
                         SizedBox(width: s(10)),
-            
-Column(
-  crossAxisAlignment: CrossAxisAlignment.start,
-  children: [
-    Text(
-      service.name,
-      style: TextStyle(
-        fontWeight: FontWeight.bold,
-        fontSize: s(13),
-      ),
-    ),
 
-    SizedBox(height: s(2)),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              service.name,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: s(13),
+                              ),
+                            ),
 
-    GestureDetector(
-      onTap: () {
-        controller.goToProfile(
-          context,
-          service,
-        );
-      },
-      child: Container(
-        padding: EdgeInsets.symmetric(
-          horizontal: s(10),
-          vertical: s(4),
-        ),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFA726),
-          borderRadius: BorderRadius.circular(
-            s(20),
-          ),
-        ),
-        child: Text(
-          "View Profile",
-          style: TextStyle(
-            fontSize: s(10),
-            color: Colors.white,
-          ),
-        ),
-      ),
-    ),
-  ],
-)
+                            SizedBox(height: s(2)),
 
-
+                            GestureDetector(
+                              onTap: () {
+                                controller.goToProfile(context, service);
+                              },
+                              child: Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: s(10),
+                                  vertical: s(4),
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFA726),
+                                  borderRadius: BorderRadius.circular(s(20)),
+                                ),
+                                child: Text(
+                                  "View Profile",
+                                  style: TextStyle(
+                                    fontSize: s(10),
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                     SizedBox(height: s(20)),

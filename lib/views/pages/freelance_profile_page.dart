@@ -2,8 +2,8 @@
 import 'package:flutter/material.dart';
 import '../../controllers/profile_controller.dart';
 import 'register_freelancer_page.dart';
-import 'login_page.dart'; // ← pastikan import ini ada
-import 'register_page.dart'; // ← pastikan import ini ada
+import 'login_page.dart';
+import 'register_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -38,7 +38,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    // ← LOGIKA UTAMA: cek isLoggedIn dulu
     if (!_controller.isLoggedIn) {
       return _buildGuestProfile();
     }
@@ -52,25 +51,27 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // ─────────────────────────────────────────────
-  // GUEST PROFILE (belum login) ← BARU
+  // GUEST PROFILE — persis sesuai screenshot
   // ─────────────────────────────────────────────
   Widget _buildGuestProfile() {
     return Scaffold(
       backgroundColor: Colors.white,
       body: Container(
         width: double.infinity,
+        // ✅ PERUBAHAN 8: Gradient berhenti di tengah (stops)
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [Color(0xFFFFD59E), Colors.white],
+            stops: [0.0, 0.55],
           ),
         ),
         child: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Header ──
+              // Header
               const Padding(
                 padding: EdgeInsets.fromLTRB(20, 20, 20, 0),
                 child: Text(
@@ -83,29 +84,24 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
 
-              const SizedBox(height: 30),
+              const SizedBox(height: 36),
 
-              // ── Avatar icon ──
+              // ✅ PERUBAHAN 1: Avatar abu-abu solid
               Center(
                 child: Container(
-                  width: 80,
-                  height: 80,
+                  width: 72,
+                  height: 72,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.black87, width: 2.5),
-                    color: Colors.transparent,
+                    color: Colors.grey.shade300,
                   ),
-                  child: const Icon(
-                    Icons.person_outline,
-                    size: 48,
-                    color: Colors.black87,
-                  ),
+                  child: const Icon(Icons.person, size: 44, color: Colors.grey),
                 ),
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 18),
 
-              // ── Welcome text ──
+              // Welcome text
               const Center(
                 child: Text(
                   'Welcome to Studlent!',
@@ -129,18 +125,16 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 30),
 
-              // ── Toggle Client / Freelance ──
-              Center(child: _buildGuestToggle()),
+              // ✅ PERUBAHAN 2: Toggle DIHAPUS — tidak ada lagi di sini
 
-              const SizedBox(height: 24),
-
-              // ── Card login/register ──
+              // Card login/register
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Container(
-                  padding: const EdgeInsets.all(24),
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(24),
@@ -167,12 +161,11 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        _controller.isFreelancer
-                            ? 'Please login or register as a freelancer\nto get started'
-                            : 'Please login or register as a client\nto get started',
+                      // ✅ PERUBAHAN 3: Subtitle selalu tetap
+                      const Text(
+                        'Please login or register\nto get started',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
                           color: Colors.black54,
                           height: 1.5,
@@ -180,7 +173,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                       const SizedBox(height: 24),
 
-                      // Login button
+                      // ✅ PERUBAHAN 4: Tombol Login — teks selalu "Login"
                       SizedBox(
                         width: double.infinity,
                         height: 52,
@@ -191,24 +184,18 @@ class _ProfilePageState extends State<ProfilePage> {
                               MaterialPageRoute(
                                 builder: (_) => const LoginPage(),
                               ),
-                            ).then(
-                              (_) => setState(() {
-                                // refresh setelah kembali dari login
-                              }),
-                            );
+                            ).then((_) => setState(() {}));
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFFFB74D),
+                            elevation: 0,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(30),
                             ),
-                            elevation: 0,
                           ),
-                          child: Text(
-                            _controller.isFreelancer
-                                ? 'Login as Freelance'
-                                : 'Login as Client',
-                            style: const TextStyle(
+                          child: const Text(
+                            'Login',
+                            style: TextStyle(
                               color: Colors.black,
                               fontSize: 15,
                               fontWeight: FontWeight.bold,
@@ -216,43 +203,32 @@ class _ProfilePageState extends State<ProfilePage> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 12),
 
-                      // Register button
+                      const SizedBox(height: 14),
+
+                      // ✅ PERUBAHAN 5 & 6: Tombol Register — teks "Register", langsung ke RegisterPage
                       SizedBox(
                         width: double.infinity,
                         height: 52,
                         child: ElevatedButton(
                           onPressed: () {
-                            if (_controller.isFreelancer) {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      const RegisterFreelancerPage(),
-                                ),
-                              );
-                            } else {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const RegisterPage(),
-                                ),
-                              );
-                            }
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const RegisterPage(),
+                              ),
+                            );
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFFFB74D),
+                            elevation: 0,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(30),
                             ),
-                            elevation: 0,
                           ),
-                          child: Text(
-                            _controller.isFreelancer
-                                ? 'Register as Freelance'
-                                : 'Register as Client',
-                            style: const TextStyle(
+                          child: const Text(
+                            'Register',
+                            style: TextStyle(
                               color: Colors.black,
                               fontSize: 15,
                               fontWeight: FontWeight.bold,
@@ -271,50 +247,10 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildGuestToggle() {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEDE0D4),
-        borderRadius: BorderRadius.circular(30),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _guestRoleButton('Client', !_controller.isFreelancer),
-          _guestRoleButton('Freelance', _controller.isFreelancer),
-        ],
-      ),
-    );
-  }
-
-  Widget _guestRoleButton(String text, bool active) {
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _controller.isFreelancer = text == 'Freelance';
-        });
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
-        decoration: BoxDecoration(
-          color: active ? const Color(0xFFFFB74D) : Colors.grey.shade300,
-          borderRadius: BorderRadius.circular(25),
-        ),
-        child: Text(
-          text,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: active ? Colors.black : Colors.black54,
-          ),
-        ),
-      ),
-    );
-  }
+  // ✅ DIHAPUS: _buildGuestToggle() dan _guestRoleButton() tidak diperlukan lagi
 
   // ─────────────────────────────────────────────
-  // CLIENT PROFILE (sudah login)
+  // CLIENT PROFILE (sudah login) — tidak ada perubahan
   // ─────────────────────────────────────────────
   Widget _buildClientProfile() {
     final user = _controller.getClientUser();
@@ -487,7 +423,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // ─────────────────────────────────────────────
-  // FREELANCER PROFILE (sudah login)
+  // FREELANCER PROFILE (sudah login) — tidak ada perubahan
   // ─────────────────────────────────────────────
   Widget _buildFreelancerProfile() {
     final user = _controller.getFreelancerUser();
@@ -597,7 +533,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // ─────────────────────────────────────────────
-  // SHARED WIDGETS (sama seperti sebelumnya)
+  // SHARED WIDGETS — tidak ada perubahan
   // ─────────────────────────────────────────────
 
   Widget _buildToggle() {

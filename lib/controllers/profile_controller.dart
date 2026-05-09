@@ -3,10 +3,11 @@ import '../models/user_model.dart';
 import '../views/pages/my_services_page.dart';
 import '../views/pages/my_profile_page.dart';
 import '../views/pages/my_orders_page.dart';
+import '../views/pages/add_portfolio_page.dart';
 
 class ProfileController {
   bool isFreelancer = false;
-  bool isLoggedIn = true; // ← TAMBAH INI
+  bool isLoggedIn = false; // ← TAMBAH INI
 
   UserModel getFreelancerUser() {
     return UserModel(
@@ -84,6 +85,13 @@ class ProfileController {
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const MyOrdersPage()),
+        );
+        break;
+
+      case 'My Portfolio': // ← TAMBAH DI SINI
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AddPortfolioPage()),
         );
         break;
 
