@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
-import '../widgets/custom_back_button.dart';
 import 'register_cover_page.dart';
 import 'terms_conditions_page.dart';
 import '../widgets/agreement_widget.dart';
 import '../../controllers/auth_controller.dart';
+import '../pages/home_pages.dart'; 
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -15,6 +15,7 @@ class RegisterPage extends StatefulWidget {
 
 class _RegisterPageState extends State<RegisterPage> {
   final AuthController _controller = AuthController();
+  bool _loading = false;
 
   @override
   void dispose() {
@@ -22,7 +23,8 @@ class _RegisterPageState extends State<RegisterPage> {
     super.dispose();
   }
 
-  void _onRegisterPressed() {
+  void _onRegisterPressed() async {
+    // ================= VALIDASI =================
     if (_controller.usernameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Username wajib diisi')),
@@ -49,21 +51,37 @@ class _RegisterPageState extends State<RegisterPage> {
     }
     if (!_controller.agreeToTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Anda harus menyetujui Terms & Conditions')),
+        const SnackBar(
+          content: Text('Anda harus menyetujui Terms & Conditions'),
+        ),
       );
       return;
     }
 
-    final error = _controller.register();
+    // ================= REGISTER KE SUPABASE =================
+    setState(() => _loading = true);
+
+    final error = await _controller.register();
+
+    setState(() => _loading = false);
+
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(error)),
       );
       return;
     }
-
-    // Navigasi ke login setelah register sukses
-    Navigator.pop(context);
+    // ================= LANGSUNG KE HOME =================
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Registrasi berhasil!')),
+    );
+    
+    // Hapus semua route sebelumnya dan langsung ke HomePage
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const HomePage()),
+      (route) => false,
+    );
   }
 
   @override
@@ -178,7 +196,7 @@ class _RegisterPageState extends State<RegisterPage> {
                           width: double.infinity,
                           height: 52,
                           child: ElevatedButton(
-                            onPressed: _onRegisterPressed,
+                            onPressed: _loading ? null : _onRegisterPressed,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF3B82F6),
                               shape: RoundedRectangleBorder(
@@ -186,14 +204,18 @@ class _RegisterPageState extends State<RegisterPage> {
                               ),
                               elevation: 2,
                             ),
-                            child: const Text(
-                              'Create Account',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
+                            child: _loading
+                                ? const CircularProgressIndicator(
+                                    color: Colors.white,
+                                  )
+                                : const Text(
+                                    'Create Account',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
                           ),
                         ),
                         const SizedBox(height: 20),

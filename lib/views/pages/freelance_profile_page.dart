@@ -14,6 +14,15 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   final ProfileController _controller = ProfileController();
+  bool _loading = true;
+
+  String _formatRupiah(double amount) {
+    final n = amount.toInt();
+    return n.toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (m) => '${m[1]}.',
+    );
+  }
 
   late TextEditingController _nameController;
   late TextEditingController _usernameController;
@@ -22,10 +31,39 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void initState() {
     super.initState();
-    final user = _controller.getClientUser();
-    _nameController = TextEditingController(text: user.name);
-    _usernameController = TextEditingController(text: user.username);
-    _emailController = TextEditingController(text: user.email);
+    _nameController = TextEditingController();
+    _usernameController = TextEditingController();
+    _emailController = TextEditingController();
+    _fetchUserData();
+  }
+
+  void _fetchUserData() async {
+    // Cek session dulu
+    final session = _controller.supabase.auth.currentSession;
+    if (session == null) {
+      setState(() {
+        _controller.isLoggedIn = false;
+        _loading = false;
+      });
+      return;
+    }
+
+    final data = await _controller.getCurrentUser();
+    if (data != null) {
+      setState(() {
+        _controller.isLoggedIn = true;
+        _controller.isFreelancer = data['role'] == 'freelancer';
+        _nameController.text = data['nama'] ?? '';
+        _usernameController.text = data['username'] ?? '';
+        _emailController.text = data['email'] ?? '';
+        _loading = false;
+      });
+    } else {
+      setState(() {
+        _controller.isLoggedIn = false;
+        _loading = false;
+      });
+    }
   }
 
   @override
@@ -38,6 +76,14 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFFFF8EE),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    //  cek isLoggedIn dulu
     if (!_controller.isLoggedIn) {
       return _buildGuestProfile();
     }
@@ -253,59 +299,71 @@ class _ProfilePageState extends State<ProfilePage> {
   // CLIENT PROFILE (sudah login) — tidak ada perubahan
   // ─────────────────────────────────────────────
   Widget _buildClientProfile() {
-    final user = _controller.getClientUser();
-
     return SingleChildScrollView(
       child: Column(
         children: [
-          Container(
-            width: double.infinity,
-            child: Column(
+          const SizedBox(height: 55),
+
+          // ── Header ──
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const SizedBox(height: 55),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        "My Profile",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                const Text(
+                  "My Profile",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                GestureDetector(
+                  onTap: () => _showJoinFreelanceDialog(context),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFB74D),
+                      borderRadius: BorderRadius.circular(25),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.orange.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
                         ),
+                      ],
+                    ),
+                    child: const Text(
+                      "Join Freelance",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
                       ),
-                      GestureDetector(
-                        onTap: () => _showJoinFreelanceDialog(context),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 18,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFB74D),
-                            borderRadius: BorderRadius.circular(25),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.orange.withOpacity(0.3),
-                                blurRadius: 8,
-                                offset: const Offset(0, 3),
-                              ),
-                            ],
-                          ),
-                          child: const Text(
-                            "Join Freelance",
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
-                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // ── Foto profil (bisa diklik) ──
+          GestureDetector(
+            onTap: () async {
+              final userData = await _controller.getCurrentUser();
+              if (userData == null) return;
+              final url = await _controller.uploadProfileImage(
+                userData['id_user'],
+              );
+              if (url != null) {
+                setState(() {
+                  _nameController.text =
+                      _nameController.text; // trigger rebuild
+                });
+              }
+            },
+            child: Stack(
+              children: [
                 Container(
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
@@ -315,90 +373,128 @@ class _ProfilePageState extends State<ProfilePage> {
                       width: 3,
                     ),
                   ),
-                  child: CircleAvatar(
-                    radius: 48,
-                    backgroundColor: Colors.orange.withOpacity(0.2),
-                    child: CircleAvatar(
-                      radius: 44,
-                      backgroundImage: AssetImage(user.avatarPath),
-                      onBackgroundImageError: (_, __) {},
+                  child: FutureBuilder<Map<String, dynamic>?>(
+                    future: _controller.getCurrentUser(),
+                    builder: (context, snapshot) {
+                      final foto = snapshot.data?['foto'];
+                      return CircleAvatar(
+                        radius: 48,
+                        backgroundColor: Colors.orange.withOpacity(0.2),
+                        backgroundImage: foto != null
+                            ? NetworkImage(foto) as ImageProvider
+                            : const AssetImage(
+                                'assets/images/icons/profile.png',
+                              ),
+                      );
+                    },
+                  ),
+                ),
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFFFB74D),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.camera_alt_rounded,
+                      color: Colors.white,
+                      size: 14,
                     ),
                   ),
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  user.username,
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  user.email,
-                  style: const TextStyle(fontSize: 13, color: Colors.black54),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  user.location,
-                  style: const TextStyle(fontSize: 13, color: Colors.black54),
-                ),
-                const SizedBox(height: 20),
-                _buildToggle(),
-                const SizedBox(height: 24),
               ],
             ),
           ),
+
+          const SizedBox(height: 12),
+
+          // ── Nama & Email dari Supabase ──
+          Text(
+            _nameController.text.isNotEmpty
+                ? _nameController.text
+                : 'Nama User',
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _emailController.text.isNotEmpty
+                ? _emailController.text
+                : 'email@example.com',
+            style: const TextStyle(fontSize: 13, color: Colors.black54),
+          ),
+
+          const SizedBox(height: 20),
+
+          _buildToggle(),
+          const SizedBox(height: 24),
+
+          // ── Statistik dari Supabase ──
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 20),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF0EBE0),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                children: [
-                  Expanded(child: _statItem("${user.myOrders}", "My Orders")),
-                  _verticalDivider(),
-                  Expanded(child: _statItem(user.totalSpent, "Total Spent")),
-                  _verticalDivider(),
-                  Expanded(
-                    child: _statItem(
-                      "${user.completedOrders}",
-                      "Completed Orders",
-                    ),
+            child: FutureBuilder<Map<String, dynamic>?>(
+              future: _controller.getCurrentUser(),
+              builder: (context, snapshot) {
+                final data = snapshot.data;
+                return Container(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0EBE0),
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                ],
-              ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _statItem(
+                          '${data?['my_orders'] ?? 0}',
+                          'My Orders',
+                        ),
+                      ),
+                      _verticalDivider(),
+                      Expanded(
+                        child: _statItem(
+                          'Rp ${_formatRupiah((data?['total_spent'] ?? 0).toDouble())}',
+                          'Total Spent',
+                        ),
+                      ),
+                      _verticalDivider(),
+                      Expanded(
+                        child: _statItem(
+                          '${data?['completed_orders'] ?? 0}',
+                          'Completed Orders',
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
+
           const SizedBox(height: 20),
+
+          // ── Edit Profile fields ──
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(
               children: [
                 _editableField(
                   label: "Name",
-                  displayText: _nameController.text.isNotEmpty
-                      ? _nameController.text
-                      : user.name,
+                  displayText: _nameController.text,
                   controller: _nameController,
                 ),
                 const SizedBox(height: 12),
                 _editableField(
                   label: "Username",
-                  displayText: _usernameController.text.isNotEmpty
-                      ? _usernameController.text
-                      : user.username,
+                  displayText: _usernameController.text,
                   controller: _usernameController,
                 ),
                 const SizedBox(height: 12),
                 _editableField(
                   label: "Email",
-                  displayText: _emailController.text.isNotEmpty
-                      ? _emailController.text
-                      : user.email,
+                  displayText: _emailController.text,
                   controller: _emailController,
                 ),
                 const SizedBox(height: 12),
@@ -406,7 +502,9 @@ class _ProfilePageState extends State<ProfilePage> {
               ],
             ),
           ),
+
           const SizedBox(height: 12),
+
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(
@@ -416,6 +514,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   .toList(),
             ),
           ),
+
           const SizedBox(height: 100),
         ],
       ),
@@ -768,9 +867,18 @@ class _ProfilePageState extends State<ProfilePage> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            onPressed: () {
-              setState(() {});
+            onPressed: () async {
               Navigator.pop(ctx);
+              // Ambil id_user dulu
+              final userData = await _controller.getCurrentUser();
+              if (userData == null) return;
+              await _controller.updateProfile(
+                idUser: userData['id_user'],
+                nama: _nameController.text.trim(),
+                username: _usernameController.text.trim(),
+                noHp: userData['no_hp'] ?? '',
+              );
+              setState(() {});
             },
             child: const Text("Save", style: TextStyle(color: Colors.black)),
           ),
