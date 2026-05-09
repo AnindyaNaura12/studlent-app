@@ -1,7 +1,9 @@
+// ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
 import '../../controllers/profile_controller.dart';
-import 'register_freelancer_page.dart'; // ← tambahan import
-import 'my_profile_page.dart';
+import 'register_freelancer_page.dart';
+import 'login_page.dart'; // ← pastikan import ini ada
+import 'register_page.dart'; // ← pastikan import ini ada
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -12,6 +14,13 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   final ProfileController _controller = ProfileController();
+  bool _loading = true;
+
+  String _formatRupiah(double amount) {
+    final n = amount.toInt();
+    return n.toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
+  }
 
   late TextEditingController _nameController;
   late TextEditingController _usernameController;
@@ -20,10 +29,39 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void initState() {
     super.initState();
-    final user = _controller.getClientUser();
-    _nameController = TextEditingController(text: user.name);
-    _usernameController = TextEditingController(text: user.username);
-    _emailController = TextEditingController(text: user.email);
+    _nameController = TextEditingController();
+    _usernameController = TextEditingController();
+    _emailController = TextEditingController();
+    _fetchUserData();
+  }
+
+  void _fetchUserData() async {
+    // Cek session dulu
+    final session = _controller.supabase.auth.currentSession;
+    if (session == null) {
+      setState(() {
+        _controller.isLoggedIn = false;
+        _loading = false;
+      });
+      return;
+    }
+
+    final data = await _controller.getCurrentUser();
+    if (data != null) {
+      setState(() {
+        _controller.isLoggedIn = true;
+        _controller.isFreelancer = data['role'] == 'freelancer';
+        _nameController.text = data['nama'] ?? '';
+        _usernameController.text = data['username'] ?? '';
+        _emailController.text = data['email'] ?? '';
+        _loading = false;
+      });
+    } else {
+      setState(() {
+        _controller.isLoggedIn = false;
+        _loading = false;
+      });
+    }
   }
 
   @override
@@ -36,6 +74,18 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFFFF8EE),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+  
+    //  cek isLoggedIn dulu
+    if (!_controller.isLoggedIn) {
+      return _buildGuestProfile();
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFFFF8EE),
       body: _controller.isFreelancer
@@ -45,55 +95,210 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // ─────────────────────────────────────────────
-  // CLIENT PROFILE
+  // GUEST PROFILE (belum login) ← BARU
   // ─────────────────────────────────────────────
-  Widget _buildClientProfile() {
-    final user = _controller.getClientUser();
+  Widget _buildGuestProfile() {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: Container(
+        width: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFFFD59E), Colors.white],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Header ──
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 20, 20, 0),
+                child: Text(
+                  'My Profile',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
+              ),
 
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          // ── HEADER ──
-          Container(
-            width: double.infinity,
-            child: Column(
-              children: [
-                const SizedBox(height: 55),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              const SizedBox(height: 30),
+
+              // ── Avatar icon ──
+              Center(
+                child: Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.black87, width: 2.5),
+                    color: Colors.transparent,
+                  ),
+                  child: const Icon(
+                    Icons.person_outline,
+                    size: 48,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // ── Welcome text ──
+              const Center(
+                child: Text(
+                  'Welcome to Studlent!',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Center(
+                child: Text(
+                  'Login or register as a client\nto get started',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.black54,
+                    height: 1.5,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // ── Toggle Client / Freelance ──
+              Center(child: _buildGuestToggle()),
+
+              const SizedBox(height: 24),
+
+              // ── Card login/register ──
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: const Color(0xFFE8D8C0),
+                      width: 2,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.06),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
                     children: [
                       const Text(
-                        "My Profile",
+                        "You're not logged in yet",
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: 20,
                           fontWeight: FontWeight.bold,
+                          color: Colors.black,
                         ),
                       ),
-                      GestureDetector(
-                        onTap: () => _showJoinFreelanceDialog(context),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 18,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFB74D),
-                            borderRadius: BorderRadius.circular(25),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.orange.withOpacity(0.3),
-                                blurRadius: 8,
-                                offset: const Offset(0, 3),
+                      const SizedBox(height: 8),
+                      Text(
+                        _controller.isFreelancer
+                            ? 'Please login or register as a freelancer\nto get started'
+                            : 'Please login or register as a client\nto get started',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.black54,
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Login button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const LoginPage(),
                               ),
-                            ],
+                            ).then(
+                              (_) => setState(() {
+                                // refresh setelah kembali dari login
+                              }),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFFB74D),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            elevation: 0,
                           ),
-                          child: const Text(
-                            "Join Freelance",
-                            style: TextStyle(
+                          child: Text(
+                            _controller.isFreelancer
+                                ? 'Login as Freelance'
+                                : 'Login as Client',
+                            style: const TextStyle(
+                              color: Colors.black,
+                              fontSize: 15,
                               fontWeight: FontWeight.bold,
-                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Register button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            if (_controller.isFreelancer) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      const RegisterFreelancerPage(),
+                                ),
+                              );
+                            } else {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const RegisterPage(),
+                                ),
+                              );
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFFB74D),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: Text(
+                            _controller.isFreelancer
+                                ? 'Register as Freelance'
+                                : 'Register as Client',
+                            style: const TextStyle(
+                              color: Colors.black,
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
@@ -101,134 +306,261 @@ class _ProfilePageState extends State<ProfilePage> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 20),
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: const Color(0xFFFFB74D),
-                      width: 3,
-                    ),
-                  ),
-                  child: CircleAvatar(
-                    radius: 48,
-                    backgroundColor: Colors.orange.withOpacity(0.2),
-                    child: CircleAvatar(
-                      radius: 44,
-                      backgroundImage: AssetImage(user.avatarPath),
-                      onBackgroundImageError: (_, __) {},
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  user.username,
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  user.email,
-                  style: const TextStyle(fontSize: 13, color: Colors.black54),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  user.location,
-                  style: const TextStyle(fontSize: 13, color: Colors.black54),
-                ),
-                const SizedBox(height: 20),
-                _buildToggle(),
-                const SizedBox(height: 24),
-              ],
-            ),
-          ),
-
-          // ── STATS ──
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 20),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF0EBE0),
-                borderRadius: BorderRadius.circular(20),
               ),
-              child: Row(
-                children: [
-                  Expanded(child: _statItem("${user.myOrders}", "My Orders")),
-                  _verticalDivider(),
-                  Expanded(child: _statItem(user.totalSpent, "Total Spent")),
-                  _verticalDivider(),
-                  Expanded(
-                    child: _statItem(
-                      "${user.completedOrders}",
-                      "Completed Orders",
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            ],
           ),
+        ),
+      ),
+    );
+  }
 
-          const SizedBox(height: 20),
-
-          // ── EDITABLE FIELDS ──
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(
-              children: [
-                _editableField(
-                  label: "Name",
-                  displayText: _nameController.text.isNotEmpty
-                      ? _nameController.text
-                      : user.name,
-                  controller: _nameController,
-                ),
-                const SizedBox(height: 12),
-                _editableField(
-                  label: "Username",
-                  displayText: _usernameController.text.isNotEmpty
-                      ? _usernameController.text
-                      : user.username,
-                  controller: _usernameController,
-                ),
-                const SizedBox(height: 12),
-                _editableField(
-                  label: "Email",
-                  displayText: _emailController.text.isNotEmpty
-                      ? _emailController.text
-                      : user.email,
-                  controller: _emailController,
-                ),
-                const SizedBox(height: 12),
-                _passwordField(),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 12),
-
-          // ── BOTTOM MENU ──
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(
-              children: _controller
-                  .getClientMenuItems()
-                  .map((item) => _menuItem(item['title'] as String))
-                  .toList(),
-            ),
-          ),
-
-          const SizedBox(height: 100),
+  Widget _buildGuestToggle() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEDE0D4),
+        borderRadius: BorderRadius.circular(30),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _guestRoleButton('Client', !_controller.isFreelancer),
+          _guestRoleButton('Freelance', _controller.isFreelancer),
         ],
       ),
     );
   }
 
+  Widget _guestRoleButton(String text, bool active) {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _controller.isFreelancer = text == 'Freelance';
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+        decoration: BoxDecoration(
+          color: active ? const Color(0xFFFFB74D) : Colors.grey.shade300,
+          borderRadius: BorderRadius.circular(25),
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: active ? Colors.black : Colors.black54,
+          ),
+        ),
+      ),
+    );
+  }
+
   // ─────────────────────────────────────────────
-  // FREELANCER PROFILE
+  // CLIENT PROFILE (sudah login)
+  // ─────────────────────────────────────────────
+  Widget _buildClientProfile() {
+  return SingleChildScrollView(
+    child: Column(
+      children: [
+        const SizedBox(height: 55),
+
+        // ── Header ──
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                "My Profile",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              GestureDetector(
+                onTap: () => _showJoinFreelanceDialog(context),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFB74D),
+                    borderRadius: BorderRadius.circular(25),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.orange.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: const Text(
+                    "Join Freelance",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 20),
+
+        // ── Foto profil (bisa diklik) ──
+        GestureDetector(
+          onTap: () async {
+            final userData = await _controller.getCurrentUser();
+            if (userData == null) return;
+            final url = await _controller.uploadProfileImage(userData['id_user']);
+            if (url != null) {
+              setState(() {
+                _nameController.text = _nameController.text; // trigger rebuild
+              });
+            }
+          },
+          child: Stack(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFFFFB74D), width: 3),
+                ),
+                child: FutureBuilder<Map<String, dynamic>?>(
+                  future: _controller.getCurrentUser(),
+                  builder: (context, snapshot) {
+                    final foto = snapshot.data?['foto'];
+                    return CircleAvatar(
+                      radius: 48,
+                      backgroundColor: Colors.orange.withOpacity(0.2),
+                      backgroundImage: foto != null
+                          ? NetworkImage(foto) as ImageProvider
+                          : const AssetImage('assets/images/icons/profile.png'),
+                    );
+                  },
+                ),
+              ),
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFFB74D),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.camera_alt_rounded,
+                    color: Colors.white,
+                    size: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        // ── Nama & Email dari Supabase ──
+        Text(
+          _nameController.text.isNotEmpty ? _nameController.text : 'Nama User',
+          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          _emailController.text.isNotEmpty
+              ? _emailController.text
+              : 'email@example.com',
+          style: const TextStyle(fontSize: 13, color: Colors.black54),
+        ),
+
+        const SizedBox(height: 20),
+
+        _buildToggle(),
+        const SizedBox(height: 24),
+
+        // ── Statistik dari Supabase ──
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: FutureBuilder<Map<String, dynamic>?>(
+            future: _controller.getCurrentUser(),
+            builder: (context, snapshot) {
+              final data = snapshot.data;
+              return Container(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0EBE0),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _statItem(
+                        '${data?['my_orders'] ?? 0}', 'My Orders')),
+                    _verticalDivider(),
+                    Expanded(
+                      child: _statItem(
+                        'Rp ${_formatRupiah((data?['total_spent'] ?? 0).toDouble())}',
+                        'Total Spent')),
+                    _verticalDivider(),
+                    Expanded(
+                      child: _statItem(
+                        '${data?['completed_orders'] ?? 0}', 'Completed Orders')),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+
+        const SizedBox(height: 20),
+
+        // ── Edit Profile fields ──
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            children: [
+              _editableField(
+                label: "Name",
+                displayText: _nameController.text,
+                controller: _nameController,
+              ),
+              const SizedBox(height: 12),
+              _editableField(
+                label: "Username",
+                displayText: _usernameController.text,
+                controller: _usernameController,
+              ),
+              const SizedBox(height: 12),
+              _editableField(
+                label: "Email",
+                displayText: _emailController.text,
+                controller: _emailController,
+              ),
+              const SizedBox(height: 12),
+              _passwordField(),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            children: _controller
+                .getClientMenuItems()
+                .map((item) => _menuItem(item['title'] as String))
+                .toList(),
+          ),
+        ),
+
+        const SizedBox(height: 100),
+      ],
+    ),
+  );
+}
+
+  // ─────────────────────────────────────────────
+  // FREELANCER PROFILE (sudah login)
   // ─────────────────────────────────────────────
   Widget _buildFreelancerProfile() {
     final user = _controller.getFreelancerUser();
@@ -338,7 +670,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // ─────────────────────────────────────────────
-  // SHARED WIDGETS
+  // SHARED WIDGETS (sama seperti sebelumnya)
   // ─────────────────────────────────────────────
 
   Widget _buildToggle() {
@@ -360,11 +692,9 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _roleButton(String text, bool active) {
     return GestureDetector(
-      onTap: () {
-        setState(() {
-          _controller.isFreelancer = text == "Freelance";
-        });
-      },
+      onTap: () => setState(() {
+        _controller.isFreelancer = text == "Freelance";
+      }),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
@@ -546,10 +876,6 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // ─────────────────────────────────────────────
-  // DIALOGS
-  // ─────────────────────────────────────────────
-
   void _showEditDialog(
     BuildContext context,
     String label,
@@ -576,12 +902,20 @@ class _ProfilePageState extends State<ProfilePage> {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFFFB74D),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+                  borderRadius: BorderRadius.circular(12)),
             ),
-            onPressed: () {
-              setState(() {});
+            onPressed: () async {
               Navigator.pop(ctx);
+              // Ambil id_user dulu
+              final userData = await _controller.getCurrentUser();
+              if (userData == null) return;
+              await _controller.updateProfile(
+                idUser: userData['id_user'],
+                nama: _nameController.text.trim(),
+                username: _usernameController.text.trim(),
+                noHp: userData['no_hp'] ?? '',
+              );
+              setState(() {});
             },
             child: const Text("Save", style: TextStyle(color: Colors.black)),
           ),
@@ -636,9 +970,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            // ── INI YANG DIUBAH ──
             onPressed: () {
-              Navigator.pop(ctx); // tutup dialog dulu
+              Navigator.pop(ctx);
               Navigator.push(
                 context,
                 MaterialPageRoute(

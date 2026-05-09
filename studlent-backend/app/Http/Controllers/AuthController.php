@@ -10,11 +10,22 @@ class AuthController extends Controller
 {
     public function register(Request $request)
     {
+        //validasi input
+        $request->validate([
+            'nama' => 'required',
+            'phone' => 'required',
+            'password' => 'required',
+            'product_interest' => 'required'
+        ]);
+
         $user = User::create([
-            'nama' => $request->nama,
+            'nama' => $request->username,
             'email' => $request->email,
+            'phone' => $request->phone, 
             'password' => Hash::make($request->password),
-            'role' => $request->role, // client / freelancer
+            'product_interest' => $request->product_interest,
+            'role' => 'client', // client 
+            'joined_at' => now()
         ]);
 
         return response()->json($user);

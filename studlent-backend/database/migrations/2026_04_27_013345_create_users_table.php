@@ -12,7 +12,9 @@ return new class extends Migration
             $table->increments('id_user');
             $table->string('nama', 100)->nullable();
             $table->string('email', 100)->unique();
+            $table->string('phone', 20)->nullable();
             $table->string('password', 255);
+            $table->string('product_interest')->nullable();
             $table->enum('role', ['client', 'freelancer', 'admin'])->nullable();
             $table->string('foto', 255)->nullable();
             $table->timestamp('joined_at')->useCurrent();
