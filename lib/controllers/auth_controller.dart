@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../views/pages/register_cover_page.dart';
 import '../views/pages/register_page.dart';
 import '../views/pages/login_page.dart';
 
 class AuthController {
+  final supabase = Supabase.instance.client;
+
   // ── Controllers ──────────────────────────────────────────
   final TextEditingController usernameController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
@@ -46,23 +49,14 @@ class AuthController {
     refresh();
   }
 
-  // ── Login ─────────────────────────────────────────────────
-  String? login() {
-    final username = usernameController.text.trim();
-    final password = passwordController.text.trim();
-
-    if (username.isEmpty) return 'Username tidak boleh kosong.';
-    if (password.isEmpty) return 'Password tidak boleh kosong.';
-
-    // TODO: integrasikan dengan API / backend autentikasi
-    return null;
-  }
-
   // ── Register ──────────────────────────────────────────────
-  String? register() {
+  Future<String?> register() async {
     final username = usernameController.text.trim();
     final phone = phoneController.text.trim();
     final password = passwordController.text.trim();
+
+    // Generate email otomatis dari username
+    final email = '${username.toLowerCase().replaceAll(' ', '')}@studlent.com';
 
     if (username.isEmpty) return 'Username tidak boleh kosong.';
     if (phone.isEmpty) return 'Nomor HP tidak boleh kosong.';
@@ -71,8 +65,59 @@ class AuthController {
     if (selectedInterest == null) return 'Pilih Product Interest.';
     if (!agreeToTerms) return 'Anda harus menyetujui Terms & Conditions.';
 
-    // TODO: integrasikan dengan API / backend registrasi
-    return null;
+    try {
+      // 1. Register ke Supabase Auth
+      final authResponse = await supabase.auth.signUp(
+        email: email,
+        password: password,
+      );
+
+      if (authResponse.user == null) {
+        return 'Registrasi gagal, coba lagi.';
+      }
+
+      // 2. Simpan data ke tabel users
+      await supabase.from('users').insert({
+        'nama': username,
+        'username': username,
+        'email': email,
+        'password': password,
+        'no_hp': phone,
+        'role': 'client',
+        'product_interest': selectedInterest,
+      });
+
+      return null; // null = sukses
+    } catch (e) {
+      return e.toString();
+    }
+  }
+
+  // ── Login ─────────────────────────────────────────────────
+  Future<String?> login() async {
+    final username = usernameController.text.trim();
+    final password = passwordController.text.trim();
+
+    if (username.isEmpty) return 'Username tidak boleh kosong.';
+    if (password.isEmpty) return 'Password tidak boleh kosong.';
+
+    // Generate email dari username
+    final email = '${username.toLowerCase().replaceAll(' ', '')}@studlent.com';
+
+    try {
+      final response = await supabase.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+
+      if (response.user == null) {
+        return 'Login gagal, cek username dan password.';
+      }
+
+      return null; // null = sukses
+    } catch (e) {
+      return e.toString();
+    }
   }
 
   // ── Dispose ───────────────────────────────────────────────

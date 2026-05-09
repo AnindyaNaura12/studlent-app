@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart';
 import '../models/register_model.dart';
 
 class RegisterController {
@@ -20,6 +21,8 @@ class RegisterController {
     'Digital Marketing',
     'Video & Animation',
   ];
+
+   
 
   void togglePasswordVisibility(VoidCallback refresh) {
     obscurePassword = !obscurePassword;
