@@ -87,7 +87,6 @@ class _RegisterPageState extends State<RegisterPage> {
                 child: IconButton(
                   icon: const Icon(
                     Icons.arrow_back,
-                    color: Colors.white,
                     size: 28,
                   ),
                   onPressed: () => Navigator.pop(context),

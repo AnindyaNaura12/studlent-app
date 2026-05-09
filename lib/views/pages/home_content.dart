@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../pages/filter_page.dart';
+import '../pages/service_detail_page.dart';
 import '../widgets/feature_item.dart';
 import '../widgets/filter_button.dart';
 import '../widgets/category_card.dart';
@@ -248,7 +249,20 @@ class _HomeContentState extends State<HomeContent> {
                   children: _servicesController.services
                       .map(
                         (svc) =>
-                            ServiceCard(service: svc as model1.ServiceModel),
+                            ServiceCard(
+                              service: svc as model1.ServiceModel,
+                              onTap: () {                                    // ← TAMBAH INI
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => ServiceDetailPage(
+                                      service: svc as model1.ServiceModel,
+                                    ),
+                                  ),
+                                );
+                              },
+
+                              ),
                       )
                       .toList(),
                 ),
