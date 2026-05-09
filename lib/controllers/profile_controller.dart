@@ -7,7 +7,7 @@ import '../views/pages/add_portfolio_page.dart';
 
 class ProfileController {
   bool isFreelancer = false;
-  bool isLoggedIn = false; // ← TAMBAH INI
+  bool isLoggedIn = true; // ← TAMBAH INI
 
   UserModel getFreelancerUser() {
     return UserModel(
