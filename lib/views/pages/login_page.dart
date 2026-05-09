@@ -3,6 +3,7 @@ import 'package:flutter/gestures.dart';
 import 'register_page.dart';
 import '../widgets/custom_back_button.dart';
 import '../../controllers/auth_controller.dart';
+import '../pages/home_pages.dart'; // sesuaikan path
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -13,6 +14,7 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final AuthController _controller = AuthController();
+  bool _loading = false;
 
   @override
   void dispose() {
@@ -20,27 +22,52 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  void _onLoginPressed() {
-    final error = _controller.login();
-    if (error != null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error)));
+  void _onLoginPressed() async {
+    if (_loading) return; // 🔥 anti double click
+
+    // ================= VALIDASI =================
+    if (_controller.usernameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Username wajib diisi')),
+      );
       return;
     }
-    // TODO: navigasi ke HomePage setelah login sukses
+
+    if (_controller.passwordController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password wajib diisi')),
+      );
+      return;
+    }
+
+    // ================= LOGIN =================
+    setState(() => _loading = true);
+
+    final error = await _controller.login();
+
+    setState(() => _loading = false);
+
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error)),
+      );
+      return;
+    }
+
+    // ================= SUCCESS =================
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const HomePage()),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     double scale(double size) => size * (screenWidth / 375);
-
-    // Clamp agar tidak overflow di layar sangat kecil atau sangat besar
     double s(double size) => scale(size).clamp(size * 0.75, size * 1.3);
 
     return Scaffold(
-      // Penting: mencegah overflow saat keyboard muncul
       resizeToAvoidBottomInset: true,
       body: Container(
         width: double.infinity,
@@ -55,26 +82,22 @@ class _LoginPageState extends State<LoginPage> {
         child: SafeArea(
           child: Column(
             children: [
-
-              // ================= HEADER =================
-              SafeArea(
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Padding(
-                    padding: EdgeInsets.all(s(10)),
-                    child: CustomBackButton(
-                      onTap: () => Navigator.pop(context),
-                    ),
+              // HEADER
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: EdgeInsets.all(s(10)),
+                  child: CustomBackButton(
+                    onTap: () => Navigator.pop(context),
                   ),
                 ),
               ),
 
-              // ================= LOGO =================
+              // LOGO
               Image.asset('assets/images/logo_studlent.png', height: s(65)),
-
               SizedBox(height: s(14)),
 
-              // ================= FORM CONTAINER =================
+              // FORM
               Expanded(
                 child: Container(
                   width: double.infinity,
@@ -85,28 +108,18 @@ class _LoginPageState extends State<LoginPage> {
                       topLeft: Radius.circular(s(40)),
                       topRight: Radius.circular(s(40)),
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.08),
-                        blurRadius: s(20),
-                        offset: Offset(0, -s(5)),
-                      ),
-                    ],
                   ),
-                  // ClipRRect mencegah konten meluber keluar rounded corner
                   child: ClipRRect(
                     borderRadius: BorderRadius.only(
                       topLeft: Radius.circular(s(40)),
                       topRight: Radius.circular(s(40)),
                     ),
                     child: SingleChildScrollView(
-                      // ClampingScrollPhysics menghilangkan glow/garis hitam
-                      physics: const ClampingScrollPhysics(),
                       padding: EdgeInsets.fromLTRB(s(24), s(30), s(24), s(24)),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // ================= TITLE =================
+                          // TITLE
                           Center(
                             child: RichText(
                               textAlign: TextAlign.center,
@@ -114,7 +127,6 @@ class _LoginPageState extends State<LoginPage> {
                                 style: TextStyle(
                                   fontSize: s(22),
                                   fontWeight: FontWeight.bold,
-                                  height: 1.4,
                                   color: Colors.black,
                                 ),
                                 children: const [
@@ -131,7 +143,7 @@ class _LoginPageState extends State<LoginPage> {
 
                           SizedBox(height: s(26)),
 
-                          // ================= USERNAME =================
+                          // USERNAME
                           _buildLabel('Username', s),
                           _buildTextField(
                             controller: _controller.usernameController,
@@ -142,13 +154,13 @@ class _LoginPageState extends State<LoginPage> {
 
                           SizedBox(height: s(16)),
 
-                          // ================= PASSWORD =================
+                          // PASSWORD
                           _buildLabel('Password', s),
                           _buildPasswordField(s),
 
                           SizedBox(height: s(24)),
 
-                          // ================= SIGN IN BUTTON =================
+                          // 🔥 BUTTON LOGIN
                           SizedBox(
                             width: double.infinity,
                             height: s(52),
@@ -161,38 +173,42 @@ class _LoginPageState extends State<LoginPage> {
                                     Color(0xFFFFB74D),
                                   ],
                                 ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.orange.withOpacity(0.3),
-                                    blurRadius: s(10),
-                                    offset: Offset(0, s(4)),
-                                  ),
-                                ],
                               ),
                               child: ElevatedButton(
-                                onPressed: _onLoginPressed,
+                                onPressed:
+                                    _loading ? null : _onLoginPressed,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.transparent,
                                   shadowColor: Colors.transparent,
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(s(30)),
+                                    borderRadius:
+                                        BorderRadius.circular(s(30)),
                                   ),
                                 ),
-                                child: Text(
-                                  'Sign In',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: s(17),
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
+                                child: _loading
+                                    ? const SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : Text(
+                                        'Sign In',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: s(17),
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                               ),
                             ),
                           ),
 
                           SizedBox(height: s(16)),
 
-                          // ================= SIGN UP LINK =================
+                          // SIGN UP
                           Center(
                             child: RichText(
                               text: TextSpan(
@@ -202,8 +218,7 @@ class _LoginPageState extends State<LoginPage> {
                                 ),
                                 children: [
                                   const TextSpan(
-                                    text: "Don't have an account? ",
-                                  ),
+                                      text: "Don't have an account? "),
                                   TextSpan(
                                     text: 'Sign Up',
                                     style: TextStyle(
@@ -226,8 +241,6 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                             ),
                           ),
-
-                          SizedBox(height: s(8)),
                         ],
                       ),
                     ),
@@ -241,7 +254,6 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // ================= LABEL =================
   Widget _buildLabel(String text, double Function(double) s) {
     return Padding(
       padding: EdgeInsets.only(left: s(4), bottom: s(8)),
@@ -250,13 +262,11 @@ class _LoginPageState extends State<LoginPage> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontSize: s(14),
-          color: Colors.black,
         ),
       ),
     );
   }
 
-  // ================= TEXT FIELD =================
   Widget _buildTextField({
     required TextEditingController controller,
     required String hint,
@@ -270,19 +280,15 @@ class _LoginPageState extends State<LoginPage> {
       ),
       child: TextField(
         controller: controller,
-        style: TextStyle(fontSize: scale(14)),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: TextStyle(color: Colors.grey, fontSize: scale(13)),
-          prefixIcon: Icon(icon, color: Colors.grey, size: scale(20)),
+          prefixIcon: Icon(icon),
           border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(vertical: scale(15)),
         ),
       ),
     );
   }
 
-  // ================= PASSWORD FIELD =================
   Widget _buildPasswordField(double Function(double) s) {
     return Container(
       decoration: BoxDecoration(
@@ -292,24 +298,21 @@ class _LoginPageState extends State<LoginPage> {
       child: TextField(
         controller: _controller.passwordController,
         obscureText: _controller.obscureLoginPassword,
-        style: TextStyle(fontSize: s(14)),
         decoration: InputDecoration(
           hintText: 'Enter your password',
-          hintStyle: TextStyle(color: Colors.grey, fontSize: s(13)),
-          prefixIcon: Icon(Icons.lock_outline, color: Colors.grey, size: s(20)),
+          prefixIcon: const Icon(Icons.lock_outline),
           border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(vertical: s(15)),
           suffixIcon: IconButton(
             icon: Icon(
               _controller.obscureLoginPassword
-                  ? Icons.visibility_off_outlined
-                  : Icons.visibility_outlined,
-              color: Colors.grey,
-              size: s(20),
+                  ? Icons.visibility_off
+                  : Icons.visibility,
             ),
-            onPressed: () => _controller.toggleLoginPasswordVisibility(
-              () => setState(() {}),
-            ),
+            onPressed: () {
+              _controller.toggleLoginPasswordVisibility(
+                () => setState(() {}),
+              );
+            },
           ),
         ),
       ),
