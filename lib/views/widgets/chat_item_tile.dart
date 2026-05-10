@@ -3,8 +3,13 @@ import '../../models/chat_model.dart';
 
 class ChatItemTile extends StatelessWidget {
   final ChatModel chat;
+  final VoidCallback onTap;
 
-  const ChatItemTile({super.key, required this.chat});
+  const ChatItemTile({
+    super.key,
+    required this.chat,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +32,7 @@ class ChatItemTile extends StatelessWidget {
           maxWidth: isWeb ? 600 : double.infinity,
         ),
         child: InkWell(
-          onTap: () {},
+          onTap: onTap,
           child: Container(
             margin: EdgeInsets.symmetric(
               horizontal: isWeb ? 8 : scale(16),
