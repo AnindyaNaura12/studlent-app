@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/custom_back_button.dart';
 import '../../controllers/edit_profile_controller.dart';
+import '../../controllers/profile_controller.dart';
 import '../../models/freelancer_profile_model.dart';
 
 class EditProfileFreelancerPage extends StatefulWidget {
@@ -14,13 +15,37 @@ class EditProfileFreelancerPage extends StatefulWidget {
       _EditProfileFreelancerPageState();
 }
 
-class _EditProfileFreelancerPageState extends State<EditProfileFreelancerPage> {
+class _EditProfileFreelancerPageState
+    extends State<EditProfileFreelancerPage> {
   late EditProfileController _controller;
+  String? _fotoUrl;
+  bool _loadingData = true;
 
   @override
   void initState() {
     super.initState();
-    _controller = EditProfileController(initialModel: widget.initialModel);
+    _controller =
+        EditProfileController(initialModel: widget.initialModel);
+    _loadData();
+  }
+
+  // ── Load semua data ───────────────────────────────────────
+  Future<void> _loadData() async {
+    setState(() => _loadingData = true);
+
+    // Load foto freelancer
+    final profileCtrl = ProfileController();
+    final data = await profileCtrl.getCurrentUser();
+    if (data != null && mounted) {
+      setState(() => _fotoUrl = data['foto_freelancer']); // ← fix key
+    }
+
+    // Load profile data dari Supabase
+    await _controller.loadFromSupabase();
+
+    if (mounted) {
+      setState(() => _loadingData = false);
+    }
   }
 
   @override
@@ -29,44 +54,69 @@ class _EditProfileFreelancerPageState extends State<EditProfileFreelancerPage> {
     super.dispose();
   }
 
-  void _onSavePressed() {
+  // ── Save ke Supabase ──────────────────────────────────────
+  Future<void> _onSavePressed() async {
     final error = _controller.validate();
     if (error != null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error)));
       return;
     }
-    final saved = _controller.save();
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Profil berhasil disimpan!')));
-    Navigator.pop(context, saved);
+
+    // Tampilkan loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) =>
+          const Center(child: CircularProgressIndicator()),
+    );
+
+    final success = await _controller.saveToSupabase();
+
+    if (mounted) Navigator.pop(context); // tutup loading dialog
+
+    if (!mounted) return;
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profil berhasil disimpan!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      Navigator.pop(context, true); // ← kirim true untuk trigger refresh
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Gagal menyimpan. Coba lagi.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFFFF8EE),
-
       body: SafeArea(
-          child: Column(
-            children: [
-              // ── TOP BAR ──
-             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Column(
+          children: [
+            // ── TOP BAR ──
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  // Back button kiri
                   Align(
                     alignment: Alignment.centerLeft,
                     child: CustomBackButton(
                       onTap: () => Navigator.pop(context),
                     ),
                   ),
-
-                  // Title benar-benar center
                   const Text(
                     'My Profile',
                     style: TextStyle(
@@ -79,133 +129,190 @@ class _EditProfileFreelancerPageState extends State<EditProfileFreelancerPage> {
               ),
             ),
 
-              // ── SCROLLABLE CONTENT ──
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 10),
-                      // ── AVATAR ──
-                      Center(
-                        child: Column(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(3),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: const Color(0xFFFFB74D),
-                                  width: 3,
-                                ),
-                              ),
-                              child: CircleAvatar(
-                                radius: 52,
-                                backgroundColor: Colors.orange.withOpacity(0.2),
-                                backgroundImage: AssetImage(
-                                  _controller.model.avatarPath,
-                                ),
-                                onBackgroundImageError: (_, __) {},
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            GestureDetector(
-                              onTap: () {
-                                // TODO: image picker
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 28,
-                                  vertical: 12,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF0EAE0),
-                                  borderRadius: BorderRadius.circular(30),
-                                ),
-                                child: const Text(
-                                  'Change Photo',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                    color: Colors.black87,
+            // ── CONTENT ──
+            Expanded(
+              child: _loadingData
+                  ? const Center(child: CircularProgressIndicator())
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 10),
+
+                          // ── AVATAR ──
+                          Center(
+                            child: Column(
+                              children: [
+                                GestureDetector(
+                                  onTap: () async {
+                                    final profileCtrl =
+                                        ProfileController();
+                                    final data = await profileCtrl
+                                        .getCurrentUser();
+                                    if (data == null) return;
+                                    final url = await profileCtrl
+                                        .uploadProfileImage(
+                                      data['id_user'],
+                                      isFreelancer: true,
+                                    );
+                                    if (url != null && mounted) {
+                                      setState(() => _fotoUrl = url);
+                                    }
+                                  },
+                                  child: Stack(
+                                    children: [
+                                      Container(
+                                        padding:
+                                            const EdgeInsets.all(3),
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: const Color(
+                                                0xFFFFB74D),
+                                            width: 3,
+                                          ),
+                                        ),
+                                        child: CircleAvatar(
+                                          radius: 52,
+                                          backgroundColor: Colors
+                                              .orange
+                                              .withOpacity(0.2),
+                                          child: ClipOval(
+                                            child: _fotoUrl != null
+                                                ? Image.network(
+                                                    _fotoUrl!,
+                                                    width: 104,
+                                                    height: 104,
+                                                    fit: BoxFit.cover,
+                                                    key: ValueKey(
+                                                        _fotoUrl),
+                                                    errorBuilder: (_,
+                                                            __,
+                                                            ___) =>
+                                                        Image.asset(
+                                                      'assets/images/icons/profile.png',
+                                                      width: 104,
+                                                      height: 104,
+                                                      fit: BoxFit
+                                                          .cover,
+                                                    ),
+                                                  )
+                                                : Image.asset(
+                                                    'assets/images/icons/profile.png',
+                                                    width: 104,
+                                                    height: 104,
+                                                    fit: BoxFit.cover,
+                                                  ),
+                                          ),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        bottom: 0,
+                                        right: 0,
+                                        child: Container(
+                                          padding:
+                                              const EdgeInsets.all(6),
+                                          decoration:
+                                              const BoxDecoration(
+                                            color: Color(0xFFFFB74D),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(
+                                            Icons.camera_alt_rounded,
+                                            color: Colors.white,
+                                            size: 14,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
+                                const SizedBox(height: 8),
+                                const Text(
+                                  'Tap untuk ganti foto',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 28),
+
+                          // ── NAME ──
+                          _buildSectionLabel('Name'),
+                          _buildEditableField(
+                            controller: _controller.nameController,
+                            hint: 'Nama kamu',
+                          ),
+                          const SizedBox(height: 20),
+
+                          // ── PROFESSIONAL STATUS ──
+                          _buildSectionLabel('Professional Status'),
+                          _buildEditableField(
+                            controller: _controller
+                                .professionalStatusController,
+                            hint: 'Contoh: UI/UX Designer',
+                          ),
+                          const SizedBox(height: 20),
+
+                          // ── ABOUT ME ──
+                          _buildSectionLabel('About Me'),
+                          _buildAboutMeField(),
+                          const SizedBox(height: 24),
+
+                          // ── MY SKILLS ──
+                          _buildSectionLabel('My Skills'),
+                          _buildSkillsSection(),
+                          const SizedBox(height: 24),
+
+                          // ── SERTIFIKAT ──
+                          _buildSectionLabel(
+                              'Sertifikat & Penghargaan'),
+                          _buildCertificateSection(),
+                          const SizedBox(height: 32),
+
+                          // ── SAVE BUTTON ──
+                          SizedBox(
+                            width: double.infinity,
+                            height: 54,
+                            child: ElevatedButton(
+                              onPressed: _onSavePressed,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor:
+                                    const Color(0xFF3B82F6),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius:
+                                      BorderRadius.circular(30),
+                                ),
+                                elevation: 2,
+                              ),
+                              child: const Text(
+                                'Save Changes',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 28),
-
-                      // ── NAME ──
-                      _buildSectionLabel('Name'),
-                      _buildEditableField(
-                        controller: _controller.nameController,
-                        hint: 'Carla Park',
-                      ),
-                      const SizedBox(height: 20),
-
-                      // ── PROFESSIONAL STATUS ──
-                      _buildSectionLabel('Professional Status'),
-                      _buildEditableField(
-                        controller: _controller.professionalStatusController,
-                        hint: 'UI/UX Design',
-                      ),
-                      const SizedBox(height: 20),
-
-                      // ── ABOUT ME ──
-                      _buildSectionLabel('About Me'),
-                      _buildAboutMeField(),
-                      const SizedBox(height: 24),
-
-                      // ── MY SKILLS ──
-                      _buildSectionLabel('My Skills'),
-                      _buildSkillsSection(),
-                      const SizedBox(height: 24),
-
-                      // ── PORTFOLIO ──
-                      _buildSectionLabel('Portofolio'),
-                      _buildPortfolioSection(),
-                      const SizedBox(height: 32),
-
-                      // ── SAVE BUTTON ──
-                      SizedBox(
-                        width: double.infinity,
-                        height: 54,
-                        child: ElevatedButton(
-                          onPressed: _onSavePressed,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF3B82F6),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
-                            ),
-                            elevation: 2,
                           ),
-                          child: const Text(
-                            'Save Changes',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
+                          const SizedBox(height: 30),
+                        ],
                       ),
-                      const SizedBox(height: 30),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
+                    ),
+            ),
+          ],
         ),
-      );
+      ),
+    );
   }
 
-  // ─────────────────────────────────────────────
-  // SECTION LABEL
-  // ─────────────────────────────────────────────
   Widget _buildSectionLabel(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -220,19 +327,22 @@ class _EditProfileFreelancerPageState extends State<EditProfileFreelancerPage> {
     );
   }
 
-  // ─────────────────────────────────────────────
-  // EDITABLE FIELD (single line)
-  // ─────────────────────────────────────────────
   Widget _buildEditableField({
     required TextEditingController controller,
     required String hint,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 18,
+        vertical: 4,
+      ),
       decoration: BoxDecoration(
         color: const Color(0xFFF5EFE6),
         borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: const Color(0xFFE8D5B7), width: 1),
+        border: Border.all(
+          color: const Color(0xFFE8D5B7),
+          width: 1,
+        ),
       ),
       child: Row(
         children: [
@@ -241,29 +351,36 @@ class _EditProfileFreelancerPageState extends State<EditProfileFreelancerPage> {
               controller: controller,
               decoration: InputDecoration(
                 hintText: hint,
-                hintStyle: const TextStyle(color: Colors.black45),
+                hintStyle:
+                    const TextStyle(color: Colors.black45),
                 border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                contentPadding:
+                    const EdgeInsets.symmetric(vertical: 14),
               ),
-              style: const TextStyle(fontSize: 14, color: Colors.black87),
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.black87,
+              ),
             ),
           ),
-          const Icon(Icons.edit_outlined, size: 18, color: Color(0xFFCCAA66)),
+          const Icon(
+            Icons.edit_outlined,
+            size: 18,
+            color: Color(0xFFCCAA66),
+          ),
         ],
       ),
     );
   }
 
-  // ─────────────────────────────────────────────
-  // ABOUT ME (multiline)
-  // ─────────────────────────────────────────────
   Widget _buildAboutMeField() {
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 8, 18, 8),
       decoration: BoxDecoration(
         color: const Color(0xFFF5EFE6),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE8D5B7), width: 1),
+        border:
+            Border.all(color: const Color(0xFFE8D5B7), width: 1),
       ),
       child: Stack(
         children: [
@@ -274,7 +391,8 @@ class _EditProfileFreelancerPageState extends State<EditProfileFreelancerPage> {
               hintText: 'Tell clients about yourself...',
               hintStyle: TextStyle(color: Colors.black45),
               border: InputBorder.none,
-              contentPadding: EdgeInsets.only(top: 10, right: 24),
+              contentPadding:
+                  EdgeInsets.only(top: 10, right: 24),
             ),
             style: const TextStyle(
               fontSize: 14,
@@ -296,31 +414,28 @@ class _EditProfileFreelancerPageState extends State<EditProfileFreelancerPage> {
     );
   }
 
-  // ─────────────────────────────────────────────
-  // SKILLS SECTION
-  // ─────────────────────────────────────────────
   Widget _buildSkillsSection() {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0xFFF5EFE6),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE8D5B7), width: 1),
+        border:
+            Border.all(color: const Color(0xFFE8D5B7), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Skill chips
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _controller.skills.map((skill) {
-              return _buildSkillChip(skill);
-            }).toList(),
-          ),
-          const SizedBox(height: 14),
-
-          // Add Skill label
+          if (_controller.skills.isNotEmpty) ...[
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _controller.skills.map((skill) {
+                return _buildSkillChip(skill);
+              }).toList(),
+            ),
+            const SizedBox(height: 14),
+          ],
           const Row(
             children: [
               Text('📚', style: TextStyle(fontSize: 16)),
@@ -336,13 +451,13 @@ class _EditProfileFreelancerPageState extends State<EditProfileFreelancerPage> {
             ],
           ),
           const SizedBox(height: 10),
-
-          // Input + button
           Row(
             children: [
               Expanded(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(30),
@@ -355,13 +470,19 @@ class _EditProfileFreelancerPageState extends State<EditProfileFreelancerPage> {
                     controller: _controller.skillInputController,
                     decoration: const InputDecoration(
                       hintText: 'Type a skill...',
-                      hintStyle: TextStyle(color: Colors.black38, fontSize: 13),
+                      hintStyle: TextStyle(
+                        color: Colors.black38,
+                        fontSize: 13,
+                      ),
                       border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(vertical: 12),
+                      contentPadding:
+                          EdgeInsets.symmetric(vertical: 12),
                     ),
                     style: const TextStyle(fontSize: 13),
-                    onSubmitted: (val) =>
-                        _controller.addSkill(val, () => setState(() {})),
+                    onSubmitted: (val) => _controller.addSkill(
+                      val,
+                      () => setState(() {}),
+                    ),
                   ),
                 ),
               ),
@@ -402,12 +523,16 @@ class _EditProfileFreelancerPageState extends State<EditProfileFreelancerPage> {
   }
 
   Widget _buildSkillChip(String skill) {
-    // Warna chip bergantian seperti di gambar (biru muda & krem)
     final isBlue = _controller.skills.indexOf(skill) % 2 == 0;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 14,
+        vertical: 8,
+      ),
       decoration: BoxDecoration(
-        color: isBlue ? const Color(0xFFB8CCF0) : const Color(0xFFF0EAE0),
+        color: isBlue
+            ? const Color(0xFFB8CCF0)
+            : const Color(0xFFF0EAE0),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -423,45 +548,65 @@ class _EditProfileFreelancerPageState extends State<EditProfileFreelancerPage> {
           ),
           const SizedBox(width: 6),
           GestureDetector(
-            onTap: () => _controller.removeSkill(skill, () => setState(() {})),
-            child: const Icon(Icons.close, size: 14, color: Colors.black54),
+            onTap: () => _controller.removeSkill(
+              skill,
+              () => setState(() {}),
+            ),
+            child: const Icon(
+              Icons.close,
+              size: 14,
+              color: Colors.black54,
+            ),
           ),
         ],
       ),
     );
   }
 
-  // ─────────────────────────────────────────────
-  // PORTFOLIO SECTION
-  // ─────────────────────────────────────────────
-  Widget _buildPortfolioSection() {
+  Widget _buildCertificateSection() {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Grid foto portfolio
-        if (_controller.portfolioImages.isNotEmpty) ...[
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
-              childAspectRatio: 0.7,
-            ),
-            itemCount: _controller.portfolioImages.length,
-            itemBuilder: (context, index) {
+        const Text(
+          'Tambahkan sertifikat, piagam, atau penghargaan\nuntuk meyakinkan klien',
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.black54,
+            height: 1.5,
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (_controller.certificates.isNotEmpty)
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: _controller.certificates
+                .asMap()
+                .entries
+                .map((entry) {
               return Stack(
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.asset(
-                      _controller.portfolioImages[index],
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: double.infinity,
-                      errorBuilder: (_, __, ___) => Container(
-                        color: Colors.grey[300],
-                        child: const Icon(Icons.image, color: Colors.grey),
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: Colors.grey.shade300),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.asset(
+                        entry.value,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          color: Colors.grey[200],
+                          child: const Icon(
+                            Icons.workspace_premium,
+                            color: Colors.orange,
+                            size: 40,
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -469,8 +614,8 @@ class _EditProfileFreelancerPageState extends State<EditProfileFreelancerPage> {
                     top: 4,
                     right: 4,
                     child: GestureDetector(
-                      onTap: () => _controller.removePortfolioImage(
-                        index,
+                      onTap: () => _controller.removeCertificate(
+                        entry.key,
                         () => setState(() {}),
                       ),
                       child: Container(
@@ -489,116 +634,49 @@ class _EditProfileFreelancerPageState extends State<EditProfileFreelancerPage> {
                   ),
                 ],
               );
-            },
+            }).toList(),
           ),
-          const SizedBox(height: 12),
-        ],
-
-        // Placeholder portfolio (gambar contoh dari gambar desain)
-        if (_controller.portfolioImages.isEmpty)
-          Container(
-            height: 160,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF5EFE6),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE8D5B7)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _portfolioPlaceholderCard(isHighlighted: true),
-                const SizedBox(width: 8),
-                _portfolioPlaceholderCard(),
-                const SizedBox(width: 8),
-                _portfolioPlaceholderCard(),
-              ],
-            ),
-          ),
-
         const SizedBox(height: 12),
-
-        // + Add Portfolio button
         GestureDetector(
           onTap: () {
-            // TODO: image picker untuk portfolio
-            // Simulasi tambah placeholder
-            _controller.addPortfolioImage(
-              'assets/images/portfolio_sample.png',
+            _controller.addCertificate(
+              'assets/images/placeholder.png',
               () => setState(() {}),
             );
           },
           child: Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 18),
+            padding: const EdgeInsets.symmetric(vertical: 16),
             decoration: BoxDecoration(
               color: const Color(0xFFF5EFE6),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE8D5B7)),
+              border:
+                  Border.all(color: const Color(0xFFE8D5B7)),
             ),
             child: const Center(
-              child: Text(
-                '+ Add Portofolio',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFFCCAA66),
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.workspace_premium,
+                    color: Color(0xFFCCAA66),
+                    size: 18,
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    '+ Tambah Sertifikat',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFFCCAA66),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
         ),
       ],
-    );
-  }
-
-  Widget _portfolioPlaceholderCard({bool isHighlighted = false}) {
-    return Container(
-      width: 80,
-      height: 130,
-      decoration: BoxDecoration(
-        color: isHighlighted ? const Color(0xFF4B5BF5) : Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: isHighlighted
-          ? const Center(
-              child: Icon(Icons.phone_android, color: Colors.white, size: 30),
-            )
-          : Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  height: 8,
-                  width: 60,
-                  margin: const EdgeInsets.symmetric(
-                    vertical: 3,
-                    horizontal: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-                Container(
-                  height: 8,
-                  width: 50,
-                  margin: const EdgeInsets.symmetric(
-                    vertical: 3,
-                    horizontal: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ],
-            ),
     );
   }
 }

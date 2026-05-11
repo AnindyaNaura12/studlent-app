@@ -1,5 +1,8 @@
 // ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../widgets/custom_back_button.dart';
 import '../../models/services_model.dart';
 import '../../controllers/my_services_controller.dart';
@@ -21,44 +24,146 @@ class AddServicePage extends StatefulWidget {
 class _AddServicePageState extends State<AddServicePage> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descController = TextEditingController();
-  final TextEditingController _priceController = TextEditingController();
-  final TextEditingController _shortDescController = TextEditingController();
+
+  final Map<String, Map<String, TextEditingController>> _packageControllers = {
+    'basic': {
+      'price': TextEditingController(),
+      'delivery': TextEditingController(),
+      'desc': TextEditingController(),
+    },
+    'standard': {
+      'price': TextEditingController(),
+      'delivery': TextEditingController(),
+      'desc': TextEditingController(),
+    },
+    'premium': {
+      'price': TextEditingController(),
+      'delivery': TextEditingController(),
+      'desc': TextEditingController(),
+    },
+  };
 
   String? _selectedCategory;
-  String? _selectedDeliveryTime;
-  int _selectedPackageTab = 0; // 0=Basic, 1=Standard, 2=Premium
+  int _selectedPackageTab = 0;
+  bool _loading = false;
 
   @override
   void dispose() {
     _titleController.dispose();
     _descController.dispose();
-    _priceController.dispose();
-    _shortDescController.dispose();
+
+    for (final pkg in _packageControllers.values) {
+      for (final ctrl in pkg.values) {
+        ctrl.dispose();
+      }
+    }
+
     super.dispose();
   }
 
-  void _onRequestPressed() {
+  String get _currentPackageKey =>
+      _selectedPackageTab == 0
+          ? 'basic'
+          : _selectedPackageTab == 1
+          ? 'standard'
+          : 'premium';
+
+  Future<void> _onRequestPressed() async {
     if (_titleController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Service title wajib diisi')),
+        const SnackBar(
+          content: Text('Service title wajib diisi'),
+        ),
       );
       return;
     }
 
-    final newService = ServiceModel(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      title: _titleController.text.trim(),
-      category: _selectedCategory ?? '',
-      description: _descController.text.trim(),
-      basicPackage: PackageModel(
-        price: _priceController.text.trim(),
-        deliveryTime: _selectedDeliveryTime ?? '',
-        shortDescription: _shortDescController.text.trim(),
-      ),
-    );
+    setState(() => _loading = true);
 
-    widget.controller.addService(newService, widget.onServiceAdded);
-    Navigator.pop(context);
+    try {
+      final supabase = Supabase.instance.client;
+
+      final authUser = supabase.auth.currentUser;
+
+      if (authUser == null) {
+        setState(() => _loading = false);
+        return;
+      }
+
+      final user = await supabase
+          .from('users')
+          .select('id_user')
+          .eq('email', authUser.email!)
+          .single();
+
+      final categoryResult = await supabase
+          .from('service_categories')
+          .select('id_category')
+          .eq('nama', _selectedCategory ?? '');
+
+      final idCategory = categoryResult.isNotEmpty
+          ? categoryResult[0]['id_category']
+          : null;
+
+      final serviceResult = await supabase
+          .from('services')
+          .insert({
+            'id_freelancer': user['id_user'],
+            'id_category': idCategory,
+            'judul': _titleController.text.trim(),
+            'deskripsi': _descController.text.trim(),
+            'status': 'pending',
+            'created_at': DateTime.now().toIso8601String(),
+          })
+          .select()
+          .single();
+
+      final idService = serviceResult['id_service'];
+
+      final packages = ['basic', 'standard', 'premium'];
+
+      for (final pkg in packages) {
+        final ctrl = _packageControllers[pkg]!;
+
+        await supabase.from('service_packages').insert({
+          'id_service': idService,
+          'nama': pkg,
+          'harga':
+              double.tryParse(
+                ctrl['price']!.text.replaceAll(RegExp(r'[^0-9]'), ''),
+              ) ??
+              0,
+          'delivery_time':
+              int.tryParse(
+                ctrl['delivery']!.text.replaceAll(RegExp(r'[^0-9]'), ''),
+              ) ??
+              0,
+          'deskripsi': ctrl['desc']!.text.trim(),
+        });
+      }
+
+      setState(() => _loading = false);
+
+      widget.onServiceAdded();
+
+      Navigator.pop(context);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Service berhasil diajukan!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      setState(() => _loading = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -72,12 +177,12 @@ class _AddServicePageState extends State<AddServicePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 24),
+
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    // Back button kiri
                     Align(
                       alignment: Alignment.centerLeft,
                       child: CustomBackButton(
@@ -85,65 +190,56 @@ class _AddServicePageState extends State<AddServicePage> {
                       ),
                     ),
 
-                    // Title tengah
                     const Text(
                       'Add a new service',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black,
                       ),
                     ),
                   ],
                 ),
               ),
-              
-              // ── SERVICE TITLE ──
+
               _buildLabel('Service title'),
-              _buildTextField(controller: _titleController, hint: ''),
-              const SizedBox(height: 16),
-
-              // ── SERVICE CATEGORY ──
-              _buildLabel('Service Category'),
-              _buildDropdown(),
-              const SizedBox(height: 16),
-
-              // ── SERVICE PREVIEW UPLOAD ──
-              _buildLabel('Service  Preview Upload'),
-              _buildPreviewUpload(),
-              const Padding(
-                padding: EdgeInsets.only(top: 6, bottom: 16),
-                child: Text(
-                  '*This will be the first thing clients see',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
-                ),
+              _buildTextField(
+                controller: _titleController,
+                hint: 'Masukkan judul service',
               ),
 
-              // ── SERVICE DESCRIPTION ──
-              _buildLabel('Service  Description'),
-              _buildDescriptionField(),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
-              // ── PRICING & PACKAGES ──
+              _buildLabel('Service Category'),
+              _buildDropdown(),
+
+              const SizedBox(height: 16),
+
+              _buildLabel('Service Description'),
+              _buildDescriptionField(),
+
+              const SizedBox(height: 24),
+
               const Text(
                 'Pricing & Packages',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black,
                 ),
               ),
-              const SizedBox(height: 10),
-              _buildPackageTabs(),
-              const SizedBox(height: 12),
-              _buildPricingSection(),
-              const SizedBox(height: 30),
 
-              // ── CANCEL & REQUEST BUTTONS ──
+              const SizedBox(height: 12),
+
+              _buildPackageTabs(),
+
+              const SizedBox(height: 16),
+
+              _buildPricingSection(),
+
+              const SizedBox(height: 32),
+
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  // Cancel
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
                     child: Container(
@@ -159,17 +255,16 @@ class _AddServicePageState extends State<AddServicePage> {
                       child: const Text(
                         'Cancel',
                         style: TextStyle(
-                          fontSize: 15,
                           fontWeight: FontWeight.w500,
-                          color: Colors.black87,
                         ),
                       ),
                     ),
                   ),
+
                   const SizedBox(width: 12),
-                  // Request
+
                   GestureDetector(
-                    onTap: _onRequestPressed,
+                    onTap: _loading ? null : _onRequestPressed,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 28,
@@ -179,18 +274,27 @@ class _AddServicePageState extends State<AddServicePage> {
                         color: const Color(0xFFFFB74D),
                         borderRadius: BorderRadius.circular(30),
                       ),
-                      child: const Text(
-                        'Request',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                      ),
+                      child: _loading
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.black,
+                              ),
+                            )
+                          : const Text(
+                              'Request',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black,
+                              ),
+                            ),
                     ),
                   ),
                 ],
               ),
+
               const SizedBox(height: 30),
             ],
           ),
@@ -199,19 +303,14 @@ class _AddServicePageState extends State<AddServicePage> {
     );
   }
 
-  // ─────────────────────────────────────────────
-  // WIDGETS
-  // ─────────────────────────────────────────────
-
   Widget _buildLabel(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         text,
         style: const TextStyle(
-          fontSize: 15,
           fontWeight: FontWeight.bold,
-          color: Colors.black,
+          fontSize: 15,
         ),
       ),
     );
@@ -231,7 +330,6 @@ class _AddServicePageState extends State<AddServicePage> {
         controller: controller,
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: const TextStyle(color: Colors.black38),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 20,
@@ -252,43 +350,23 @@ class _AddServicePageState extends State<AddServicePage> {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          isExpanded: true,
           value: _selectedCategory,
-          hint: const Text(
-            'Pilih Kategori',
-          ), // Tambahkan hint agar tidak error jika null
-          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black54),
-          // PERBAIKAN: Gunakan .map<DropdownMenuItem<String>> dan .toList()
-          items: widget.controller.categories.map<DropdownMenuItem<String>>((
-            String cat,
-          ) {
-            return DropdownMenuItem<String>(value: cat, child: Text(cat));
-          }).toList(),
-          onChanged: (val) => setState(() => _selectedCategory = val),
+          isExpanded: true,
+          hint: const Text('Pilih kategori'),
+          items: widget.controller.categories
+              .map<DropdownMenuItem<String>>(
+                (String cat) => DropdownMenuItem<String>(
+                  value: cat,
+                  child: Text(cat),
+                ),
+              )
+              .toList(),
+          onChanged: (val) {
+            setState(() {
+              _selectedCategory = val;
+            });
+          },
         ),
-      ),
-    );
-  }
-
-  Widget _buildPreviewUpload() {
-    return Container(
-      height: 150,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.add, size: 36, color: Colors.grey.shade400),
-          const SizedBox(height: 8),
-          Text(
-            'Add content',
-            style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-          ),
-        ],
       ),
     );
   }
@@ -304,8 +382,7 @@ class _AddServicePageState extends State<AddServicePage> {
         controller: _descController,
         maxLines: 5,
         decoration: const InputDecoration(
-          hintText: 'Explain clearly what the client will get',
-          hintStyle: TextStyle(color: Colors.black38, fontSize: 13),
+          hintText: 'Jelaskan service kamu',
           border: InputBorder.none,
           contentPadding: EdgeInsets.all(16),
         ),
@@ -315,6 +392,7 @@ class _AddServicePageState extends State<AddServicePage> {
 
   Widget _buildPackageTabs() {
     final tabs = ['Basic', 'Standard', 'Premium'];
+
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFFF5DFA0),
@@ -323,9 +401,14 @@ class _AddServicePageState extends State<AddServicePage> {
       child: Row(
         children: List.generate(tabs.length, (i) {
           final isSelected = _selectedPackageTab == i;
+
           return Expanded(
             child: GestureDetector(
-              onTap: () => setState(() => _selectedPackageTab = i),
+              onTap: () {
+                setState(() {
+                  _selectedPackageTab = i;
+                });
+              },
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
@@ -333,18 +416,15 @@ class _AddServicePageState extends State<AddServicePage> {
                       ? const Color(0xFFE8C060)
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
-                  border: i < tabs.length - 1
-                      ? const Border(
-                          right: BorderSide(color: Colors.black26, width: 0.5),
-                        )
-                      : null,
                 ),
                 child: Center(
                   child: Text(
                     tabs[i],
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: isSelected ? Colors.black : Colors.black54,
+                      color: isSelected
+                          ? Colors.black
+                          : Colors.black54,
                     ),
                   ),
                 ),
@@ -357,76 +437,28 @@ class _AddServicePageState extends State<AddServicePage> {
   }
 
   Widget _buildPricingSection() {
+    final ctrlMap = _packageControllers[_currentPackageKey]!;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Price',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        Text(
+          'Package: ${_currentPackageKey.toUpperCase()}',
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
         ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            // Price field
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(30),
-                  border: Border.all(color: Colors.grey.shade300),
-                ),
-                child: TextField(
-                  controller: _priceController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    hintText: 'Rp',
-                    hintStyle: TextStyle(color: Colors.black38),
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(vertical: 12),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            // Delivery time dropdown
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(30),
-                  border: Border.all(color: Colors.grey.shade300),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    isExpanded: true,
-                    value: _selectedDeliveryTime,
-                    hint: const Text(
-                      'Delivery Time',
-                      style: TextStyle(color: Colors.black38, fontSize: 13),
-                    ),
-                    icon: const Icon(
-                      Icons.keyboard_arrow_down,
-                      color: Colors.black54,
-                    ),
-                    items: widget.controller.deliveryTimes.map((t) {
-                      return DropdownMenuItem<String>(value: t, child: Text(t));
-                    }).toList(),
-                    onChanged: (val) =>
-                        setState(() => _selectedDeliveryTime = val),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        const Text(
-          'Short Description',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-        ),
-        const SizedBox(height: 8),
+
+        const SizedBox(height: 12),
+
+        _buildPriceField(ctrlMap['price']!),
+
+        const SizedBox(height: 12),
+
+        _buildDeliveryField(ctrlMap['delivery']!),
+
+        const SizedBox(height: 12),
+
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
@@ -434,17 +466,54 @@ class _AddServicePageState extends State<AddServicePage> {
             border: Border.all(color: Colors.grey.shade300),
           ),
           child: TextField(
-            controller: _shortDescController,
+            controller: ctrlMap['desc']!,
             maxLines: 4,
             decoration: const InputDecoration(
               hintText: 'Short Description',
-              hintStyle: TextStyle(color: Colors.black38, fontSize: 13),
               border: InputBorder.none,
               contentPadding: EdgeInsets.all(16),
             ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildPriceField(TextEditingController controller) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: TextField(
+        controller: controller,
+        keyboardType: TextInputType.number,
+        decoration: const InputDecoration(
+          hintText: 'Rp 50.000',
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.all(16),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDeliveryField(TextEditingController controller) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: TextField(
+        controller: controller,
+        keyboardType: TextInputType.number,
+        decoration: const InputDecoration(
+          hintText: 'Delivery time (hari)',
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.all(16),
+        ),
+      ),
     );
   }
 }

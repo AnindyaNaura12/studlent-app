@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/gestures.dart';
 import '../widgets/custom_back_button.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/agreement_widget.dart';
@@ -23,19 +22,20 @@ class RegisterFreelancerStep2Page extends StatefulWidget {
 
 class _RegisterFreelancerStep2PageState
     extends State<RegisterFreelancerStep2Page> {
-
-  final TextEditingController _skillController = TextEditingController();
+  final TextEditingController _skillCtrl = TextEditingController();
+  bool _loading = false;
 
   @override
   void dispose() {
-    _skillController.dispose();
+    _skillCtrl.dispose();
     super.dispose();
   }
 
   void _addSkill() {
-    widget.controller.addSkill(_skillController.text);
+    if (_skillCtrl.text.trim().isEmpty) return;
+    widget.controller.addSkill(_skillCtrl.text);
     setState(() {});
-    _skillController.clear();
+    _skillCtrl.clear();
   }
 
   @override
@@ -52,48 +52,244 @@ class _RegisterFreelancerStep2PageState
         ),
         child: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24,
+              vertical: 16,
+            ),
             child: Column(
               children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                    child: Stack(
-                      alignment: Alignment.center,
+                // ── Top Bar ──
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: CustomBackButton(
+                        onTap: () => Navigator.pop(context),
+                      ),
+                    ),
+                    const Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                      // Back button kiri
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: CustomBackButton(
-                                onTap: () => Navigator.pop(context),
+                        Text(
+                          'Daftar Freelancer',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: 3),
+                        Text(
+                          'Step 2 dari 2',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 20),
+
+                // ── Form Card ──
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(28),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 20,
+                      ),
+                    ],
+                  ),
+                  child: Form(
+                    key: widget.controller.formKeyStep2,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // ── Skills ──
+                        const Text(
+                          'Skills kamu',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Tambahkan skill yang kamu kuasai',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Input skill
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: TextField(
+                                  controller: _skillCtrl,
+                                  decoration: const InputDecoration(
+                                    hintText: 'Contoh: Figma, Flutter, ...',
+                                    hintStyle: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.grey,
+                                    ),
+                                    border: InputBorder.none,
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 12,
+                                    ),
+                                  ),
+                                  onSubmitted: (_) => _addSkill(),
+                                ),
                               ),
                             ),
-
-                            // Title tengah
-                            Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: const [
-                                Text(
-                                  'Freelancer Register',
+                            const SizedBox(width: 10),
+                            GestureDetector(
+                              onTap: _addSkill,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF3B82F6),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Text(
+                                  '+ Add',
                                   style: TextStyle(
-                                    fontSize: 20,
+                                    color: Colors.white,
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.black,
                                   ),
                                 ),
-                                SizedBox(height: 3),
-                                Text(
-                                  'Step 2 of 2',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
                           ],
                         ),
-                      ),
-                _buildCard(),
+
+                        const SizedBox(height: 12),
+
+                        // Skill chips
+                        if (widget.controller.model.selectedSkills.isNotEmpty)
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: widget.controller.model.selectedSkills
+                                .map((skill) => _buildChip(skill))
+                                .toList(),
+                          ),
+
+                        const SizedBox(height: 20),
+
+                        // ── Bio ──
+                        CustomTextField(
+                          label: 'Bio Singkat',
+                          hint: 'Ceritakan sedikit tentang dirimu...',
+                          maxLines: 3,
+                          maxLength: 200,
+                          onSaved: (v) =>
+                              widget.controller.model.bio = v ?? '',
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // ── Agreement ──
+                        AgreementWidget(
+                          value: widget.controller.model.agreeToTerms,
+                          text: "Terms & Conditions",
+                          onTap: (v) => setState(() {
+                            widget.controller.model.agreeToTerms = v;
+                          }),
+                          onLinkTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const TermsConditionsPage(),
+                              ),
+                            );
+                          },
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        AgreementWidget(
+                          value: widget.controller.model.agreeToAgreement,
+                          text: "Freelancer Agreement",
+                          onTap: (v) => setState(() {
+                            widget.controller.model.agreeToAgreement = v;
+                          }),
+                          onLinkTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    const FreelancerAgreementPage(),
+                              ),
+                            );
+                          },
+                        ),
+
+                        const SizedBox(height: 28),
+
+                        // ── Finish Button ──
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: ElevatedButton(
+                            onPressed: _loading
+                                ? null
+                                : () async {
+                                    setState(() => _loading = true);
+                                    await widget.controller
+                                        .handleFinish(context);
+                                    if (mounted) {
+                                      setState(() => _loading = false);
+                                    }
+                                  },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF3B82F6),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            child: _loading
+                                ? const SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Daftar Sekarang 🎉',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
               ],
             ),
           ),
@@ -102,164 +298,39 @@ class _RegisterFreelancerStep2PageState
     );
   }
 
-  Widget _buildCard() {
-    return Container(
-      padding: const EdgeInsets.all(25),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-      ),
-      child: Form(
-        key: widget.controller.formKeyStep2,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-
-            // skills input
-            const Text(
-              "Skills",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-
-            const SizedBox(height: 10),
-
-            TextFormField(
-              controller: _skillController,
-              decoration: InputDecoration(
-                hintText: "e.g. UI Design",
-                hintStyle: TextStyle(color: Colors.grey.shade400),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.add),
-                  onPressed: _addSkill,
-                ),
-              ),
-              onFieldSubmitted: (_) => _addSkill(),
-            ),
-
-            const SizedBox(height: 15),
-
-            // skill chips
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: widget.controller.model.selectedSkills
-                  .map((skill) => _buildChip(skill))
-                  .toList(),
-            ),
-
-            const SizedBox(height: 8),
-
-            CustomTextField(
-              label: "Short Bio",
-              hint: "Tell about yourself...",
-              maxLines: 3,
-              maxLength: 50,
-              onSaved: (v) => widget.controller.model.bio = v ?? "",
-            ),
-            const SizedBox(height: 10),
-
-            AgreementWidget(
-            value: widget.controller.model.agreeToTerms,
-            text: "Terms & Conditions",
-            onTap: (v) => setState(() {
-              widget.controller.model.agreeToTerms = v;
-            }),
-            onLinkTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => TermsConditionsPage(),
-                ),
-              );
-            },
-          ),
-
-          const SizedBox(height: 12),
-
-          AgreementWidget(
-            value: widget.controller.model.agreeToAgreement,
-            text: "Freelancer Agreement",
-            onTap: (v) => setState(() {
-              widget.controller.model.agreeToAgreement = v;
-            }),
-            onLinkTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => FreelancerAgreementPage(),
-                ),
-              );
-            },
-          ),
-            const SizedBox(height: 25),
-
-            // button
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: () {
-                  // validasi skill dulu
-                  if (widget.controller.model.selectedSkills.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("Please add at least one skill"),
-                      ),
-                    );
-                    return;
-                  }
-
-                  widget.controller.handleFinish(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF3B82F6),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                ),
-                child: const Text(
-                  "Finish",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // chip
   Widget _buildChip(Skill skill) {
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          widget.controller.removeSkill(skill.name);
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.blue.shade100,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(skill.name),
-            const SizedBox(width: 5),
-            const Icon(Icons.close, size: 16),
-          ],
-        ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8F0FE),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFF3B82F6).withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            skill.name,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF3B82F6),
+            ),
+          ),
+          const SizedBox(width: 6),
+          GestureDetector(
+            onTap: () {
+              widget.controller.removeSkill(skill.name);
+              setState(() {});
+            },
+            child: const Icon(
+              Icons.close,
+              size: 14,
+              color: Color(0xFF3B82F6),
+            ),
+          ),
+        ],
       ),
     );
   }
-
 }

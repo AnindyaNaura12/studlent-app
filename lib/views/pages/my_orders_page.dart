@@ -19,7 +19,6 @@ class _MyOrdersPageState extends State<MyOrdersPage>
     'Active',
     'In Progress',
     'Completed',
-    'Cancelled',
   ];
 
   @override

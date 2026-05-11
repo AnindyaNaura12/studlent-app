@@ -1,11 +1,9 @@
+// ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
 import '../widgets/custom_back_button.dart';
 import '../../models/services_model.dart';
-import 'detail_order_page.dart';
 import 'detail_profile_freelancer.dart';
 import '../../controllers/services_controller.dart';
-
-import 'detail_order_page.dart';
 
 class ServiceDetailPage extends StatefulWidget {
   final ServiceModel service;
@@ -24,16 +22,12 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-
     double s(double size) =>
         (size * (screenWidth / 375)).clamp(size * 0.75, size * 1.3);
 
     final service = widget.service;
-
     final title = controller.getPackageTitle(selectedTab);
-
     final desc = controller.getPackageDescription(selectedTab, service);
-
     final price = controller.getPackagePrice(selectedTab, service);
 
     return Scaffold(
@@ -47,20 +41,18 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // ── Header ──
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
-                          // Back button kiri
                           Align(
                             alignment: Alignment.centerLeft,
                             child: CustomBackButton(
                               onTap: () => Navigator.pop(context),
                             ),
                           ),
-
-                          // Title tengah
                           const Text(
                             'Detail Service',
                             style: TextStyle(
@@ -73,8 +65,9 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                       ),
                     ),
 
+                    // ── Title & Rating ──
                     Text(
-                      service.title, // Menggunakan title dari model
+                      service.title,
                       style: TextStyle(
                         fontSize: s(18),
                         fontWeight: FontWeight.bold,
@@ -106,18 +99,23 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                         ),
                       ],
                     ),
+
                     SizedBox(height: s(16)),
+
+                    // ── Gambar Service ──
                     ClipRRect(
                       borderRadius: BorderRadius.circular(s(16)),
                       child: Image.asset(
-                        service.imagePath ??
-                            'assets/images/placeholder.png', // Penanganan null
+                        service.imagePath ?? 'assets/images/placeholder.png',
                         width: double.infinity,
                         height: s(180),
                         fit: BoxFit.cover,
                       ),
                     ),
+
                     SizedBox(height: s(16)),
+
+                    // ── Profil Freelancer ──
                     Row(
                       children: [
                         CircleAvatar(
@@ -128,7 +126,6 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                           radius: s(20),
                         ),
                         SizedBox(width: s(10)),
-
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -139,13 +136,10 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                                 fontSize: s(13),
                               ),
                             ),
-
                             SizedBox(height: s(2)),
-
                             GestureDetector(
-                              onTap: () {
-                                controller.goToProfile(context, service);
-                              },
+                              onTap: () =>
+                                  controller.goToProfile(context, service),
                               child: Container(
                                 padding: EdgeInsets.symmetric(
                                   horizontal: s(10),
@@ -168,7 +162,10 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                         ),
                       ],
                     ),
+
                     SizedBox(height: s(20)),
+
+                    // ── Package Pricing ──
                     Text(
                       "Package Pricing",
                       style: TextStyle(
@@ -224,7 +221,10 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                         ],
                       ),
                     ),
+
                     SizedBox(height: s(20)),
+
+                    // ── About ──
                     Text(
                       "About This Service",
                       style: TextStyle(
@@ -241,7 +241,8 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                 ),
               ),
             ),
-            // Bottom Action Bar
+
+            // ── Bottom Action Bar ──
             Container(
               padding: EdgeInsets.all(s(16)),
               decoration: BoxDecoration(
@@ -269,15 +270,22 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                   ),
                   SizedBox(width: s(10)),
                   ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => DetailOrderPage(service: service),
-                        ),
-                      );
-                    },
-                    child: const Text("Order Now"),
+                    // ← FIX: pakai controller, bukan Navigator.push langsung
+                    onPressed: () => controller.goToOrderNow(context, service),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFFA726),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(s(30)),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: const Text(
+                      "Order Now",
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ],
               ),

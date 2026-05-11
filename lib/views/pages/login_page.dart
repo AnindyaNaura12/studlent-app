@@ -1,12 +1,17 @@
+// ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'register_page.dart';
 import '../widgets/custom_back_button.dart';
 import '../../controllers/auth_controller.dart';
-import '../pages/home_pages.dart'; // sesuaikan path
+import '../../models/services_model.dart';
+import '../pages/home_pages.dart';
+import 'detail_order_page.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+  final ServiceModel? redirectToService;
+
+  const LoginPage({super.key, this.redirectToService});
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -14,7 +19,7 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final AuthController _controller = AuthController();
-  bool _loading = false;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -22,43 +27,39 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  void _onLoginPressed() async {
-    if (_loading) return; // 🔥 anti double click
-
-    // ================= VALIDASI =================
-    if (_controller.usernameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Username wajib diisi')),
-      );
-      return;
-    }
-
-    if (_controller.passwordController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password wajib diisi')),
-      );
-      return;
-    }
-
-    // ================= LOGIN =================
-    setState(() => _loading = true);
+  Future<void> _handleLogin() async {
+    setState(() => _isLoading = true);
 
     final error = await _controller.login();
 
-    setState(() => _loading = false);
+    setState(() => _isLoading = false);
+
+    if (!mounted) return;
 
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error)),
+        SnackBar(content: Text(error), backgroundColor: Colors.red),
       );
       return;
     }
 
-    // ================= SUCCESS =================
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const HomePage()),
-    );
+    // ── Login sukses ──────────────────────────────────────────
+    if (widget.redirectToService != null) {
+      // Dari "Order Now" → langsung ke DetailOrderPage
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => DetailOrderPage(service: widget.redirectToService!),
+        ),
+      );
+    } else {
+      // Login biasa → ke HomePage, hapus semua stack
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const HomePage()),
+        (route) => false,
+      );
+    }
   }
 
   @override
@@ -82,22 +83,20 @@ class _LoginPageState extends State<LoginPage> {
         child: SafeArea(
           child: Column(
             children: [
-              // HEADER
+              // ── HEADER ──
               Align(
                 alignment: Alignment.centerLeft,
                 child: Padding(
                   padding: EdgeInsets.all(s(10)),
-                  child: CustomBackButton(
-                    onTap: () => Navigator.pop(context),
-                  ),
+                  child: CustomBackButton(onTap: () => Navigator.pop(context)),
                 ),
               ),
 
-              // LOGO
+              // ── LOGO ──
               Image.asset('assets/images/logo_studlent.png', height: s(65)),
               SizedBox(height: s(14)),
 
-              // FORM
+              // ── FORM ──
               Expanded(
                 child: Container(
                   width: double.infinity,
@@ -119,7 +118,7 @@ class _LoginPageState extends State<LoginPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // TITLE
+                          // ── TITLE ──
                           Center(
                             child: RichText(
                               textAlign: TextAlign.center,
@@ -143,7 +142,7 @@ class _LoginPageState extends State<LoginPage> {
 
                           SizedBox(height: s(26)),
 
-                          // USERNAME
+                          // ── USERNAME ──
                           _buildLabel('Username', s),
                           _buildTextField(
                             controller: _controller.usernameController,
@@ -154,13 +153,13 @@ class _LoginPageState extends State<LoginPage> {
 
                           SizedBox(height: s(16)),
 
-                          // PASSWORD
+                          // ── PASSWORD ──
                           _buildLabel('Password', s),
                           _buildPasswordField(s),
 
                           SizedBox(height: s(24)),
 
-                          // 🔥 BUTTON LOGIN
+                          // ── BUTTON LOGIN ──
                           SizedBox(
                             width: double.infinity,
                             height: s(52),
@@ -175,17 +174,15 @@ class _LoginPageState extends State<LoginPage> {
                                 ),
                               ),
                               child: ElevatedButton(
-                                onPressed:
-                                    _loading ? null : _onLoginPressed,
+                                onPressed: _isLoading ? null : _handleLogin,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.transparent,
                                   shadowColor: Colors.transparent,
                                   shape: RoundedRectangleBorder(
-                                    borderRadius:
-                                        BorderRadius.circular(s(30)),
+                                    borderRadius: BorderRadius.circular(s(30)),
                                   ),
                                 ),
-                                child: _loading
+                                child: _isLoading
                                     ? const SizedBox(
                                         height: 20,
                                         width: 20,
@@ -208,7 +205,7 @@ class _LoginPageState extends State<LoginPage> {
 
                           SizedBox(height: s(16)),
 
-                          // SIGN UP
+                          // ── SIGN UP ──
                           Center(
                             child: RichText(
                               text: TextSpan(
@@ -218,7 +215,8 @@ class _LoginPageState extends State<LoginPage> {
                                 ),
                                 children: [
                                   const TextSpan(
-                                      text: "Don't have an account? "),
+                                    text: "Don't have an account? ",
+                                  ),
                                   TextSpan(
                                     text: 'Sign Up',
                                     style: TextStyle(
@@ -254,15 +252,16 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
+  // ─────────────────────────────────────────────────────────────
+  // HELPERS
+  // ─────────────────────────────────────────────────────────────
+
   Widget _buildLabel(String text, double Function(double) s) {
     return Padding(
       padding: EdgeInsets.only(left: s(4), bottom: s(8)),
       child: Text(
         text,
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: s(14),
-        ),
+        style: TextStyle(fontWeight: FontWeight.bold, fontSize: s(14)),
       ),
     );
   }
@@ -309,9 +308,7 @@ class _LoginPageState extends State<LoginPage> {
                   : Icons.visibility,
             ),
             onPressed: () {
-              _controller.toggleLoginPasswordVisibility(
-                () => setState(() {}),
-              );
+              _controller.toggleLoginPasswordVisibility(() => setState(() {}));
             },
           ),
         ),
