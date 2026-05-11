@@ -1,11 +1,14 @@
 // ignore_for_file: deprecated_member_use
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../controllers/profile_controller.dart';
 import 'register_freelancer_page.dart';
 import 'login_page.dart';
 import 'register_page.dart';
 import 'edit_client_profile_page.dart';
 import 'my_profile_page.dart';
+import '../../main.dart'; // ← TAMBAH
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -18,6 +21,7 @@ class _ProfilePageState extends State<ProfilePage> {
   final ProfileController _controller = ProfileController();
   bool _loading = true;
   Map<String, dynamic>? _userData;
+  StreamSubscription? _authSubscription;
 
   String _earnedPeriod = 'monthly';
   Map<String, dynamic> _freelancerStats = {
@@ -45,12 +49,33 @@ class _ProfilePageState extends State<ProfilePage> {
     _usernameController = TextEditingController();
     _emailController = TextEditingController();
     _fetchUserData();
+
+    _authSubscription = _controller.supabase.auth.onAuthStateChange.listen((
+      data,
+    ) async {
+      final event = data.event;
+      if (event == AuthChangeEvent.signedIn ||
+          event == AuthChangeEvent.tokenRefreshed) {
+        if (!mounted) return;
+        setState(() => _loading = true);
+        _fetchUserData();
+      } else if (event == AuthChangeEvent.signedOut) {
+        if (!mounted) return;
+        await Future.delayed(const Duration(milliseconds: 300));
+        if (!mounted) return;
+        setState(() {
+          _controller.isLoggedIn = false;
+          _userData = null;
+          _loading = false;
+        });
+      }
+    });
   }
 
-  // ─── FIX 1: panggil _fetchUserData() ulang, bukan hanya setState ───
   void _fetchUserData() async {
     final session = _controller.supabase.auth.currentSession;
     if (session == null) {
+      if (!mounted) return;
       setState(() {
         _controller.isLoggedIn = false;
         _loading = false;
@@ -59,6 +84,9 @@ class _ProfilePageState extends State<ProfilePage> {
     }
 
     final data = await _controller.getCurrentUser();
+
+    if (!mounted) return;
+
     if (data != null) {
       setState(() {
         _userData = data;
@@ -68,6 +96,7 @@ class _ProfilePageState extends State<ProfilePage> {
         _usernameController.text = data['username'] ?? '';
         _emailController.text = data['email'] ?? '';
         _loading = false;
+        globalUsername.value = data['username'] ?? ''; // ← TAMBAH
       });
 
       if (data['role'] == 'freelancer') {
@@ -75,9 +104,11 @@ class _ProfilePageState extends State<ProfilePage> {
           data['id_user'],
           'monthly',
         );
+        if (!mounted) return;
         setState(() => _freelancerStats = stats);
       }
     } else {
+      if (!mounted) return;
       setState(() {
         _controller.isLoggedIn = false;
         _loading = false;
@@ -87,6 +118,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   void dispose() {
+    _authSubscription?.cancel();
     _nameController.dispose();
     _usernameController.dispose();
     _emailController.dispose();
@@ -222,8 +254,6 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ),
                       const SizedBox(height: 24),
-
-                      // ✅ PERUBAHAN 4: Tombol Login — teks selalu "Login"
                       SizedBox(
                         width: double.infinity,
                         height: 52,
@@ -234,11 +264,7 @@ class _ProfilePageState extends State<ProfilePage> {
                               MaterialPageRoute(
                                 builder: (_) => const LoginPage(),
                               ),
-                            ).then((_) {
-                              // Refresh state setelah kembali dari login
-                              setState(() => _loading = true);
-                              _fetchUserData();
-                            });
+                            );
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFFFB74D),
@@ -258,8 +284,6 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ),
                       const SizedBox(height: 14),
-
-                      // ✅ PERUBAHAN 5 & 6: Tombol Register — teks "Register", langsung ke RegisterPage
                       SizedBox(
                         width: double.infinity,
                         height: 52,
@@ -348,8 +372,6 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
           const SizedBox(height: 20),
-
-          // ── Foto profil (bisa diklik) ──
           GestureDetector(
             onTap: () async {
               if (_userData == null) return;
@@ -357,9 +379,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 _userData!['id_user'],
                 isFreelancer: false,
               );
-              if (url != null) {
-                setState(() => _userData!['foto'] = url);
-              }
+              if (!mounted) return;
+              if (url != null) setState(() => _userData!['foto'] = url);
             },
             child: Stack(
               children: [
@@ -419,8 +440,6 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
           const SizedBox(height: 12),
-
-          // ── Nama & Email dari Supabase ──
           Text(
             _nameController.text.isNotEmpty
                 ? _nameController.text
@@ -437,8 +456,6 @@ class _ProfilePageState extends State<ProfilePage> {
           const SizedBox(height: 20),
           _buildToggle(),
           const SizedBox(height: 24),
-
-          // ── Statistik dari Supabase ──
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Container(
@@ -474,8 +491,6 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
           const SizedBox(height: 20),
-
-          // ── Edit Profile fields ──
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(
@@ -528,7 +543,6 @@ class _ProfilePageState extends State<ProfilePage> {
       child: Column(
         children: [
           const SizedBox(height: 50),
-
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(
@@ -545,8 +559,6 @@ class _ProfilePageState extends State<ProfilePage> {
                   ],
                 ),
                 const SizedBox(height: 15),
-
-                // ── Foto freelancer ──
                 CircleAvatar(
                   radius: 50,
                   backgroundColor: Colors.orange.withOpacity(0.2),
@@ -573,9 +585,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           ),
                   ),
                 ),
-
                 const SizedBox(height: 10),
-
                 Text(
                   _userData?['nama'] ?? '',
                   style: const TextStyle(
@@ -605,12 +615,9 @@ class _ProfilePageState extends State<ProfilePage> {
               ],
             ),
           ),
-
           const SizedBox(height: 20),
           _buildToggle(),
           const SizedBox(height: 25),
-
-          // ── Stats + Earned dropdown ──
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 20),
             padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
@@ -664,10 +671,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ],
             ),
           ),
-
           const SizedBox(height: 20),
-
-          // ── Menu freelancer ──
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(
@@ -685,7 +689,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           builder: (_) => const EditProfileFreelancerPage(),
                         ),
                       );
-                      // Refresh data setelah kembali
+                      if (!mounted) return;
                       _fetchUserData();
                     },
                     child: Container(
@@ -767,9 +771,7 @@ class _ProfilePageState extends State<ProfilePage> {
             return;
           }
         }
-        setState(() {
-          _controller.isFreelancer = text == "Freelance";
-        });
+        setState(() => _controller.isFreelancer = text == "Freelance");
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -992,12 +994,14 @@ class _ProfilePageState extends State<ProfilePage> {
                     : null,
                 onTap: () async {
                   Navigator.pop(ctx);
+                  if (!mounted) return;
                   setState(() => _earnedPeriod = option['value']!);
                   if (_userData != null) {
                     final stats = await _controller.getFreelancerStats(
                       _userData!['id_user'],
                       option['value']!,
                     );
+                    if (!mounted) return;
                     setState(() => _freelancerStats = stats);
                   }
                 },
@@ -1046,6 +1050,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 username: _usernameController.text.trim(),
                 noHp: _userData!['no_hp'] ?? '',
               );
+              if (!mounted) return;
+              globalUsername.value = _usernameController.text
+                  .trim(); // ← TAMBAH
               setState(() {});
             },
             child: const Text("Save", style: TextStyle(color: Colors.black)),
