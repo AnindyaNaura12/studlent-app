@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'views/pages/home_pages.dart';
-import 'config.dart'; // pastikan sudah buat ini
+import 'config.dart';
+
+// ← PINDAH KE SINI: setelah initialize, sebelum runApp
+final supabase = Supabase.instance.client;
+final ValueNotifier<String> globalUsername = ValueNotifier<String>('');
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,9 +18,6 @@ void main() async {
   runApp(const MyApp());
 }
 
-// biar gampang dipakai di seluruh app
-final supabase = Supabase.instance.client;
-
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -28,7 +29,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const HomePage(),
+      home: _getHomePage(), // ← PANGGIL _getHomePage(), bukan const HomePage()
     );
   }
 
@@ -36,8 +37,8 @@ class MyApp extends StatelessWidget {
   Widget _getHomePage() {
     final session = supabase.auth.currentSession;
     if (session != null) {
-      return const HomePage(); // ← sudah login, langsung ke home
+      return const HomePage(); // sudah login
     }
-    return const HomePage(); // ← belum login, ke home (dengan guest mode)
+    return const HomePage(); // belum login (guest mode)
   }
 }

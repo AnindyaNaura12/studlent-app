@@ -38,12 +38,16 @@ class _PortfolioListPageState extends State<PortfolioListPage> {
         content: const Text('Portfolio ini akan dihapus permanen.'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Batal')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12))),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Hapus', style: TextStyle(color: Colors.white)),
           ),
@@ -65,25 +69,39 @@ class _PortfolioListPageState extends State<PortfolioListPage> {
         width: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topCenter, end: Alignment.bottomCenter,
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
             colors: [Color(0xFFFFD59E), Color(0xFFFFF8EE)],
           ),
         ),
         child: SafeArea(
           child: Column(
             children: [
-              // Header
+              // Header — back button kiri, judul tengah
               Padding(
                 padding: const EdgeInsets.fromLTRB(4, 8, 20, 0),
-                child: Row(
+                child: Stack(
+                  alignment: Alignment.center,
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.black87),
-                      onPressed: () => Navigator.pop(context),
+                    // ← Judul tepat di tengah
+                    const Text(
+                      'My Portfolio',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                    const Text('My Portfolio',
-                        style: TextStyle(fontSize: 17,
-                            fontWeight: FontWeight.bold)),
+                    // ← Back button tetap di kiri
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: IconButton(
+                        icon: const Icon(
+                          Icons.arrow_back,
+                          color: Colors.black87,
+                        ),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -106,51 +124,64 @@ class _PortfolioListPageState extends State<PortfolioListPage> {
                             ? const Center(child: CircularProgressIndicator())
                             : _portfolios.isEmpty
                             ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.folder_open,
-                                  size: 60, color: Colors.grey.shade300),
-                              const SizedBox(height: 12),
-                              const Text('Belum ada portfolio',
-                                  style: TextStyle(color: Colors.grey)),
-                            ],
-                          ),
-                        )
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.folder_open,
+                                      size: 60,
+                                      color: Colors.grey.shade300,
+                                    ),
+                                    const SizedBox(height: 12),
+                                    const Text(
+                                      'Belum ada portfolio',
+                                      style: TextStyle(color: Colors.grey),
+                                    ),
+                                  ],
+                                ),
+                              )
                             : ListView.separated(
-                          itemCount: _portfolios.length,
-                          separatorBuilder: (_, __) =>
-                          const SizedBox(height: 12),
-                          itemBuilder: (context, index) {
-                            final p = _portfolios[index];
-                            return _buildCard(p);
-                          },
-                        ),
+                                itemCount: _portfolios.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(height: 12),
+                                itemBuilder: (context, index) {
+                                  final p = _portfolios[index];
+                                  return _buildCard(p);
+                                },
+                              ),
                       ),
 
                       // Add button
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         child: SizedBox(
-                          width: double.infinity, height: 50,
+                          width: double.infinity,
+                          height: 50,
                           child: ElevatedButton(
                             onPressed: () async {
                               final result = await Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                    builder: (_) => const AddPortfolioPage()),
+                                  builder: (_) => const AddPortfolioPage(),
+                                ),
                               );
                               if (result == true) _load();
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFFFB74D),
                               shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(30)),
+                                borderRadius: BorderRadius.circular(30),
+                              ),
                               elevation: 0,
                             ),
-                            child: const Text('+ Add Portfolio',
-                                style: TextStyle(color: Colors.black,
-                                    fontWeight: FontWeight.bold, fontSize: 15)),
+                            child: const Text(
+                              '+ Add Portfolio',
+                              style: TextStyle(
+                                color: Colors.black,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -172,8 +203,11 @@ class _PortfolioListPageState extends State<PortfolioListPage> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.06),
-              blurRadius: 8, offset: const Offset(0, 2)),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
         ],
       ),
       child: Row(
@@ -182,9 +216,13 @@ class _PortfolioListPageState extends State<PortfolioListPage> {
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
             child: p['thumbnail_url'] != null
-                ? Image.network(p['thumbnail_url'],
-                width: 70, height: 70, fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _placeholderThumb())
+                ? Image.network(
+                    p['thumbnail_url'],
+                    width: 70,
+                    height: 70,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _placeholderThumb(),
+                  )
                 : _placeholderThumb(),
           ),
           const SizedBox(width: 12),
@@ -194,14 +232,20 @@ class _PortfolioListPageState extends State<PortfolioListPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(p['judul'] ?? '',
-                    style: const TextStyle(fontSize: 14,
-                        fontWeight: FontWeight.bold)),
+                Text(
+                  p['judul'] ?? '',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                Text(p['deskripsi'] ?? '',
-                    maxLines: 2, overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12,
-                        color: Colors.black54)),
+                Text(
+                  p['deskripsi'] ?? '',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12, color: Colors.black54),
+                ),
               ],
             ),
           ),
@@ -214,20 +258,25 @@ class _PortfolioListPageState extends State<PortfolioListPage> {
                   final result = await Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) =>
-                          AddPortfolioPage(existingPortfolio: p),
+                      builder: (_) => AddPortfolioPage(existingPortfolio: p),
                     ),
                   );
                   if (result == true) _load();
                 },
-                child: const Icon(Icons.edit_outlined,
-                    color: Color(0xFFCCAA44), size: 22),
+                child: const Icon(
+                  Icons.edit_outlined,
+                  color: Color(0xFFCCAA44),
+                  size: 22,
+                ),
               ),
               const SizedBox(height: 8),
               GestureDetector(
                 onTap: () => _delete(p['id_portfolio']),
-                child: const Icon(Icons.delete_outline,
-                    color: Colors.red, size: 22),
+                child: const Icon(
+                  Icons.delete_outline,
+                  color: Colors.red,
+                  size: 22,
+                ),
               ),
             ],
           ),
@@ -238,7 +287,8 @@ class _PortfolioListPageState extends State<PortfolioListPage> {
 
   Widget _placeholderThumb() {
     return Container(
-      width: 70, height: 70,
+      width: 70,
+      height: 70,
       color: Colors.grey.shade100,
       child: const Icon(Icons.image, color: Colors.grey),
     );
