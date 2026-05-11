@@ -3,7 +3,7 @@ import '../../models/services_model.dart';
 import '../widgets/custom_back_button.dart';
 import '../widgets/freelancer_card.dart';
 import '../../controllers/services_controller.dart';
-import 'service_detail_page.dart';
+
  
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 class _C {

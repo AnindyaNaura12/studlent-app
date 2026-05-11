@@ -18,8 +18,9 @@ class ServiceModel {
   String? imagePath;
   List<String> serviceImages;
   PackageModel basicPackage;
+  PackageModel standardPackage; // ← TAMBAH
+  PackageModel premiumPackage;  // ← TAMBAH
 
-  // Data tambahan untuk UI
   final String name;
   final String university;
   final String skills;
@@ -34,14 +35,14 @@ class ServiceModel {
     this.imagePath,
     this.serviceImages = const [],
     PackageModel? basicPackage,
-    // Default values untuk data tambahan
+    PackageModel? standardPackage,
+    PackageModel? premiumPackage,
     this.name = '',
     this.university = '',
     this.skills = '',
     this.rating = 0.0,
     this.totalReviews = 0,
-  }) : basicPackage = basicPackage ?? PackageModel();
-
-  // PERBAIKAN: Mengakses price melalui basicPackage
-  bool get isValid => basicPackage.price.isNotEmpty && rating > 0;
+  })  : basicPackage = basicPackage ?? PackageModel(),
+        standardPackage = standardPackage ?? PackageModel(),
+        premiumPackage = premiumPackage ?? PackageModel();
 }

@@ -1,10 +1,9 @@
-// ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
 import '../../controllers/portfolio_controller.dart';
-import '../../models/portfolio_model.dart';
 
 class AddPortfolioPage extends StatefulWidget {
-  const AddPortfolioPage({super.key});
+  final Map<String, dynamic>? existingPortfolio; // null = add, ada isi = edit
+  const AddPortfolioPage({super.key, this.existingPortfolio});
 
   @override
   State<AddPortfolioPage> createState() => _AddPortfolioPageState();
@@ -12,39 +11,99 @@ class AddPortfolioPage extends StatefulWidget {
 
 class _AddPortfolioPageState extends State<AddPortfolioPage> {
   final PortfolioController _controller = PortfolioController();
-
-  final TextEditingController _titleController = TextEditingController();
-  final TextEditingController _descController = TextEditingController();
-
+  final TextEditingController _titleCtrl = TextEditingController();
+  final TextEditingController _descCtrl = TextEditingController();
   String? _selectedCategory;
+  String? _imageUrl;
+  bool _loading = false;
+  bool _uploading = false;
+
+  bool get isEdit => widget.existingPortfolio != null;
+
+  @override
+  void initState() {
+    super.initState();
+    if (isEdit) {
+      _titleCtrl.text = widget.existingPortfolio!['judul'] ?? '';
+      _descCtrl.text = widget.existingPortfolio!['deskripsi'] ?? '';
+      _imageUrl = widget.existingPortfolio!['thumbnail_url'];
+    }
+  }
 
   @override
   void dispose() {
-    _titleController.dispose();
-    _descController.dispose();
+    _titleCtrl.dispose();
+    _descCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    setState(() => _uploading = true);
+    final url = await _controller.uploadPortfolioImage();
+    setState(() {
+      _imageUrl = url;
+      _uploading = false;
+    });
+  }
+
+  Future<void> _save() async {
+    if (_titleCtrl.text.isEmpty || _descCtrl.text.isEmpty ||
+        _selectedCategory == null && !isEdit) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Lengkapi semua field terlebih dahulu'),
+        backgroundColor: Colors.red,
+      ));
+      return;
+    }
+
+    setState(() => _loading = true);
+    bool success;
+
+    if (isEdit) {
+      success = await _controller.updatePortfolio(
+        idPortfolio: widget.existingPortfolio!['id_portfolio'],
+        title: _titleCtrl.text.trim(),
+        description: _descCtrl.text.trim(),
+        category: _selectedCategory ?? '',
+        imageUrl: _imageUrl,
+      );
+    } else {
+      success = await _controller.addPortfolio(
+        title: _titleCtrl.text.trim(),
+        description: _descCtrl.text.trim(),
+        category: _selectedCategory!,
+        imageUrl: _imageUrl,
+      );
+    }
+
+    setState(() => _loading = false);
+    if (!mounted) return;
+
+    if (success) {
+      Navigator.pop(context, true);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Gagal menyimpan portfolio'),
+        backgroundColor: Colors.red,
+      ));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFFFF8EE),
-
       body: Container(
         width: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFFFFD59E), Color(0xFFFFF8EE)],
-            stops: [0.0, 0.3],
+            begin: Alignment.topCenter, end: Alignment.bottomCenter,
+            colors: [Color(0xFFFFD59E), Color(0xFFFFF8EE)], stops: [0.0, 0.3],
           ),
         ),
         child: SafeArea(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Header ──
               Padding(
                 padding: const EdgeInsets.fromLTRB(4, 8, 20, 0),
                 child: Row(
@@ -53,19 +112,14 @@ class _AddPortfolioPageState extends State<AddPortfolioPage> {
                       icon: const Icon(Icons.arrow_back, color: Colors.black87),
                       onPressed: () => Navigator.pop(context),
                     ),
-                    const Text(
-                      'Add Portfolio',
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
+                    Text(
+                      isEdit ? 'Edit Portfolio' : 'Add Portfolio',
+                      style: const TextStyle(
+                          fontSize: 17, fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),
               ),
-
-              // ── Form ──
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
@@ -73,95 +127,69 @@ class _AddPortfolioPageState extends State<AddPortfolioPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Project Title
-                      const Text(
-                        'Project title',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                      ),
+                      const Text('Project title',
+                          style: TextStyle(fontSize: 14,
+                              fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
-                      _buildTextField(
-                        controller: _titleController,
-                        maxLines: 1,
-                      ),
-
+                      _buildTextField(controller: _titleCtrl, maxLines: 1),
                       const SizedBox(height: 20),
 
                       // Project Description
-                      const Text(
-                        'Project Description',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                      ),
+                      const Text('Project Description',
+                          style: TextStyle(fontSize: 14,
+                              fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
-                      _buildTextField(controller: _descController, maxLines: 6),
-
+                      _buildTextField(controller: _descCtrl, maxLines: 6),
                       const SizedBox(height: 20),
 
                       // Project Category
-                      const Text(
-                        'Project Category',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                      ),
+                      const Text('Project Category',
+                          style: TextStyle(fontSize: 14,
+                              fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
-                      _buildDropdown(
-                        value: _selectedCategory,
-                        items: _controller.categories,
-                        onChanged: (val) =>
-                            setState(() => _selectedCategory = val),
-                      ),
-
+                      _buildDropdown(),
                       const SizedBox(height: 20),
 
-                      // Add Content Box
+                      // Add Content (gambar)
+                      const Text('Project Image',
+                          style: TextStyle(fontSize: 14,
+                              fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
                       GestureDetector(
-                        onTap: () {
-                          // TODO: tambah konten (gambar/file)
-                        },
+                        onTap: _uploading ? null : _pickImage,
                         child: Container(
                           width: double.infinity,
-                          height: 140,
+                          height: 160,
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: Colors.grey.shade300,
-                              width: 1.5,
-                            ),
+                            border: Border.all(color: Colors.grey.shade300,
+                                width: 1.5),
                           ),
-                          child: Column(
+                          child: _uploading
+                              ? const Center(child: CircularProgressIndicator())
+                              : _imageUrl != null
+                              ? ClipRRect(
+                            borderRadius: BorderRadius.circular(14),
+                            child: Image.network(_imageUrl!,
+                                fit: BoxFit.cover, width: double.infinity),
+                          )
+                              : Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(
-                                Icons.add,
-                                size: 32,
-                                color: Colors.grey.shade400,
-                              ),
+                              Icon(Icons.add_photo_alternate_outlined,
+                                  size: 40, color: Colors.grey.shade400),
                               const SizedBox(height: 8),
-                              Text(
-                                'Add content',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey.shade400,
-                                ),
-                              ),
+                              Text('Tap untuk pilih gambar',
+                                  style: TextStyle(
+                                      color: Colors.grey.shade400,
+                                      fontSize: 13)),
                             ],
                           ),
                         ),
                       ),
 
                       const SizedBox(height: 32),
-
-                      // ── Tombol Cancel & Request ──
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
@@ -170,69 +198,32 @@ class _AddPortfolioPageState extends State<AddPortfolioPage> {
                             style: OutlinedButton.styleFrom(
                               side: BorderSide(color: Colors.grey.shade400),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
-                              ),
+                                  borderRadius: BorderRadius.circular(20)),
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 10,
-                              ),
+                                  horizontal: 20, vertical: 10),
                             ),
-                            child: const Text(
-                              'Cancel',
-                              style: TextStyle(
-                                color: Colors.black54,
-                                fontSize: 14,
-                              ),
-                            ),
+                            child: const Text('Cancel',
+                                style: TextStyle(color: Colors.black54)),
                           ),
-
                           const SizedBox(width: 12),
-
                           ElevatedButton(
-                            onPressed: () {
-                              if (_titleController.text.isEmpty ||
-                                  _descController.text.isEmpty ||
-                                  _selectedCategory == null) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Lengkapi semua field terlebih dahulu',
-                                    ),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
-                                return;
-                              }
-
-                              _controller.addPortfolio(
-                                PortfolioModel(
-                                  title: _titleController.text,
-                                  description: _descController.text,
-                                  category: _selectedCategory!,
-                                ),
-                              );
-
-                              Navigator.pop(context);
-                            },
+                            onPressed: _loading ? null : _save,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFFFB74D),
                               elevation: 0,
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
-                              ),
+                                  borderRadius: BorderRadius.circular(20)),
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                                vertical: 10,
-                              ),
+                                  horizontal: 24, vertical: 10),
                             ),
-                            child: const Text(
-                              'Request',
-                              style: TextStyle(
-                                color: Colors.black,
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                            child: _loading
+                                ? const SizedBox(width: 18, height: 18,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white))
+                                : Text(isEdit ? 'Update' : 'Simpan',
+                                style: const TextStyle(
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.bold)),
                           ),
                         ],
                       ),
@@ -247,10 +238,8 @@ class _AddPortfolioPageState extends State<AddPortfolioPage> {
     );
   }
 
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required int maxLines,
-  }) {
+  Widget _buildTextField(
+      {required TextEditingController controller, required int maxLines}) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -263,17 +252,14 @@ class _AddPortfolioPageState extends State<AddPortfolioPage> {
         style: const TextStyle(fontSize: 14, color: Colors.black87),
         decoration: const InputDecoration(
           border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          contentPadding:
+          EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         ),
       ),
     );
   }
 
-  Widget _buildDropdown({
-    required String? value,
-    required List<String> items,
-    required void Function(String?) onChanged,
-  }) {
+  Widget _buildDropdown() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
       decoration: BoxDecoration(
@@ -283,14 +269,15 @@ class _AddPortfolioPageState extends State<AddPortfolioPage> {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: value,
+          value: _selectedCategory,
           isExpanded: true,
+          hint: const Text('Pilih kategori'),
           icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black54),
-          style: const TextStyle(fontSize: 14, color: Colors.black87),
-          items: items
-              .map((item) => DropdownMenuItem(value: item, child: Text(item)))
+          items: _controller.categories
+              .map((item) =>
+              DropdownMenuItem(value: item, child: Text(item)))
               .toList(),
-          onChanged: onChanged,
+          onChanged: (val) => setState(() => _selectedCategory = val),
         ),
       ),
     );

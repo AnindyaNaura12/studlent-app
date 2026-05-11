@@ -1,7 +1,7 @@
 import 'skill_model.dart';
 
 class FreelancerModel {
-  // STEP 1
+  // Step 1
   String fullName = '';
   String university = '';
   String major = '';
@@ -9,13 +9,11 @@ class FreelancerModel {
   String? bankName;
   String? accountNumber;
   String? accountHolder;
+  String professionalStatus = ''; // ← tambah
 
-  // STEP 2
+  // Step 2
   List<Skill> selectedSkills = [];
   String bio = '';
-
-  // Upload
-  List<String> portfolioPaths = [];
 
   // Agreement
   bool agreeToTerms = false;
