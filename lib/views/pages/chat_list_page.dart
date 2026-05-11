@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../widgets/chat_item_tile.dart';
 import '../../models/chat_model.dart';
 import '../../controllers/chat_controller.dart';
+import 'contact_freelancer_page.dart';
 
 class ChatListPage extends StatelessWidget {
   const ChatListPage({super.key});
@@ -101,6 +102,17 @@ class ChatListPage extends StatelessWidget {
                                   ),
                                   child: ChatItemTile(
                                     chat: chatList[index],
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => ContactFreelancerPage(
+                                            freelancerName: chatList[index].name,
+                                            image: chatList[index].imagePath,
+                                          ),
+                                        ),
+                                      );
+                                    },
                                   ),
                                 );
                               },
@@ -118,6 +130,17 @@ class ChatListPage extends StatelessWidget {
                                   ),
                                   child: ChatItemTile(
                                     chat: chatList[index],
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => ContactFreelancerPage(
+                                            freelancerName: chatList[index].name,
+                                            image: chatList[index].imagePath,
+                                          ),
+                                        ),
+                                      );
+                                    },
                                   ),
                                 );
                               },
