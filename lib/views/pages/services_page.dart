@@ -1,5 +1,5 @@
-import 'dart:async'; // ← TAMBAH ini
 // ignore_for_file: deprecated_member_use
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '/controllers/my_services_controller.dart';
@@ -9,6 +9,7 @@ import '../widgets/freelancer_card.dart';
 import '../widgets/freelancer_card_horizontal.dart';
 import '../pages/service_detail_page.dart';
 import '../pages/filter_page.dart';
+import '../../main.dart'; // ← TAMBAH
 
 class ServicesPage extends StatefulWidget {
   const ServicesPage({super.key});
@@ -24,10 +25,8 @@ class _ServicesPageState extends State<ServicesPage> {
   final _servicesController = MyServicesController();
   final _supabase = Supabase.instance.client;
 
-  // ── TAMBAH: deklarasi subscription ──────────────────────
   late final StreamSubscription<AuthState> _authSubscription;
 
-  String _greeting = 'People';
   bool _isLoggedIn = false;
 
   @override
@@ -35,7 +34,6 @@ class _ServicesPageState extends State<ServicesPage> {
     super.initState();
     _loadUserName();
 
-    // ← TAMBAH: listener otomatis update greeting saat login/logout
     _authSubscription = _supabase.auth.onAuthStateChange.listen((data) {
       _loadUserName();
     });
@@ -43,7 +41,7 @@ class _ServicesPageState extends State<ServicesPage> {
 
   @override
   void dispose() {
-    _authSubscription.cancel(); // ← PENTING: cegah memory leak
+    _authSubscription.cancel();
     super.dispose();
   }
 
@@ -51,10 +49,8 @@ class _ServicesPageState extends State<ServicesPage> {
     final session = _supabase.auth.currentSession;
 
     if (session == null) {
-      setState(() {
-        _isLoggedIn = false;
-        _greeting = 'People';
-      });
+      setState(() => _isLoggedIn = false);
+      globalUsername.value = ''; // ← TAMBAH: reset saat logout
       return;
     }
 
@@ -66,18 +62,16 @@ class _ServicesPageState extends State<ServicesPage> {
 
       final data = await _supabase
           .from('users')
-          .select('nama')
+          .select('username')
           .eq('email', email)
           .maybeSingle();
 
       if (data != null && mounted) {
-        setState(() {
-          final fullName = data['nama'] as String? ?? 'Student';
-          _greeting = fullName.split(' ').first;
-        });
+        // ← UBAH: set globalUsername bukan _greeting lokal
+        globalUsername.value = data['username'] as String? ?? 'Student';
       }
     } catch (_) {
-      setState(() => _greeting = 'People');
+      globalUsername.value = '';
     }
   }
 
@@ -100,14 +94,20 @@ class _ServicesPageState extends State<ServicesPage> {
             children: [
               SizedBox(height: s(20)),
 
-              // ── HEADER ──
-              Text(
-                "Hi, $_greeting 👋",
-                style: TextStyle(
-                  fontSize: s(24),
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
+              // ── HEADER ── ← UBAH: pakai ValueListenableBuilder
+              ValueListenableBuilder<String>(
+                valueListenable: globalUsername,
+                builder: (context, username, _) {
+                  final greeting = username.isNotEmpty ? username : 'People';
+                  return Text(
+                    "Hi, $greeting 👋",
+                    style: TextStyle(
+                      fontSize: s(24),
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  );
+                },
               ),
               Text(
                 "Find the right student service for you",
