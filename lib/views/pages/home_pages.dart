@@ -53,7 +53,7 @@ class _HomePageState extends State<HomePage> {
             _buildNavItem("assets/images/icons/home.png", "Home"),
             _buildNavItem("assets/images/icons/services.png", "Services"),
             _buildNavItem("assets/images/icons/chat.png", "Chat"),
-            _buildNavItem("assets/images/icons/bookings.png", "Bookings"),
+            _buildNavItem("assets/images/icons/bookings.png", "My Orders"),
             _buildNavItem("assets/images/icons/profile.png", "Profile"),
           ],
         ),

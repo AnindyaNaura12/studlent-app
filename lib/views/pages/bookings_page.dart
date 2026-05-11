@@ -30,7 +30,7 @@ class _BookingsPageState extends State<BookingsPage> {
             Padding(
               padding: EdgeInsets.fromLTRB(s(20), s(16), s(20), s(4)),
               child: Text(
-                "My Bookings",
+                "My Orders",
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: s(20),
