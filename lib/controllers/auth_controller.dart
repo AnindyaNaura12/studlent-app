@@ -1,8 +1,10 @@
+// ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../views/pages/register_cover_page.dart';
 import '../views/pages/register_page.dart';
 import '../views/pages/login_page.dart';
+import '../models/services_model.dart'; // ← untuk goToLogin redirect
 
 class AuthController {
   final supabase = Supabase.instance.client;
@@ -56,7 +58,8 @@ class AuthController {
     final password = passwordController.text.trim();
 
     // Generate email otomatis dari username
-    final email = '${username.toLowerCase().replaceAll(' ', '')}@studlent.com';
+    final email =
+        '${username.toLowerCase().replaceAll(' ', '')}@studlent.com';
 
     if (username.isEmpty) return 'Username tidak boleh kosong.';
     if (phone.isEmpty) return 'Nomor HP tidak boleh kosong.';
@@ -72,9 +75,7 @@ class AuthController {
         password: password,
       );
 
-      if (authResponse.user == null) {
-        return 'Registrasi gagal, coba lagi.';
-      }
+      if (authResponse.user == null) return 'Registrasi gagal, coba lagi.';
 
       // 2. Simpan data ke tabel users
       await supabase.from('users').insert({
@@ -102,7 +103,8 @@ class AuthController {
     if (password.isEmpty) return 'Password tidak boleh kosong.';
 
     // Generate email dari username
-    final email = '${username.toLowerCase().replaceAll(' ', '')}@studlent.com';
+    final email =
+        '${username.toLowerCase().replaceAll(' ', '')}@studlent.com';
 
     try {
       final response = await supabase.auth.signInWithPassword(
@@ -142,10 +144,13 @@ class AuthController {
     );
   }
 
-  void goToLogin(BuildContext context) {
+  // ← DIUPDATE: tambah parameter opsional redirectToService
+  void goToLogin(BuildContext context, {ServiceModel? redirectToService}) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const LoginPage()),
+      MaterialPageRoute(
+        builder: (_) => LoginPage(redirectToService: redirectToService),
+      ),
     );
   }
 }

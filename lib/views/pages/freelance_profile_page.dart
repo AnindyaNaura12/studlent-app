@@ -4,6 +4,7 @@ import '../../controllers/profile_controller.dart';
 import 'register_freelancer_page.dart';
 import 'login_page.dart';
 import 'register_page.dart';
+import 'edit_client_profile_page.dart';
 import 'my_profile_page.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -46,6 +47,7 @@ class _ProfilePageState extends State<ProfilePage> {
     _fetchUserData();
   }
 
+  // ─── FIX 1: panggil _fetchUserData() ulang, bukan hanya setState ───
   void _fetchUserData() async {
     final session = _controller.supabase.auth.currentSession;
     if (session == null) {
@@ -70,7 +72,9 @@ class _ProfilePageState extends State<ProfilePage> {
 
       if (data['role'] == 'freelancer') {
         final stats = await _controller.getFreelancerStats(
-            data['id_user'], 'monthly');
+          data['id_user'],
+          'monthly',
+        );
         setState(() => _freelancerStats = stats);
       }
     } else {
@@ -150,11 +154,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     shape: BoxShape.circle,
                     color: Colors.grey.shade300,
                   ),
-                  child: const Icon(
-                    Icons.person,
-                    size: 44,
-                    color: Colors.grey,
-                  ),
+                  child: const Icon(Icons.person, size: 44, color: Colors.grey),
                 ),
               ),
               const SizedBox(height: 18),
@@ -222,6 +222,8 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ),
                       const SizedBox(height: 24),
+
+                      // ✅ PERUBAHAN 4: Tombol Login — teks selalu "Login"
                       SizedBox(
                         width: double.infinity,
                         height: 52,
@@ -232,7 +234,11 @@ class _ProfilePageState extends State<ProfilePage> {
                               MaterialPageRoute(
                                 builder: (_) => const LoginPage(),
                               ),
-                            ).then((_) => _fetchUserData());
+                            ).then((_) {
+                              // Refresh state setelah kembali dari login
+                              setState(() => _loading = true);
+                              _fetchUserData();
+                            });
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFFFB74D),
@@ -252,6 +258,8 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ),
                       const SizedBox(height: 14),
+
+                      // ✅ PERUBAHAN 5 & 6: Tombol Register — teks "Register", langsung ke RegisterPage
                       SizedBox(
                         width: double.infinity,
                         height: 52,
@@ -300,8 +308,6 @@ class _ProfilePageState extends State<ProfilePage> {
       child: Column(
         children: [
           const SizedBox(height: 55),
-
-          // ── Header ──
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
@@ -309,10 +315,7 @@ class _ProfilePageState extends State<ProfilePage> {
               children: [
                 const Text(
                   "My Profile",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 GestureDetector(
                   onTap: () => _showJoinFreelanceDialog(context),
@@ -344,10 +347,9 @@ class _ProfilePageState extends State<ProfilePage> {
               ],
             ),
           ),
-
           const SizedBox(height: 20),
 
-          // ── Foto profil client ──
+          // ── Foto profil (bisa diklik) ──
           GestureDetector(
             onTap: () async {
               if (_userData == null) return;
@@ -416,18 +418,14 @@ class _ProfilePageState extends State<ProfilePage> {
               ],
             ),
           ),
-
           const SizedBox(height: 12),
 
-          // ── Nama & Email ──
+          // ── Nama & Email dari Supabase ──
           Text(
             _nameController.text.isNotEmpty
                 ? _nameController.text
                 : 'Nama User',
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
           Text(
@@ -436,12 +434,11 @@ class _ProfilePageState extends State<ProfilePage> {
                 : 'email@example.com',
             style: const TextStyle(fontSize: 13, color: Colors.black54),
           ),
-
           const SizedBox(height: 20),
           _buildToggle(),
           const SizedBox(height: 24),
 
-          // ── Statistik ──
+          // ── Statistik dari Supabase ──
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Container(
@@ -476,10 +473,9 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ),
           ),
-
           const SizedBox(height: 20),
 
-          // ── Edit fields ──
+          // ── Edit Profile fields ──
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(
@@ -506,9 +502,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ],
             ),
           ),
-
           const SizedBox(height: 12),
-
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(
@@ -518,7 +512,6 @@ class _ProfilePageState extends State<ProfilePage> {
                   .toList(),
             ),
           ),
-
           const SizedBox(height: 100),
         ],
       ),
@@ -592,10 +585,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 Text(
                   _userData?['professional_status'] ?? '',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey,
-                  ),
+                  style: const TextStyle(fontSize: 14, color: Colors.grey),
                 ),
                 const SizedBox(height: 6),
                 Container(
@@ -609,10 +599,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                   child: const Text(
                     "Freelancer",
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
@@ -626,10 +613,7 @@ class _ProfilePageState extends State<ProfilePage> {
           // ── Stats + Earned dropdown ──
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 20),
-            padding: const EdgeInsets.symmetric(
-              vertical: 16,
-              horizontal: 8,
-            ),
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
             decoration: BoxDecoration(
               color: const Color(0xFFF0EBE0),
               borderRadius: BorderRadius.circular(20),
@@ -637,15 +621,9 @@ class _ProfilePageState extends State<ProfilePage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _statItem(
-                  '${_freelancerStats['services']}',
-                  'Services',
-                ),
+                _statItem('${_freelancerStats['services']}', 'Services'),
                 _verticalDivider(),
-                _statItem(
-                  '⭐ ${_freelancerStats['rating']}',
-                  'Rating',
-                ),
+                _statItem('⭐ ${_freelancerStats['rating']}', 'Rating'),
                 _verticalDivider(),
                 Column(
                   children: [
@@ -666,8 +644,8 @@ class _ProfilePageState extends State<ProfilePage> {
                             _earnedPeriod == 'weekly'
                                 ? 'Mingguan'
                                 : _earnedPeriod == 'yearly'
-                                    ? 'Tahunan'
-                                    : 'Bulanan',
+                                ? 'Tahunan'
+                                : 'Bulanan',
                             style: const TextStyle(
                               fontSize: 11,
                               color: Colors.grey,
@@ -689,7 +667,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
           const SizedBox(height: 20),
 
-         // ── Menu freelancer ──
+          // ── Menu freelancer ──
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(
@@ -713,7 +691,9 @@ class _ProfilePageState extends State<ProfilePage> {
                     child: Container(
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 18),
+                        horizontal: 16,
+                        vertical: 18,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
@@ -793,22 +773,12 @@ class _ProfilePageState extends State<ProfilePage> {
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(
-          horizontal: 30,
-          vertical: 10,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
         decoration: BoxDecoration(
-          color: active
-              ? const Color(0xFFFFB74D)
-              : Colors.transparent,
+          color: active ? const Color(0xFFFFB74D) : Colors.transparent,
           borderRadius: BorderRadius.circular(25),
           boxShadow: active
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 4,
-                  )
-                ]
+              ? [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4)]
               : [],
         ),
         child: Text(
@@ -827,10 +797,7 @@ class _ProfilePageState extends State<ProfilePage> {
       children: [
         Text(
           value,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
         const SizedBox(height: 4),
         Text(
@@ -843,11 +810,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _verticalDivider() {
-    return Container(
-      height: 40,
-      width: 1,
-      color: Colors.grey.withOpacity(0.3),
-    );
+    return Container(height: 40, width: 1, color: Colors.grey.withOpacity(0.3));
   }
 
   Widget _editableField({
@@ -856,10 +819,7 @@ class _ProfilePageState extends State<ProfilePage> {
     required TextEditingController controller,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 14,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -888,17 +848,13 @@ class _ProfilePageState extends State<ProfilePage> {
                 const SizedBox(height: 4),
                 Text(
                   displayText,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.black45,
-                  ),
+                  style: const TextStyle(fontSize: 14, color: Colors.black45),
                 ),
               ],
             ),
           ),
           GestureDetector(
-            onTap: () =>
-                _showEditDialog(context, label, controller),
+            onTap: () => _showEditDialog(context, label, controller),
             child: const Icon(
               Icons.edit_outlined,
               size: 20,
@@ -912,10 +868,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _passwordField() {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 14,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -953,11 +906,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ],
             ),
           ),
-          Icon(
-            Icons.edit_outlined,
-            size: 20,
-            color: Colors.black54,
-          ),
+          Icon(Icons.edit_outlined, size: 20, color: Colors.black54),
         ],
       ),
     );
@@ -969,10 +918,7 @@ class _ProfilePageState extends State<ProfilePage> {
       onTap: () => _controller.onMenuTap(title, context),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 18,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -989,9 +935,7 @@ class _ProfilePageState extends State<ProfilePage> {
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
             const Text(
@@ -1015,9 +959,7 @@ class _ProfilePageState extends State<ProfilePage> {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(20),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) => Padding(
         padding: const EdgeInsets.all(24),
@@ -1035,10 +977,7 @@ class _ProfilePageState extends State<ProfilePage> {
             const SizedBox(height: 16),
             const Text(
               'Filter Penghasilan',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             for (final option in [
@@ -1049,19 +988,13 @@ class _ProfilePageState extends State<ProfilePage> {
               ListTile(
                 title: Text(option['label']!),
                 trailing: _earnedPeriod == option['value']
-                    ? const Icon(
-                        Icons.check,
-                        color: Color(0xFFFFB74D),
-                      )
+                    ? const Icon(Icons.check, color: Color(0xFFFFB74D))
                     : null,
                 onTap: () async {
                   Navigator.pop(ctx);
-                  setState(
-                    () => _earnedPeriod = option['value']!,
-                  );
+                  setState(() => _earnedPeriod = option['value']!);
                   if (_userData != null) {
-                    final stats =
-                        await _controller.getFreelancerStats(
+                    final stats = await _controller.getFreelancerStats(
                       _userData!['id_user'],
                       option['value']!,
                     );
@@ -1083,17 +1016,13 @@ class _ProfilePageState extends State<ProfilePage> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text("Edit $label"),
         content: TextField(
           controller: controller,
           decoration: InputDecoration(
             hintText: "Enter new $label",
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
         actions: [
@@ -1119,10 +1048,7 @@ class _ProfilePageState extends State<ProfilePage> {
               );
               setState(() {});
             },
-            child: const Text(
-              "Save",
-              style: TextStyle(color: Colors.black),
-            ),
+            child: const Text("Save", style: TextStyle(color: Colors.black)),
           ),
         ],
       ),
@@ -1133,9 +1059,7 @@ class _ProfilePageState extends State<ProfilePage> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(
           children: [
             Icon(Icons.star, color: Color(0xFFFFB74D)),
@@ -1149,16 +1073,10 @@ class _ProfilePageState extends State<ProfilePage> {
           children: [
             Text(
               "Bergabung sebagai freelancer dan mulai tawarkan jasamu ke sesama mahasiswa!",
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.black87,
-              ),
+              style: TextStyle(fontSize: 14, color: Colors.black87),
             ),
             SizedBox(height: 16),
-            Text(
-              "✅  Buat profil freelancer",
-              style: TextStyle(fontSize: 13),
-            ),
+            Text("✅  Buat profil freelancer", style: TextStyle(fontSize: 13)),
             SizedBox(height: 6),
             Text(
               "✅  Tawarkan skill & layananmu",

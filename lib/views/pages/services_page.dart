@@ -1,7 +1,9 @@
+import 'dart:async'; // ← TAMBAH ini
+// ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
-import '/controllers/my_services_controller.dart'; // ← UBAH import
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '/controllers/my_services_controller.dart';
 import '/controllers/home_controller.dart';
-import '/models/services_model.dart';
 import '../widgets/filter_button.dart';
 import '../widgets/freelancer_card.dart';
 import '../widgets/freelancer_card_horizontal.dart';
@@ -18,20 +20,74 @@ class ServicesPage extends StatefulWidget {
 class _ServicesPageState extends State<ServicesPage> {
   int selectedIndex = 0;
 
-  // ← PINDAH KE SINI, bukan di dalam build()
   final _homeController = HomeController();
   final _servicesController = MyServicesController();
+  final _supabase = Supabase.instance.client;
+
+  // ── TAMBAH: deklarasi subscription ──────────────────────
+  late final StreamSubscription<AuthState> _authSubscription;
+
+  String _greeting = 'People';
+  bool _isLoggedIn = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserName();
+
+    // ← TAMBAH: listener otomatis update greeting saat login/logout
+    _authSubscription = _supabase.auth.onAuthStateChange.listen((data) {
+      _loadUserName();
+    });
+  }
+
+  @override
+  void dispose() {
+    _authSubscription.cancel(); // ← PENTING: cegah memory leak
+    super.dispose();
+  }
+
+  Future<void> _loadUserName() async {
+    final session = _supabase.auth.currentSession;
+
+    if (session == null) {
+      setState(() {
+        _isLoggedIn = false;
+        _greeting = 'People';
+      });
+      return;
+    }
+
+    setState(() => _isLoggedIn = true);
+
+    try {
+      final email = _supabase.auth.currentUser?.email;
+      if (email == null) return;
+
+      final data = await _supabase
+          .from('users')
+          .select('nama')
+          .eq('email', email)
+          .maybeSingle();
+
+      if (data != null && mounted) {
+        setState(() {
+          final fullName = data['nama'] as String? ?? 'Student';
+          _greeting = fullName.split(' ').first;
+        });
+      }
+    } catch (_) {
+      setState(() => _greeting = 'People');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-
     double s(double size) =>
         (size * (screenWidth / 375)).clamp(size * 0.75, size * 1.3);
 
-    // ← UBAH: ambil dari _servicesController.services
     final services = _servicesController.services;
-    final categories = _homeController.getCategories();
 
     return Scaffold(
       backgroundColor: const Color(0xFFFFF8EE),
@@ -44,9 +100,9 @@ class _ServicesPageState extends State<ServicesPage> {
             children: [
               SizedBox(height: s(20)),
 
-              // ================= HEADER =================
+              // ── HEADER ──
               Text(
-                "Hi, Nafila 👋",
+                "Hi, $_greeting 👋",
                 style: TextStyle(
                   fontSize: s(24),
                   fontWeight: FontWeight.bold,
@@ -60,7 +116,7 @@ class _ServicesPageState extends State<ServicesPage> {
 
               SizedBox(height: s(20)),
 
-              // ================= SEARCH =================
+              // ── SEARCH ──
               Row(
                 children: [
                   Expanded(
@@ -99,7 +155,7 @@ class _ServicesPageState extends State<ServicesPage> {
 
               SizedBox(height: s(24)),
 
-              // ================= RECOMMENDED TITLE =================
+              // ── RECOMMENDED ──
               Text(
                 "Recommended For You",
                 style: TextStyle(
@@ -108,10 +164,7 @@ class _ServicesPageState extends State<ServicesPage> {
                   color: Colors.black87,
                 ),
               ),
-
               SizedBox(height: s(10)),
-
-              // ================= RECOMMENDED LIST =================
               ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -134,7 +187,7 @@ class _ServicesPageState extends State<ServicesPage> {
 
               SizedBox(height: s(16)),
 
-              // ================= POPULAR TITLE =================
+              // ── POPULAR ──
               Text(
                 "Popular Services",
                 style: TextStyle(
@@ -143,10 +196,7 @@ class _ServicesPageState extends State<ServicesPage> {
                   color: Colors.black87,
                 ),
               ),
-
               SizedBox(height: s(10)),
-
-              // ================= POPULAR LIST =================
               SizedBox(
                 height: screenWidth * 0.85,
                 child: ListView.builder(
@@ -156,11 +206,12 @@ class _ServicesPageState extends State<ServicesPage> {
                   itemBuilder: (context, index) {
                     return ServiceCard(
                       service: services[index],
-                      onTap: () {                          // ← TAMBAH INI
+                      onTap: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => ServiceDetailPage(service: services[index]),
+                            builder: (_) =>
+                                ServiceDetailPage(service: services[index]),
                           ),
                         );
                       },

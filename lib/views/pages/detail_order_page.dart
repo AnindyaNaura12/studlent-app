@@ -1,7 +1,8 @@
 // ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
-import '../../models/order_detail_model.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/services_model.dart';
+import '../pages/my_orders_page.dart';
 
 class DetailOrderPage extends StatefulWidget {
   final ServiceModel service;
@@ -15,6 +16,9 @@ class DetailOrderPage extends StatefulWidget {
 class _DetailOrderPageState extends State<DetailOrderPage> {
   String? _selectedPayment;
   final TextEditingController _noteController = TextEditingController();
+
+  final _supabase = Supabase.instance.client;
+  bool _isProcessing = false;
 
   final List<Map<String, dynamic>> _eWalletMethods = [
     {'name': 'Shopeepay', 'balance': 'Rp200.000', 'activated': true},
@@ -36,6 +40,151 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
     super.dispose();
   }
 
+  // ─────────────────────────────────────────────────────────────
+  // CONFIRM & PAY → SUPABASE
+  // ─────────────────────────────────────────────────────────────
+  Future<void> _handleConfirmPay(
+    double packagePrice,
+    double adminFee,
+    double total,
+  ) async {
+    if (_selectedPayment == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pilih metode pembayaran terlebih dahulu'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isProcessing = true);
+
+    try {
+      final service = widget.service;
+
+      // 1. Cek login
+      final currentUser = _supabase.auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('Sesi login tidak ditemukan. Silakan login ulang.');
+      }
+
+      // 2. Ambil id_user dari tabel users
+      final userData = await _supabase
+          .from('users')
+          .select('id_user')
+          .eq('email', currentUser.email!)
+          .maybeSingle();
+
+      if (userData == null) {
+        throw Exception('Data pengguna tidak ditemukan di database.');
+      }
+
+      final int clientId = userData['id_user'] as int;
+      final int freelancerId = service.freelancerId ?? 1;
+      final int serviceId = int.tryParse(service.id) ?? 1;
+      final int? packageId = service.packageId; // ← dari ServiceModel
+
+      // 3. Hitung deadline dari delivery time
+      final int deliveryDays =
+          int.tryParse(
+            service.basicPackage.deliveryTime.replaceAll(RegExp(r'[^0-9]'), ''),
+          ) ??
+          3;
+
+      final String deadline = DateTime.now()
+          .add(Duration(days: deliveryDays))
+          .toIso8601String()
+          .split('T')[0];
+
+      // 4. Insert ke tabel orders
+      final orderResponse = await _supabase
+          .from('orders')
+          .insert({
+            'id_client': clientId,
+            'id_freelancer': freelancerId,
+            'id_service': serviceId,
+            'id_package': packageId, // ← WAJIB sesuai DB
+            'detail_pesanan': service.title,
+            'catatan': _noteController.text.trim(),
+            'deadline': deadline,
+            'status': 'menunggu_pembayaran',
+            'progress': 0,
+          })
+          .select()
+          .single();
+
+      final int orderId = orderResponse['id_order'] as int;
+
+      // 5. Hitung fee
+      const double feePercent = 10.0;
+      final double platformFee = packagePrice * (feePercent / 100);
+      final double freelancerGet = packagePrice - platformFee;
+
+      // 6. Insert ke tabel payments → ambil id_payment langsung dari response
+      final paymentResponse = await _supabase
+          .from('payments')
+          .insert({
+            'id_order': orderId,
+            'metode': _selectedPayment,
+            'amount': total,
+            'admin_fee': adminFee,
+            'status': 'pending',
+            'escrow_status': 'hold',
+            'fee_percent': feePercent,
+            'platform_fee': platformFee,
+            'freelancer_receive': freelancerGet,
+          })
+          .select()
+          .single();
+
+      final int paymentId = paymentResponse['id_payment'] as int;
+
+      // 7. Insert ke tabel escrow pakai paymentId dari response
+      await _supabase.from('escrow').insert({
+        'id_payment': paymentId,
+        'amount': total,
+        'platform_fee': platformFee,
+        'freelancer_amount': freelancerGet,
+        'status': 'hold',
+      });
+
+      if (!mounted) return;
+
+      // 8. Sukses → ke MyOrdersPage
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Order berhasil dibuat! Menunggu pembayaran...'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      await Future.delayed(const Duration(seconds: 1));
+      if (!mounted) return;
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const MyOrdersPage()),
+        (route) => route.isFirst,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Gagal membuat order: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // BUILD
+  // ─────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final service = widget.service;
@@ -48,7 +197,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
               .trim(),
         ) ??
         90000;
-    const double adminFee = 10000;
+    const double adminFee = 2000; // sesuai DEFAULT di DB
     final double total = packagePrice + adminFee;
 
     return Scaffold(
@@ -56,7 +205,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
       body: SafeArea(
         child: Column(
           children: [
-            // ── CONTENT ──
+            // ── SCROLLABLE CONTENT ──
             Expanded(
               child: SingleChildScrollView(
                 child: Column(
@@ -153,7 +302,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        '${service.category} | ${service.university ?? "Universitas Brawijaya"}',
+                                        '${service.category} | ${service.university}',
                                         style: const TextStyle(
                                           fontSize: 11,
                                           color: Colors.black54,
@@ -234,7 +383,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                                 ),
                                 const SizedBox(height: 4),
                                 _buildPriceRow(
-                                  ' Admin',
+                                  'Admin fee',
                                   'Rp ${_formatPrice(adminFee)}',
                                   isBold: false,
                                 ),
@@ -356,16 +505,16 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                                 ),
                                 const SizedBox(height: 14),
 
-                                // ── E-WALLET SECTION ──
-                                Row(
+                                // ── E-WALLET ──
+                                const Row(
                                   children: [
-                                    const Icon(
+                                    Icon(
                                       Icons.account_balance_wallet_outlined,
                                       size: 22,
                                       color: Colors.black87,
                                     ),
-                                    const SizedBox(width: 8),
-                                    const Text(
+                                    SizedBox(width: 8),
+                                    Text(
                                       'E - Wallet',
                                       style: TextStyle(
                                         fontSize: 14,
@@ -375,24 +524,24 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                                   ],
                                 ),
                                 const SizedBox(height: 8),
-                                ..._eWalletMethods.map((method) {
-                                  return _buildPaymentItem(method);
-                                }).toList(),
+                                ..._eWalletMethods.map(
+                                  (method) => _buildPaymentItem(method),
+                                ),
 
                                 const SizedBox(height: 8),
                                 const Divider(height: 1),
                                 const SizedBox(height: 12),
 
-                                // ── BANK TRANSFER SECTION ──
-                                Row(
+                                // ── BANK TRANSFER ──
+                                const Row(
                                   children: [
-                                    const Icon(
+                                    Icon(
                                       Icons.account_balance_outlined,
                                       size: 22,
                                       color: Colors.black87,
                                     ),
-                                    const SizedBox(width: 8),
-                                    const Text(
+                                    SizedBox(width: 8),
+                                    Text(
                                       'Bank Transfer',
                                       style: TextStyle(
                                         fontSize: 14,
@@ -402,9 +551,9 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                                   ],
                                 ),
                                 const SizedBox(height: 8),
-                                ..._bankMethods.map((method) {
-                                  return _buildPaymentItem(method);
-                                }).toList(),
+                                ..._bankMethods.map(
+                                  (method) => _buildPaymentItem(method),
+                                ),
                               ],
                             ),
                           ),
@@ -428,39 +577,38 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                     width: double.infinity,
                     height: 54,
                     child: ElevatedButton(
-                      onPressed: () {
-                        if (_selectedPayment == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Pilih metode pembayaran terlebih dahulu',
-                              ),
+                      onPressed: _isProcessing
+                          ? null
+                          : () => _handleConfirmPay(
+                              packagePrice,
+                              adminFee,
+                              total,
                             ),
-                          );
-                          return;
-                        }
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Order berhasil dibuat!'),
-                          ),
-                        );
-                        Navigator.pop(context);
-                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFFFA726),
+                        disabledBackgroundColor: const Color(0xFFFFD49E),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(30),
                         ),
                         elevation: 0,
                       ),
-                      child: const Text(
-                        'Confirm & Pay',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      child: _isProcessing
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                color: Colors.black,
+                                strokeWidth: 2.5,
+                              ),
+                            )
+                          : const Text(
+                              'Confirm & Pay',
+                              style: TextStyle(
+                                color: Colors.black,
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -478,9 +626,9 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
     );
   }
 
-  // ─────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────
   // HELPERS
-  // ─────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────
 
   Widget _buildCard({required Widget child}) {
     return Container(
@@ -570,11 +718,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
           ),
           if (isActivated)
             GestureDetector(
-              onTap: () {
-                setState(() {
-                  _selectedPayment = method['name'];
-                });
-              },
+              onTap: () => setState(() => _selectedPayment = method['name']),
               child: Container(
                 width: 22,
                 height: 22,

@@ -8,6 +8,8 @@ import '../views/pages/my_profile_page.dart';
 import '../views/pages/my_orders_page.dart';
 import '../views/pages/login_page.dart';
 import '../views/pages/add_portfolio_page.dart';
+import '../views/pages/home_pages.dart';
+
 import '../views/pages/portfolio_list_page.dart';
 import '../views/pages/register_freelancer_page.dart';
 
@@ -68,65 +70,73 @@ class ProfileController {
       {'title': 'Logout', 'hasTag': false},
     ];
   }
+
   // ===-dropdown earned freelancer ----
-  Future<Map<String, dynamic>> getFreelancerStats(int idUser, String period) async {
-  try {
-    // Hitung total services
-    final services = await supabase
-        .from('services')
-        .select('id_service')
-        .eq('id_freelancer', idUser)
-        .eq('status', 'approved');
+  Future<Map<String, dynamic>> getFreelancerStats(
+    int idUser,
+    String period,
+  ) async {
+    try {
+      // Hitung total services
+      final services = await supabase
+          .from('services')
+          .select('id_service')
+          .eq('id_freelancer', idUser)
+          .eq('status', 'approved');
 
-    // Hitung rating rata-rata
-    final reviews = await supabase
-        .from('reviews')
-        .select('rating')
-        .eq('id_freelancer', idUser);
+      // Hitung rating rata-rata
+      final reviews = await supabase
+          .from('reviews')
+          .select('rating')
+          .eq('id_freelancer', idUser);
 
-    double ratingAvg = 0;
-    if ((reviews as List).isNotEmpty) {
-      final total = reviews.fold<double>(0, (sum, r) => sum + (r['rating'] ?? 0));
-      ratingAvg = total / reviews.length;
+      double ratingAvg = 0;
+      if ((reviews as List).isNotEmpty) {
+        final total = reviews.fold<double>(
+          0,
+          (sum, r) => sum + (r['rating'] ?? 0),
+        );
+        ratingAvg = total / reviews.length;
+      }
+
+      // Filter earned berdasarkan periode
+      DateTime fromDate;
+      final now = DateTime.now();
+      switch (period) {
+        case 'weekly':
+          fromDate = now.subtract(const Duration(days: 7));
+          break;
+        case 'yearly':
+          fromDate = DateTime(now.year, 1, 1);
+          break;
+        default: // monthly
+          fromDate = DateTime(now.year, now.month, 1);
+      }
+
+      final payments = await supabase
+          .from('payments')
+          .select('freelancer_receive, tanggal_bayar')
+          .eq('status', 'paid')
+          .gte('tanggal_bayar', fromDate.toIso8601String());
+
+      // Filter hanya order milik freelancer ini
+      double earned = 0;
+      for (var p in payments as List) {
+        // Cek via orders table
+        earned += (p['freelancer_receive'] ?? 0).toDouble();
+      }
+
+      return {
+        'services': (services as List).length,
+        'rating': double.parse(ratingAvg.toStringAsFixed(1)),
+        'earned': earned,
+      };
+    } catch (e) {
+      debugPrint('getFreelancerStats error: $e');
+      return {'services': 0, 'rating': 0.0, 'earned': 0.0};
     }
-
-    // Filter earned berdasarkan periode
-    DateTime fromDate;
-    final now = DateTime.now();
-    switch (period) {
-      case 'weekly':
-        fromDate = now.subtract(const Duration(days: 7));
-        break;
-      case 'yearly':
-        fromDate = DateTime(now.year, 1, 1);
-        break;
-      default: // monthly
-        fromDate = DateTime(now.year, now.month, 1);
-    }
-
-    final payments = await supabase
-        .from('payments')
-        .select('freelancer_receive, tanggal_bayar')
-        .eq('status', 'paid')
-        .gte('tanggal_bayar', fromDate.toIso8601String());
-
-    // Filter hanya order milik freelancer ini
-    double earned = 0;
-    for (var p in payments as List) {
-      // Cek via orders table
-      earned += (p['freelancer_receive'] ?? 0).toDouble();
-    }
-
-    return {
-      'services': (services as List).length,
-      'rating': double.parse(ratingAvg.toStringAsFixed(1)),
-      'earned': earned,
-    };
-  } catch (e) {
-    debugPrint('getFreelancerStats error: $e');
-    return {'services': 0, 'rating': 0.0, 'earned': 0.0};
   }
-}
+
   // ── Fetch user + statistik ────────────────────────────────
   Future<Map<String, dynamic>?> getCurrentUser() async {
     try {
@@ -186,7 +196,10 @@ class ProfileController {
   }
 
   // ── Upload foto profil ────────────────────────────────────
-  Future<String?> uploadProfileImage(int idUser, {bool isFreelancer = false}) async {
+  Future<String?> uploadProfileImage(
+    int idUser, {
+    bool isFreelancer = false,
+  }) async {
     try {
       final picker = ImagePicker();
       final picked = await picker.pickImage(
@@ -207,9 +220,9 @@ class ProfileController {
       final formats = ['jpg', 'jpeg', 'png', 'webp', 'heic'];
       for (final ext in formats) {
         try {
-          await supabase.storage
-              .from('Profile-image')
-              .remove(['${prefix}_$idUser.$ext']);
+          await supabase.storage.from('Profile-image').remove([
+            '${prefix}_$idUser.$ext',
+          ]);
         } catch (_) {}
       }
 
@@ -241,6 +254,7 @@ class ProfileController {
       return null;
     }
   }
+
   // ── Update data profil ────────────────────────────────────//
   Future<bool> updateProfile({
     required int idUser,
@@ -276,13 +290,17 @@ class ProfileController {
     }
   }
 
-  // ── Logout ───────────────────────────────────────────────
+  // ── Logout ────────────────────────────────────────────────
   Future<void> logout(BuildContext context) async {
     await supabase.auth.signOut();
+
+    if (!context.mounted) return;
+
+    // Hapus semua stack → kembali ke HomePage (atau halaman utama)
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (_) => const LoginPage()),
-      (route) => false,
+      MaterialPageRoute(builder: (_) => const HomePage()),
+      (route) => false, // hapus semua route sebelumnya
     );
   }
 
@@ -308,7 +326,7 @@ class ProfileController {
         );
         break;
 
-     case 'My Portfolio':
+      case 'My Portfolio':
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const PortfolioListPage()),
