@@ -130,6 +130,7 @@ class BookingDetailPage extends StatelessWidget {
                     context,
                     MaterialPageRoute(
                       builder: (_) => ContactFreelancerPage(
+                        freelancerId: booking.freelancerId,
                         freelancerName: booking.providerName,
                         image: booking.image,
                       ),

@@ -68,6 +68,7 @@ class ServiceModel {
   final String skills;
   final double rating;
   final int totalReviews;
+  final String? freelancerName;
 
   // ── TAMBAH: field untuk koneksi ke DB ─────────────────────
   final int? freelancerId; // ← id_freelancer di tabel services
@@ -88,6 +89,7 @@ class ServiceModel {
     this.rating = 0.0,
     this.totalReviews = 0,
     this.freelancerId,
+    this.freelancerName,
   }) : basicPackage = basicPackage ?? PackageModel();
 
   // ── fromJson dari tabel service_detail di Supabase ────────
