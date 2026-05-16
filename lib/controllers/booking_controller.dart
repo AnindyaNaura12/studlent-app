@@ -5,6 +5,7 @@ class BookingController {
 
   List<Booking> bookings = [
     Booking(
+      freelancerId: 11,
       serviceName: 'Website Development',
       providerName: 'Jessica Jung',
       total: '550.000',
@@ -15,6 +16,7 @@ class BookingController {
       note: 'Tolong buatkan website company profile dengan desain modern dan responsive',
     ),
     Booking(
+      freelancerId: 12,
       serviceName: 'Write & Translation',
       providerName: 'Jisoo Park',
       total: '250.000',

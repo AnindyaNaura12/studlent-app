@@ -6,7 +6,7 @@ import 'config.dart';
 final ValueNotifier<String> globalUsername = ValueNotifier<String>(
   '',
 ); // ✅ aman
-late final SupabaseClient supabase; // ✅ late — diisi setelah initialize
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,8 +15,6 @@ void main() async {
     url: Config.supabaseUrl,
     anonKey: Config.supabaseAnonKey,
   );
-
-  supabase = Supabase.instance.client; // ✅ diisi di sini
 
   runApp(const MyApp());
 }

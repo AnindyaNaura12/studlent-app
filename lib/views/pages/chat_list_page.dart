@@ -2,155 +2,329 @@ import 'package:flutter/material.dart';
 import '../widgets/chat_item_tile.dart';
 import '../../models/chat_model.dart';
 import '../../controllers/chat_controller.dart';
+import '../../controllers/auth_controller.dart';
 import 'contact_freelancer_page.dart';
+import 'login_page.dart';
+import 'register_page.dart';
+import '../widgets/custom_back_button.dart'; 
 
-class ChatListPage extends StatelessWidget {
-  const ChatListPage({super.key});
+class ChatListPage extends StatefulWidget {
+  final bool isFreelancerMode;
+  const ChatListPage({super.key, this.isFreelancerMode = false});
+
+  @override
+  State<ChatListPage> createState() => _ChatListPageState();
+}
+
+class _ChatListPageState extends State<ChatListPage> {
+  final ChatController _chatController = ChatController();
+  final AuthController _authController = AuthController();
+  
+  late Future<List<ChatModel>> _chatListFuture;
+  bool _isLoggedIn = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAuthAndLoad();
+  }
+
+  void _checkAuthAndLoad() {
+    // Mengecek langsung dari Supabase apakah ada sesi yang aktif
+    _isLoggedIn = _authController.supabase.auth.currentUser != null;
+    if (_isLoggedIn) {
+      _chatListFuture = _chatController.getRealChatContacts();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final controller = ChatController();
-    final chatList = controller.getChats();
-
     final screenWidth = MediaQuery.of(context).size.width;
+    double scale(double size) => (size * (screenWidth / 375)).clamp(size * 0.85, size * 1.2);
 
-    // 🔥 RESPONSIVE SCALE (FIXED)
-    double scale(double size) {
-      double factor = screenWidth / 375;
-
-      if (factor > 1.2) factor = 1.2;
-      if (factor < 0.85) factor = 0.85;
-
-      return size * factor;
+    if (!_isLoggedIn) {
+      return _buildLoginPlaceholder(context);
     }
 
     return Scaffold(
       backgroundColor: const Color(0xFFFFF8EE),
-
       body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final isWeb = constraints.maxWidth > 600;
+        child: _buildChatContent(scale),
+      ),
+    );
+  }
 
-            return Center(
+  // Tampilan Empty State (Login Guard)
+  // Tampilan Empty State (Mirip dengan Guest Profile)
+  Widget _buildLoginPlaceholder(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFFFD59E), Colors.white],
+          stops: [0.0, 0.55],
+        ),
+      ),
+      child: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 20, 20, 0),
+              child: Text(
+                'Chat',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+              ),
+            ),
+            const SizedBox(height: 36),
+            Center(
               child: Container(
-                width: isWeb ? 900 : double.infinity,
-                padding: EdgeInsets.symmetric(
-                  horizontal: isWeb ? 40 : 0,
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.grey.shade300,
+                ),
+                child: const Icon(Icons.chat_bubble_outline, size: 36, color: Colors.grey),
+              ),
+            ),
+            const SizedBox(height: 18),
+            const Center(
+              child: Text(
+                'Welcome to Chat!',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Center(
+              child: Text(
+                'Login or register to connect\nwith freelancers or clients',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.black54,
+                  height: 1.5,
+                ),
+              ),
+            ),
+            const SizedBox(height: 30),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: const Color(0xFFE8D8C0),
+                    width: 2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
                 child: Column(
                   children: [
-
-                    SizedBox(height: scale(16)),
-
-                    // ================= HEADER =================
-                    Padding(
-                      padding: EdgeInsets.fromLTRB(
-                        scale(20),
-                        scale(20),
-                        scale(20),
-                        scale(8),
-                      ),
-                      child: Text(
-                        "Chat",
-                        style: TextStyle(
-                          fontSize: isWeb ? 26 : scale(22),
-                          fontWeight: FontWeight.bold,
-                        ),
+                    const Text(
+                      "You're not logged in yet",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
                       ),
                     ),
-
-                    SizedBox(height: scale(8)),
-
-                    // ================= SEARCH =================
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: scale(20)),
-                      child: TextField(
-                        style: TextStyle(fontSize: scale(14)),
-                        decoration: InputDecoration(
-                          hintText: "Search messages or freelancers",
-                          hintStyle: TextStyle(fontSize: scale(13)),
-                          prefixIcon: Icon(Icons.search, size: scale(20)),
-                          filled: true,
-                          fillColor: Colors.white,
-                          contentPadding: EdgeInsets.symmetric(
-                            vertical: scale(12),
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(scale(30)),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Please login or register\nto view your messages',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.black54,
+                        height: 1.5,
                       ),
                     ),
-
-                    SizedBox(height: scale(6)),
-
-                    // ================= CHAT LIST =================
-                    Expanded(
-                      child: isWeb
-                          ? ListView.builder(
-                              padding: EdgeInsets.symmetric(
-                                vertical: scale(12),
-                                horizontal: scale(10),
-                              ),
-                              itemCount: chatList.length,
-                              itemBuilder: (context, index) {
-                                return Padding(
-                                  padding: EdgeInsets.symmetric(
-                                    vertical: scale(4),
-                                  ),
-                                  child: ChatItemTile(
-                                    chat: chatList[index],
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => ContactFreelancerPage(
-                                            freelancerName: chatList[index].name,
-                                            image: chatList[index].imagePath,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                );
-                              },
-                            )
-                          : ListView.builder(
-                              padding: EdgeInsets.symmetric(
-                                vertical: scale(8),
-                              ),
-                              itemCount: chatList.length,
-                              itemBuilder: (context, index) {
-                                return Padding(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: scale(16),
-                                    vertical: scale(0),
-                                  ),
-                                  child: ChatItemTile(
-                                    chat: chatList[index],
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => ContactFreelancerPage(
-                                            freelancerName: chatList[index].name,
-                                            image: chatList[index].imagePath,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                );
-                              },
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          // Arahkan ke halaman login, lalu refresh saat kembali
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const LoginPage(),
                             ),
+                          ).then((_) => setState(() => _checkAuthAndLoad()));
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFFB74D),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                        child: const Text(
+                          'Login',
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          // Arahkan ke halaman register
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const RegisterPage(),
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFFB74D),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                        child: const Text(
+                          'Register',
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
-            );
-          },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChatContent(double Function(double) scale) {
+    final isWeb = MediaQuery.of(context).size.width > 600;
+    return Center(
+      child: Container(
+        width: isWeb ? 900 : double.infinity,
+        padding: EdgeInsets.symmetric(horizontal: isWeb ? 40 : 0),
+        child: Column(
+          children: [
+            SizedBox(height: scale(16)),
+            Padding(
+          padding: EdgeInsets.fromLTRB(scale(20), scale(20), scale(20), scale(8)),
+          child: Row(
+            children: [
+              if (Navigator.canPop(context))
+                Padding(
+                  padding: EdgeInsets.only(right: scale(12)),
+                  child: CustomBackButton(
+                    onTap: () => Navigator.pop(context),
+                  ),
+                ),
+              
+              Text(
+                widget.isFreelancerMode ? "Client Messages" : "Chat", 
+                style: TextStyle(
+                  fontSize: isWeb ? 26 : scale(22), 
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+              ),
+            ],
+          ),
+        ),
+            SizedBox(height: scale(8)),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: scale(20)),
+              child: TextField(
+                style: TextStyle(fontSize: scale(14)),
+                decoration: InputDecoration(
+                  hintText: "Search messages or freelancers",
+                  hintStyle: TextStyle(fontSize: scale(13)),
+                  prefixIcon: Icon(Icons.search, size: scale(20)),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: EdgeInsets.symmetric(vertical: scale(12)),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(scale(30)), borderSide: BorderSide.none),
+                ),
+              ),
+            ),
+            SizedBox(height: scale(6)),
+            
+            // Mengambil Daftar Chat Nyata dari Database
+            Expanded(
+              child: FutureBuilder<List<ChatModel>>(
+                future: _chatListFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return Center(
+                      child: Text("Belum ada obrolan.\nSilakan hubungi freelancer dari menu Booking/Services!",
+                        textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: scale(14)),
+                      ),
+                    );
+                  }
+
+                  final chatList = snapshot.data!;
+                  return ListView.builder(
+                    padding: EdgeInsets.symmetric(vertical: scale(8)),
+                    itemCount: chatList.length,
+                    itemBuilder: (context, index) {
+                      return Padding(
+                        padding: EdgeInsets.symmetric(horizontal: isWeb ? scale(10) : scale(16), vertical: scale(4)),
+                        child: ChatItemTile(
+                          chat: chatList[index],
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ContactFreelancerPage(
+                                  freelancerId: chatList[index].freelancerId,
+                                  freelancerName: chatList[index].name,
+                                  image: chatList[index].imagePath,
+                                ),
+                              ),
+                            ).then((_) => setState(() => _checkAuthAndLoad())); // Refresh isi pesan saat kembali
+                          },
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );
