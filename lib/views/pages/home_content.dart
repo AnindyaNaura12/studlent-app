@@ -1,3 +1,4 @@
+// ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
 import '../pages/filter_page.dart';
 import '../pages/service_detail_page.dart';
@@ -6,12 +7,15 @@ import '../widgets/filter_button.dart';
 import '../widgets/category_card.dart';
 import '../widgets/freelancer_card.dart';
 import '../../controllers/home_controller.dart';
-import '../../controllers/my_services_controller.dart'; // ← UBAH
+import '../../controllers/my_services_controller.dart';
 import '../../controllers/auth_controller.dart';
-import '../../models/services_model.dart' as model1;
+import '../../models/services_model.dart';
 
 class HomeContent extends StatefulWidget {
-  const HomeContent({super.key});
+  // ✅ TAMBAH: callback ke HomePage saat kategori dipencet
+  final void Function(String category)? onCategoryTap;
+
+  const HomeContent({super.key, this.onCategoryTap}); // ✅ UBAH constructor
 
   @override
   State<HomeContent> createState() => _HomeContentState();
@@ -20,8 +24,107 @@ class HomeContent extends StatefulWidget {
 class _HomeContentState extends State<HomeContent> {
   final HomeController _controller = HomeController();
   final AuthController _controllerAuth = AuthController();
-  final MyServicesController _servicesController =
-      MyServicesController(); // ← PINDAH KE SINI
+  final MyServicesController _servicesController = MyServicesController();
+
+  List<ServiceModel> _filteredServices = [];
+  int? _selectedCategoryGridIndex;
+  int? _activePriceIndex;
+
+  final List<Map<String, dynamic>> _priceRanges = [
+    {'label': 'Rp 0 - 50.000', 'min': 0.0, 'max': 50000.0},
+    {'label': 'Rp 51.000 - 100.000', 'min': 51000.0, 'max': 100000.0},
+    {'label': 'Rp 101.000 - 150.000', 'min': 101000.0, 'max': 150000.0},
+    {'label': 'Rp 151.000 - 200.000', 'min': 151000.0, 'max': 200000.0},
+    {'label': 'Rp 201.000 - 250.000', 'min': 201000.0, 'max': 250000.0},
+    {'label': 'Rp 251.000 - 300.000', 'min': 251000.0, 'max': 300000.0},
+    {'label': 'Rp 301.000 - 350.000', 'min': 301000.0, 'max': 350000.0},
+    {'label': 'Rp 351.000 - 400.000', 'min': 351000.0, 'max': 400000.0},
+    {'label': 'Rp 401.000 - 450.000', 'min': 401000.0, 'max': 450000.0},
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _filteredServices = _servicesController.services;
+  }
+
+  void _filterByCategoryButton(int index) {
+    final categories = _controller.getCategories();
+    final all = _servicesController.services;
+
+    setState(() {
+      if (_selectedCategoryGridIndex == index) {
+        _selectedCategoryGridIndex = null;
+        _filteredServices = all;
+        return;
+      }
+
+      _selectedCategoryGridIndex = index;
+      final selectedCat = categories[index].title.toLowerCase();
+
+      _filteredServices = all.where((service) {
+        final serviceCategory = service.category.toLowerCase();
+        final serviceTitle = service.title.toLowerCase();
+        return serviceCategory.contains(selectedCat) ||
+            serviceTitle.contains(selectedCat);
+      }).toList();
+    });
+  }
+
+  void _applyBottomSheetFilter(Map<String, dynamic> result) {
+    final categoryIndex = result['categoryIndex'] as int?;
+    final priceIndex = result['priceIndex'] as int?;
+    final all = _servicesController.services;
+    final categories = _controller.getCategories();
+
+    setState(() {
+      _selectedCategoryGridIndex = categoryIndex;
+      _activePriceIndex = priceIndex;
+
+      if (categoryIndex == null && priceIndex == null) {
+        _filteredServices = all;
+        return;
+      }
+
+      _filteredServices = all.where((service) {
+        bool matchCategory = true;
+        if (categoryIndex != null && categoryIndex < categories.length) {
+          final selectedCat = categories[categoryIndex].title.toLowerCase();
+          matchCategory =
+              service.category.toLowerCase().contains(selectedCat) ||
+              service.title.toLowerCase().contains(selectedCat);
+        }
+
+        bool matchPrice = true;
+        if (priceIndex != null && priceIndex < _priceRanges.length) {
+          final rawPrice =
+              double.tryParse(
+                service.basicPackage.price
+                    .replaceAll('Rp', '')
+                    .replaceAll('.', '')
+                    .replaceAll(' ', '')
+                    .trim(),
+              ) ??
+              0;
+
+          final min = _priceRanges[priceIndex]['min'] as double;
+          final max = _priceRanges[priceIndex]['max'] as double?;
+
+          matchPrice = rawPrice >= min && (max == null || rawPrice <= max);
+        }
+
+        return matchCategory && matchPrice;
+      }).toList();
+    });
+  }
+
+  void _resetAllFilters() {
+    setState(() {
+      _selectedCategoryGridIndex = null;
+      _activePriceIndex = null;
+      _filteredServices = _servicesController.services;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +143,7 @@ class _HomeContentState extends State<HomeContent> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ================= HEADER =================
+              // HEADER
               Row(
                 children: [
                   Image.asset(
@@ -79,23 +182,62 @@ class _HomeContentState extends State<HomeContent> {
                     ),
                   ),
                   SizedBox(width: s(10)),
-
                   FilterButton(
-                    onTap: () {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (_) => const FilterSheet(),
-                      );
+                    onTap: () async {
+                      final result =
+                          await showModalBottomSheet<Map<String, dynamic>>(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            builder: (_) => const FilterSheet(),
+                          );
+
+                      if (result != null) {
+                        _applyBottomSheetFilter(result);
+                      }
                     },
                   ),
                 ],
               ),
 
+              if (_selectedCategoryGridIndex != null ||
+                  _activePriceIndex != null)
+                Padding(
+                  padding: EdgeInsets.only(top: s(10)),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.filter_alt,
+                        size: 14,
+                        color: Color(0xFFFF9800),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Filter aktif • ${_filteredServices.length} hasil',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFFFF9800),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const Spacer(),
+                      GestureDetector(
+                        onTap: _resetAllFilters,
+                        child: const Text(
+                          'Hapus filter',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.red,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
               SizedBox(height: s(28)),
 
-              // ================= HERO TEXT =================
               Center(
                 child: RichText(
                   textAlign: TextAlign.center,
@@ -136,7 +278,6 @@ class _HomeContentState extends State<HomeContent> {
 
               SizedBox(height: s(20)),
 
-              // ================= HERO IMAGE =================
               ClipRRect(
                 borderRadius: BorderRadius.circular(s(20)),
                 child: Image.asset(
@@ -162,7 +303,6 @@ class _HomeContentState extends State<HomeContent> {
 
               SizedBox(height: s(24)),
 
-              // ================= WHY CHOOSE =================
               Center(
                 child: Text(
                   "Why Choose Student Talent?",
@@ -200,7 +340,6 @@ class _HomeContentState extends State<HomeContent> {
 
               SizedBox(height: s(28)),
 
-              // ================= CATEGORY TITLE =================
               Center(
                 child: Text(
                   "Service Categories",
@@ -214,7 +353,6 @@ class _HomeContentState extends State<HomeContent> {
 
               SizedBox(height: s(16)),
 
-              // ================= CATEGORY GRID =================
               GridView.count(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -222,14 +360,20 @@ class _HomeContentState extends State<HomeContent> {
                 crossAxisSpacing: s(12),
                 mainAxisSpacing: s(12),
                 childAspectRatio: 2.2,
-                children: categories
-                    .map((cat) => CategoryCard(category: cat))
-                    .toList(),
+                // ✅ UBAH: dari asMap().entries → panggil onCategoryTap ke HomePage
+                children: categories.map((cat) {
+                  return CategoryCard(
+                    category: cat,
+                    onTap: () {
+                      // ✅ UBAH: tidak filter di Home, tapi pindah ke ServicesPage
+                      widget.onCategoryTap?.call(cat.title);
+                    },
+                  );
+                }).toList(),
               ),
 
               SizedBox(height: s(28)),
 
-              // ================= SERVICES TITLE =================
               Text(
                 "Recommend For You",
                 style: TextStyle(
@@ -241,36 +385,39 @@ class _HomeContentState extends State<HomeContent> {
 
               SizedBox(height: s(12)),
 
-              // ================= SERVICES LIST =================
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                physics: const ClampingScrollPhysics(),
-                child: Row(
-                  children: _servicesController.services
-                      .map(
-                        (svc) =>
-                            ServiceCard(
-                              service: svc as model1.ServiceModel,
-                              onTap: () {                                    // ← TAMBAH INI
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => ServiceDetailPage(
-                                      service: svc as model1.ServiceModel,
-                                    ),
-                                  ),
-                                );
-                              },
-
-                              ),
-                      )
-                      .toList(),
+              if (_filteredServices.isEmpty)
+                Padding(
+                  padding: EdgeInsets.symmetric(vertical: s(24)),
+                  child: Center(
+                    child: Text(
+                      'Tidak ada service yang sesuai filter',
+                      style: TextStyle(fontSize: s(13), color: Colors.black45),
+                    ),
+                  ),
+                )
+              else
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const ClampingScrollPhysics(),
+                  child: Row(
+                    children: _filteredServices.map((svc) {
+                      return ServiceCard(
+                        service: svc,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ServiceDetailPage(service: svc),
+                            ),
+                          );
+                        },
+                      );
+                    }).toList(),
+                  ),
                 ),
-              ),
 
               SizedBox(height: s(24)),
 
-              // ================= CTA BANNER =================
               Container(
                 width: double.infinity,
                 padding: EdgeInsets.all(s(20)),

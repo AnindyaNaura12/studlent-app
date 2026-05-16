@@ -83,7 +83,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
       final int clientId = userData['id_user'] as int;
       final int freelancerId = service.freelancerId ?? 1;
       final int serviceId = int.tryParse(service.id) ?? 1;
-      final int? packageId = service.packageId; // ← dari ServiceModel
+      final int? packageId = service.packageId;
 
       // 3. Hitung deadline dari delivery time
       final int deliveryDays =
@@ -104,7 +104,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
             'id_client': clientId,
             'id_freelancer': freelancerId,
             'id_service': serviceId,
-            'id_package': packageId, // ← WAJIB sesuai DB
+            'id_package': packageId,
             'detail_pesanan': service.title,
             'catatan': _noteController.text.trim(),
             'deadline': deadline,
@@ -121,7 +121,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
       final double platformFee = packagePrice * (feePercent / 100);
       final double freelancerGet = packagePrice - platformFee;
 
-      // 6. Insert ke tabel payments → ambil id_payment langsung dari response
+      // 6. Insert ke tabel payments
       final paymentResponse = await _supabase
           .from('payments')
           .insert({
@@ -140,7 +140,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
 
       final int paymentId = paymentResponse['id_payment'] as int;
 
-      // 7. Insert ke tabel escrow pakai paymentId dari response
+      // 7. Insert ke tabel escrow
       await _supabase.from('escrow').insert({
         'id_payment': paymentId,
         'amount': total,
@@ -197,7 +197,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
               .trim(),
         ) ??
         90000;
-    const double adminFee = 2000; // sesuai DEFAULT di DB
+    const double adminFee = 2000;
     final double total = packagePrice + adminFee;
 
     return Scaffold(
@@ -221,20 +221,15 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                         children: [
                           Align(
                             alignment: Alignment.centerLeft,
-                            child: GestureDetector(
-                              onTap: () => Navigator.pop(context),
-                              child: Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey.shade200,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.arrow_back,
-                                  size: 20,
-                                  color: Colors.black,
-                                ),
+                            // ✅ PERUBAHAN: ganti GestureDetector+Container → IconButton
+                            child: IconButton(
+                              onPressed: () => Navigator.pop(context),
+                              icon: const Icon(
+                                Icons.arrow_back,
+                                color: Colors.black,
+                              ),
+                              style: IconButton.styleFrom(
+                                foregroundColor: Colors.black,
                               ),
                             ),
                           ),

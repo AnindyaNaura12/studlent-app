@@ -1,3 +1,4 @@
+// ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'home_content.dart';
 import 'freelance_profile_page.dart';
@@ -15,19 +16,33 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
 
-  final List<Widget> _pages = [
-    const HomeContent(),
-    const ServicesPage(),
-    const ChatListPage(),
-    const BookingsPage(),
-    const ProfilePage(),
-  ];
+  // ✅ TAMBAH: simpan kategori yang dipilih dari Home
+  String? _initialCategory;
+
+  // ✅ TAMBAH: method pindah ke tab Services + bawa kategori
+  void _goToServicesWithCategory(String category) {
+    setState(() {
+      _initialCategory = category;
+      _selectedIndex = 1;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    // ✅ UBAH: pindah ke dalam build() agar bisa update saat setState
+    final List<Widget> pages = [
+      HomeContent(
+        onCategoryTap: _goToServicesWithCategory,
+      ), // ✅ TAMBAH callback
+      ServicesPage(initialCategory: _initialCategory), // ✅ TAMBAH parameter
+      const ChatListPage(),
+      const BookingsPage(),
+      const ProfilePage(),
+    ];
+
     return Scaffold(
       backgroundColor: const Color(0xFFFFF8EE),
-      body: IndexedStack(index: _selectedIndex, children: _pages),
+      body: IndexedStack(index: _selectedIndex, children: pages),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -37,7 +52,11 @@ class _HomePageState extends State<HomePage> {
         ),
         child: BottomNavigationBar(
           currentIndex: _selectedIndex,
-          onTap: (index) => setState(() => _selectedIndex = index),
+          // ✅ UBAH: tambah reset _initialCategory saat pindah tab lain
+          onTap: (index) => setState(() {
+            _selectedIndex = index;
+            if (index != 1) _initialCategory = null;
+          }),
           type: BottomNavigationBarType.fixed,
           backgroundColor: Colors.white,
           selectedItemColor: Colors.black,
