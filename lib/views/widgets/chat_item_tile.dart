@@ -56,7 +56,9 @@ class ChatItemTile extends StatelessWidget {
                 // ================= AVATAR =================
                 CircleAvatar(
                   radius: isWeb ? 28 : scale(24),
-                  backgroundImage: AssetImage(chat.imagePath),
+                  backgroundImage: chat.imagePath.startsWith('http')
+                      ? NetworkImage(chat.imagePath) as ImageProvider
+                      : AssetImage(chat.imagePath),
                 ),
 
                 SizedBox(width: scale(12)),
@@ -109,7 +111,9 @@ class ChatItemTile extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      "12:30",
+                      chat.time != null 
+                          ? "${chat.time!.hour.toString().padLeft(2, '0')}:${chat.time!.minute.toString().padLeft(2, '0')}"
+                          : "",
                       style: TextStyle(
                         fontSize: scale(10),
                         color: Colors.grey[500],
