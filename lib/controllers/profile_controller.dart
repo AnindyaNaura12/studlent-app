@@ -144,7 +144,7 @@ class ProfileController {
       if (authUser == null) {
         isLoggedIn = false;
         return null;
-      }
+      }  
 
       // Ambil data user
       final user = await supabase
@@ -154,7 +154,7 @@ class ProfileController {
           .single();
 
       isLoggedIn = true;
-      isFreelancer = user['role'] == 'freelancer';
+      isFreelancer = user['is_freelancer'] == true;
 
       // Ambil semua orders client
       final orders = await supabase

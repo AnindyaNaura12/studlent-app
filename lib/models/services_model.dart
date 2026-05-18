@@ -102,8 +102,9 @@ class ServiceModel {
           ? List<String>.from(json['service_images'])
           : [],
       basicPackage: PackageModel(
-        price: json['basic_price'] ?? 'Rp 0',
-        deliveryTime: '${json['basic_delivery_time'] ?? 3} days',
+        id           : json['basic_package_id'] as int?,
+        price        : 'Rp ${PackageModel._formatPrice((json['basic_price'] ?? 0).toDouble())}',
+        deliveryTime : '${json['basic_delivery_time'] ?? 3} days',
         shortDescription: json['basic_description'] ?? '',
       ),
       name: json['freelancer_name'] ?? '',
