@@ -64,6 +64,7 @@ class ProfileController {
   List<Map<String, dynamic>> getFreelancerMenuItems() {
     return [
       {'title': 'My Profile', 'hasTag': true},
+      {'title': 'Chat', 'hasTag': false},
       {'title': 'My Portfolio', 'hasTag': false},
       {'title': 'My Orders', 'hasTag': false},
       {'title': 'My Services', 'hasTag': false},

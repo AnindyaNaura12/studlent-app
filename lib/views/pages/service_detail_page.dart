@@ -4,6 +4,7 @@ import '../widgets/custom_back_button.dart';
 import '../../models/services_model.dart';
 import 'detail_profile_freelancer.dart';
 import '../../controllers/services_controller.dart';
+import 'contact_freelancer_page.dart';
 
 class ServiceDetailPage extends StatefulWidget {
   final ServiceModel service;
@@ -265,7 +266,19 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                   ),
                   const Spacer(),
                   OutlinedButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ContactFreelancerPage(
+                            // Pastikan 'idFreelancer' ada di ServiceModel kamu
+                            freelancerId: service.freelancerId ?? 0, 
+                            freelancerName: service.name,
+                            image: service.imagePath ?? "assets/images/icons/profile.png",
+                          ),
+                        ),
+                      );
+                    },
                     child: const Text("Chat Seller"),
                   ),
                   SizedBox(width: s(10)),

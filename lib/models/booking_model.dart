@@ -1,4 +1,5 @@
 class Booking {
+  final int freelancerId;
   final String serviceName;
   final String providerName;
   final String total;
@@ -9,6 +10,7 @@ class Booking {
   final String note;
 
   Booking({
+    required this.freelancerId,
     required this.serviceName,
     required this.providerName,
     required this.total,

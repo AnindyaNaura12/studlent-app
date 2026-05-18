@@ -3,9 +3,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'views/pages/home_pages.dart';
 import 'config.dart';
 
-// ← PINDAH KE SINI: setelah initialize, sebelum runApp
-final supabase = Supabase.instance.client;
-final ValueNotifier<String> globalUsername = ValueNotifier<String>('');
+final ValueNotifier<String> globalUsername = ValueNotifier<String>(
+  '',
+); // ✅ aman
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,16 +30,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: _getHomePage(), // ← PANGGIL _getHomePage(), bukan const HomePage()
+      home: const HomePage(),
     );
-  }
-
-  // ── Cek apakah user sudah login ──────────────────────────
-  Widget _getHomePage() {
-    final session = supabase.auth.currentSession;
-    if (session != null) {
-      return const HomePage(); // sudah login
-    }
-    return const HomePage(); // belum login (guest mode)
   }
 }

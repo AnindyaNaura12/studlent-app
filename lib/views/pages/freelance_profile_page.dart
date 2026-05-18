@@ -8,7 +8,8 @@ import 'login_page.dart';
 import 'register_page.dart';
 import 'edit_client_profile_page.dart';
 import 'my_profile_page.dart';
-import '../../main.dart'; // ← TAMBAH
+import '../../main.dart';
+import 'chat_list_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -735,7 +736,19 @@ class _ProfilePageState extends State<ProfilePage> {
                   );
                 }
 
-                return _menuItem(title, hasTag: hasTag);
+                return _menuItem(title, hasTag: hasTag, onTap: () {
+                  if (title == 'Chat') {
+                    // Berpindah ke ChatListPage
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ChatListPage(isFreelancerMode: true),
+                      ),
+                    );
+                  } else {
+                    _controller.onMenuTap(title, context);
+                  }
+                });
               }).toList(),
             ),
           ),
@@ -924,10 +937,10 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _menuItem(String title, {bool hasTag = false}) {
+  Widget _menuItem(String title, {bool hasTag = false, VoidCallback? onTap}) {
     return InkWell(
       borderRadius: BorderRadius.circular(16),
-      onTap: () => _controller.onMenuTap(title, context),
+      onTap: onTap ?? () => _controller.onMenuTap(title, context), 
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
