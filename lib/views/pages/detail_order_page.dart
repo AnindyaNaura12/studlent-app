@@ -274,20 +274,15 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                         children: [
                           Align(
                             alignment: Alignment.centerLeft,
-                            child: GestureDetector(
-                              onTap: () => Navigator.pop(context),
-                              child: Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey.shade200,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.arrow_back,
-                                  size: 20,
-                                  color: Colors.black,
-                                ),
+                            // ✅ PERUBAHAN: ganti GestureDetector+Container → IconButton
+                            child: IconButton(
+                              onPressed: () => Navigator.pop(context),
+                              icon: const Icon(
+                                Icons.arrow_back,
+                                color: Colors.black,
+                              ),
+                              style: IconButton.styleFrom(
+                                foregroundColor: Colors.black,
                               ),
                             ),
                           ),

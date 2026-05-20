@@ -5,11 +5,7 @@ class ServiceCard extends StatelessWidget {
   final ServiceModel service;
   final VoidCallback? onTap;
 
-  const ServiceCard({
-    super.key,
-    required this.service,
-    this.onTap,
-  });
+  const ServiceCard({super.key, required this.service, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -39,8 +35,7 @@ class ServiceCard extends StatelessWidget {
           children: [
             // ================= IMAGE =================
             ClipRRect(
-              borderRadius:
-                  BorderRadius.vertical(top: Radius.circular(s(16))),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(s(16))),
               child: SizedBox(
                 height: s(120),
                 width: double.infinity,
@@ -118,8 +113,7 @@ class ServiceCard extends StatelessWidget {
                     service.university,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style:
-                        TextStyle(fontSize: s(10), color: Colors.grey[600]),
+                    style: TextStyle(fontSize: s(10), color: Colors.grey[600]),
                   ),
 
                   SizedBox(height: s(10)),
