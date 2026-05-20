@@ -15,11 +15,8 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
-
-  // ✅ TAMBAH: simpan kategori yang dipilih dari Home
   String? _initialCategory;
 
-  // ✅ TAMBAH: method pindah ke tab Services + bawa kategori
   void _goToServicesWithCategory(String category) {
     setState(() {
       _initialCategory = category;
@@ -27,14 +24,32 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  void _goToProfileTab() {
+    setState(() {
+      _selectedIndex = 4;
+      _initialCategory = null;
+    });
+  }
+
+  void _goToPageFromSearch(int index, {String? category}) {
+    setState(() {
+      _selectedIndex = index;
+      _initialCategory = index == 1 ? category : null;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    // ✅ UBAH: pindah ke dalam build() agar bisa update saat setState
     final List<Widget> pages = [
       HomeContent(
         onCategoryTap: _goToServicesWithCategory,
-      ), // ✅ TAMBAH callback
-      ServicesPage(initialCategory: _initialCategory), // ✅ TAMBAH parameter
+        onProfileTap: _goToProfileTab,
+        onGlobalSearchNavigate: _goToPageFromSearch,
+      ),
+      ServicesPage(
+        key: ValueKey(_initialCategory ?? 'all-services'),
+        initialCategory: _initialCategory,
+      ),
       const ChatListPage(),
       const BookingsPage(),
       const ProfilePage(),
@@ -52,11 +67,12 @@ class _HomePageState extends State<HomePage> {
         ),
         child: BottomNavigationBar(
           currentIndex: _selectedIndex,
-          // ✅ UBAH: tambah reset _initialCategory saat pindah tab lain
-          onTap: (index) => setState(() {
-            _selectedIndex = index;
-            if (index != 1) _initialCategory = null;
-          }),
+          onTap: (index) {
+            setState(() {
+              _selectedIndex = index;
+              if (index != 1) _initialCategory = null;
+            });
+          },
           type: BottomNavigationBarType.fixed,
           backgroundColor: Colors.white,
           selectedItemColor: Colors.black,

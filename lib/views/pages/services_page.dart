@@ -1,15 +1,18 @@
 // ignore_for_file: deprecated_member_use
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '/controllers/my_services_controller.dart';
 import '/controllers/home_controller.dart';
 import '/models/services_model.dart';
 import '../widgets/filter_button.dart';
-import '../widgets/freelancer_card.dart';
 import '../widgets/freelancer_card_horizontal.dart';
+import '../widgets/service_card.dart';
 import '../pages/service_detail_page.dart';
 import '../pages/filter_page.dart';
+import '../pages/all_services_page.dart';
+import '../pages/popular_services_page.dart';
 import '../../main.dart';
 
 class ServicesPage extends StatefulWidget {
@@ -22,17 +25,20 @@ class ServicesPage extends StatefulWidget {
 }
 
 class _ServicesPageState extends State<ServicesPage> {
-  int selectedIndex = 0;
-
   final _homeController = HomeController();
   final _servicesController = MyServicesController();
   final _supabase = Supabase.instance.client;
+  final TextEditingController _searchController = TextEditingController();
 
   late final StreamSubscription<AuthState> _authSubscription;
 
   bool _isLoggedIn = false;
+  String _searchQuery = '';
 
   List<ServiceModel> _filteredServices = [];
+  List<ServiceModel> _randomSuggestedServices = [];
+  List<ServiceModel> _popularPreviewServices = [];
+
   int? _activeCategoryIndex;
   int? _activePriceIndex;
 
@@ -51,12 +57,12 @@ class _ServicesPageState extends State<ServicesPage> {
   @override
   void initState() {
     super.initState();
-    _filteredServices = _servicesController.services;
+    _resetAllFilters();
 
-    // auto-filter saat pertama dibuka dengan kategori dari Home
     if (widget.initialCategory != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _filterByCategory(widget.initialCategory!);
+        _resetAllFilters(resetSearch: true);
+        _applyAllFilters();
       });
     }
 
@@ -67,23 +73,20 @@ class _ServicesPageState extends State<ServicesPage> {
     });
   }
 
-  // ✅ TAMBAH: deteksi perubahan initialCategory dari IndexedStack
   @override
   void didUpdateWidget(covariant ServicesPage oldWidget) {
     super.didUpdateWidget(oldWidget);
 
     if (widget.initialCategory != oldWidget.initialCategory) {
       if (widget.initialCategory != null) {
-        // kategori baru dipilih dari Home → filter
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          _filterByCategory(widget.initialCategory!);
+          if (!mounted) return;
+          _resetAllFilters(resetSearch: true);
+          _applyAllFilters();
         });
       } else {
-        // initialCategory dikosongkan → reset semua filter
         setState(() {
-          _activeCategoryIndex = null;
-          _activePriceIndex = null;
-          _filteredServices = _servicesController.services;
+          _resetAllFilters(resetSearch: true);
         });
       }
     }
@@ -92,27 +95,110 @@ class _ServicesPageState extends State<ServicesPage> {
   @override
   void dispose() {
     _authSubscription.cancel();
+    _searchController.dispose();
     super.dispose();
   }
 
-  // ✅ Filter berdasarkan nama kategori (dipanggil dari Home)
-  void _filterByCategory(String categoryTitle) {
-    final all = _servicesController.services;
-    final selectedCat = categoryTitle.toLowerCase();
+  void _resetAllFilters({bool resetSearch = false}) {
+    _activeCategoryIndex = null;
+    _activePriceIndex = null;
 
-    // DEBUG: cek nilai category di data — hapus setelah fix
-    debugPrint('🔍 Filter by: "$selectedCat"');
-    for (final s in all) {
-      debugPrint('   service.category = "${s.category.toLowerCase()}"');
+    if (resetSearch) {
+      _searchQuery = '';
+      _searchController.clear();
     }
+
+    _filteredServices = _servicesController.services;
+    _prepareRandomSuggestions();
+    _preparePopularPreview();
+  }
+
+  void _prepareRandomSuggestions() {
+    final all = List<ServiceModel>.from(_servicesController.services);
+    all.shuffle(Random());
+    _randomSuggestedServices = all.take(5).toList();
+  }
+
+  void _preparePopularPreview() {
+    final all = List<ServiceModel>.from(_servicesController.services);
+    _popularPreviewServices = all.take(5).toList();
+  }
+
+  double _parsePrice(String raw) {
+    return double.tryParse(
+          raw
+              .replaceAll('Rp', '')
+              .replaceAll('.', '')
+              .replaceAll(' ', '')
+              .trim(),
+        ) ??
+        0;
+  }
+
+  String _safe(dynamic value) {
+    if (value == null) return '';
+    return value.toString().toLowerCase();
+  }
+
+  bool _matchesSearch(ServiceModel service, String query) {
+    final searchableText = [
+      _safe(service.title),
+      _safe(service.category),
+      _safe(service.basicPackage.price),
+    ].join(' ');
+
+    return searchableText.contains(query.toLowerCase());
+  }
+
+  void _applyAllFilters() {
+    final all = _servicesController.services;
+    final categories = _homeController.getCategories();
+    final bool fromHomeCategory = widget.initialCategory != null;
+    final String query = _searchQuery.trim().toLowerCase();
 
     setState(() {
       _filteredServices = all.where((service) {
-        return service.category.toLowerCase().contains(selectedCat) ||
-            service.title.toLowerCase().contains(selectedCat);
+        bool matchCategory = true;
+        bool matchPrice = true;
+        bool matchSearch = true;
+
+        if (fromHomeCategory) {
+          final selectedCat = widget.initialCategory!.toLowerCase();
+          matchCategory =
+              service.category.toLowerCase().contains(selectedCat) ||
+              service.title.toLowerCase().contains(selectedCat);
+        } else if (_activeCategoryIndex != null &&
+            _activeCategoryIndex! < categories.length) {
+          final selectedCat = categories[_activeCategoryIndex!].title
+              .toLowerCase();
+          matchCategory =
+              service.category.toLowerCase().contains(selectedCat) ||
+              service.title.toLowerCase().contains(selectedCat);
+        }
+
+        if (_activePriceIndex != null &&
+            _activePriceIndex! < _priceRanges.length) {
+          final rawPrice = _parsePrice(service.basicPackage.price);
+          final min = _priceRanges[_activePriceIndex!]['min'] as double;
+          final max = _priceRanges[_activePriceIndex!]['max'] as double?;
+          matchPrice = rawPrice >= min && (max == null || rawPrice <= max);
+        }
+
+        if (query.isNotEmpty) {
+          matchSearch = _matchesSearch(service, query);
+        }
+
+        return matchCategory && matchPrice && matchSearch;
       }).toList();
 
-      debugPrint('✅ Hasil filter: ${_filteredServices.length} service');
+      if (!fromHomeCategory &&
+          _activeCategoryIndex == null &&
+          _activePriceIndex == null &&
+          query.isEmpty) {
+        _filteredServices = all;
+        _prepareRandomSuggestions();
+        _preparePopularPreview();
+      }
     });
   }
 
@@ -146,48 +232,114 @@ class _ServicesPageState extends State<ServicesPage> {
   }
 
   void _applyFilter(Map<String, dynamic> result) {
-    final categoryIndex = result['categoryIndex'] as int?;
-    final priceIndex = result['priceIndex'] as int?;
-    final all = _servicesController.services;
-    final categories = _homeController.getCategories();
+    final bool fromHomeCategory = widget.initialCategory != null;
+    final int? categoryIndex = fromHomeCategory
+        ? null
+        : result['categoryIndex'] as int?;
+    final int? priceIndex = result['priceIndex'] as int?;
 
     setState(() {
       _activeCategoryIndex = categoryIndex;
       _activePriceIndex = priceIndex;
-
-      if (categoryIndex == null && priceIndex == null) {
-        _filteredServices = all;
-        return;
-      }
-
-      _filteredServices = all.where((service) {
-        bool matchCategory = true;
-        if (categoryIndex != null && categoryIndex < categories.length) {
-          final selectedCat = categories[categoryIndex].title.toLowerCase();
-          matchCategory = service.category.toLowerCase().contains(selectedCat);
-        }
-
-        bool matchPrice = true;
-        if (priceIndex != null && priceIndex < _priceRanges.length) {
-          final rawPrice =
-              double.tryParse(
-                service.basicPackage.price
-                    .replaceAll('Rp', '')
-                    .replaceAll('.', '')
-                    .replaceAll(' ', '')
-                    .trim(),
-              ) ??
-              0;
-
-          final min = _priceRanges[priceIndex]['min'] as double;
-          final max = _priceRanges[priceIndex]['max'] as double?;
-
-          matchPrice = rawPrice >= min && (max == null || rawPrice <= max);
-        }
-
-        return matchCategory && matchPrice;
-      }).toList();
     });
+
+    _applyAllFilters();
+  }
+
+  Future<void> _openFilterSheet() async {
+    final result = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => FilterSheet(
+        onlyPrice: widget.initialCategory != null,
+        initialCategoryIndex: widget.initialCategory != null
+            ? null
+            : _activeCategoryIndex,
+        initialPriceIndex: _activePriceIndex,
+      ),
+    );
+
+    if (result != null) {
+      _applyFilter(result);
+    }
+  }
+
+  void _onSearchChanged(String value) {
+    setState(() {
+      _searchQuery = value;
+    });
+    _applyAllFilters();
+  }
+
+  Widget _buildFilterChip({
+    required String label,
+    required VoidCallback onDeleted,
+    required double Function(double) s,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFD6E4FF),
+        borderRadius: BorderRadius.circular(s(24)),
+      ),
+      padding: EdgeInsets.symmetric(horizontal: s(14), vertical: s(8)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: s(13),
+              color: const Color(0xFF3A4252),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          SizedBox(width: s(8)),
+          GestureDetector(
+            onTap: onDeleted,
+            child: Icon(
+              Icons.close,
+              size: s(16),
+              color: const Color(0xFF5C6470),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String? _activeCategoryLabel() {
+    if (widget.initialCategory != null) return widget.initialCategory;
+    if (_activeCategoryIndex != null) {
+      final categories = _homeController.getCategories();
+      if (_activeCategoryIndex! < categories.length) {
+        return categories[_activeCategoryIndex!].title;
+      }
+    }
+    return null;
+  }
+
+  void _removePriceFilter() {
+    setState(() {
+      _activePriceIndex = null;
+    });
+    _applyAllFilters();
+  }
+
+  void _clearCategoryFilter() {
+    setState(() {
+      _activeCategoryIndex = null;
+      _activePriceIndex = null;
+    });
+    _applyAllFilters();
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() {
+      _searchQuery = '';
+    });
+    _applyAllFilters();
   }
 
   @override
@@ -195,6 +347,20 @@ class _ServicesPageState extends State<ServicesPage> {
     final screenWidth = MediaQuery.of(context).size.width;
     double s(double size) =>
         (size * (screenWidth / 375)).clamp(size * 0.75, size * 1.3);
+
+    final String sectionTitle = _activeCategoryLabel() ?? 'Suggestion For You';
+
+    final bool isFilterActive =
+        _activePriceIndex != null ||
+        (widget.initialCategory == null && _activeCategoryIndex != null) ||
+        _searchQuery.trim().isNotEmpty;
+
+    final List<ServiceModel> displayedSuggestionServices =
+        (widget.initialCategory != null || isFilterActive)
+        ? _filteredServices
+        : _randomSuggestedServices;
+
+    final String? activeCategoryLabel = _activeCategoryLabel();
 
     return Scaffold(
       backgroundColor: const Color(0xFFFFF8EE),
@@ -206,8 +372,6 @@ class _ServicesPageState extends State<ServicesPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SizedBox(height: s(20)),
-
-              // ── HEADER ──
               ValueListenableBuilder<String>(
                 valueListenable: globalUsername,
                 builder: (context, username, _) {
@@ -222,43 +386,17 @@ class _ServicesPageState extends State<ServicesPage> {
                   );
                 },
               ),
-
-              // subtitle: tampil nama kategori jika dari Home, biasa jika tidak
-              if (widget.initialCategory != null)
-                Padding(
-                  padding: EdgeInsets.only(top: s(2)),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.category_outlined,
-                        size: 14,
-                        color: Color(0xFFFF9800),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Kategori: ${widget.initialCategory}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFFFF9800),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              else
-                Text(
-                  "Find the right student service for you",
-                  style: TextStyle(fontSize: s(13), color: Colors.black54),
-                ),
-
+              Text(
+                "Find the right student service for you",
+                style: TextStyle(fontSize: s(13), color: Colors.black54),
+              ),
               SizedBox(height: s(20)),
-
-              // ── SEARCH + FILTER ──
               Row(
                 children: [
                   Expanded(
                     child: TextField(
+                      controller: _searchController,
+                      onChanged: _onSearchChanged,
                       style: TextStyle(fontSize: s(14)),
                       decoration: InputDecoration(
                         hintText: "What you're looking for?",
@@ -267,6 +405,12 @@ class _ServicesPageState extends State<ServicesPage> {
                           color: Colors.grey,
                         ),
                         prefixIcon: Icon(Icons.search, size: s(20)),
+                        suffixIcon: _searchQuery.trim().isNotEmpty
+                            ? IconButton(
+                                onPressed: _clearSearch,
+                                icon: Icon(Icons.close, size: s(18)),
+                              )
+                            : null,
                         filled: true,
                         fillColor: Colors.white,
                         contentPadding: EdgeInsets.symmetric(vertical: s(14)),
@@ -278,78 +422,69 @@ class _ServicesPageState extends State<ServicesPage> {
                     ),
                   ),
                   SizedBox(width: s(10)),
-                  FilterButton(
-                    onTap: () async {
-                      final result =
-                          await showModalBottomSheet<Map<String, dynamic>>(
-                            context: context,
-                            isScrollControlled: true,
-                            backgroundColor: Colors.transparent,
-                            builder: (_) => const FilterSheet(),
-                          );
-                      if (result != null) {
-                        _applyFilter(result);
-                      }
-                    },
-                  ),
+                  FilterButton(onTap: _openFilterSheet),
                 ],
               ),
-
-              if (_activeCategoryIndex != null || _activePriceIndex != null)
+              if ((activeCategoryLabel != null &&
+                      widget.initialCategory == null) ||
+                  _activePriceIndex != null)
                 Padding(
-                  padding: EdgeInsets.only(top: s(8)),
-                  child: Row(
+                  padding: EdgeInsets.only(top: s(10)),
+                  child: Wrap(
+                    spacing: s(8),
+                    runSpacing: s(8),
                     children: [
-                      const Icon(
-                        Icons.filter_alt,
-                        size: 14,
-                        color: Color(0xFFFF9800),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Filter aktif • ${_filteredServices.length} hasil',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFFFF9800),
-                          fontWeight: FontWeight.w500,
+                      if (activeCategoryLabel != null &&
+                          widget.initialCategory == null)
+                        _buildFilterChip(
+                          label: activeCategoryLabel,
+                          onDeleted: _clearCategoryFilter,
+                          s: s,
                         ),
-                      ),
-                      const Spacer(),
-                      GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _activeCategoryIndex = null;
-                            _activePriceIndex = null;
-                            _filteredServices = _servicesController.services;
-                          });
-                        },
-                        child: const Text(
-                          'Hapus filter',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.red,
-                            fontWeight: FontWeight.w500,
-                          ),
+                      if (_activePriceIndex != null)
+                        _buildFilterChip(
+                          label: _priceRanges[_activePriceIndex!]['label'],
+                          onDeleted: _removePriceFilter,
+                          s: s,
                         ),
-                      ),
                     ],
                   ),
                 ),
-
               SizedBox(height: s(24)),
-
-              // ── RECOMMENDED ──
-              Text(
-                "Recommended For You",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: s(18),
-                  color: Colors.black87,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    sectionTitle,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: s(18),
+                      color: Colors.black87,
+                    ),
+                  ),
+                  if (widget.initialCategory == null)
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AllServicesPage(),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        "Show All",
+                        style: TextStyle(
+                          fontSize: s(13),
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFFFF9800),
+                        ),
+                      ),
+                    ),
+                ],
               ),
               SizedBox(height: s(10)),
-
-              if (_filteredServices.isEmpty)
+              if (displayedSuggestionServices.isEmpty)
                 Padding(
                   padding: EdgeInsets.symmetric(vertical: s(30)),
                   child: Center(
@@ -362,7 +497,7 @@ class _ServicesPageState extends State<ServicesPage> {
                         ),
                         SizedBox(height: s(8)),
                         Text(
-                          'Tidak ada service yang sesuai filter',
+                          'Tidak ada service yang sesuai pencarian / filter',
                           style: TextStyle(
                             fontSize: s(13),
                             color: Colors.black45,
@@ -376,16 +511,16 @@ class _ServicesPageState extends State<ServicesPage> {
                 ListView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _filteredServices.length,
+                  itemCount: displayedSuggestionServices.length,
                   itemBuilder: (context, index) {
                     return FreelancerCardHorizontal(
-                      service: _filteredServices[index],
+                      service: displayedSuggestionServices[index],
                       onTap: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (_) => ServiceDetailPage(
-                              service: _filteredServices[index],
+                              service: displayedSuggestionServices[index],
                             ),
                           ),
                         );
@@ -393,44 +528,66 @@ class _ServicesPageState extends State<ServicesPage> {
                     );
                   },
                 ),
-
-              SizedBox(height: s(16)),
-
-              if (_filteredServices.isNotEmpty) ...[
-                Text(
-                  "Popular Services",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: s(18),
-                    color: Colors.black87,
-                  ),
-                ),
-                SizedBox(height: s(10)),
-                SizedBox(
-                  height: screenWidth * 0.85,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    physics: const ClampingScrollPhysics(),
-                    itemCount: _filteredServices.length,
-                    itemBuilder: (context, index) {
-                      return ServiceCard(
-                        service: _filteredServices[index],
-                        onTap: () {
+              if (!isFilterActive && widget.initialCategory == null) ...[
+                SizedBox(height: s(16)),
+                if (_popularPreviewServices.isNotEmpty) ...[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        "Popular Services",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: s(18),
+                          color: Colors.black87,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => ServiceDetailPage(
-                                service: _filteredServices[index],
-                              ),
+                              builder: (_) => const PopularServicesPage(),
                             ),
                           );
                         },
-                      );
-                    },
+                        child: Text(
+                          "Show All",
+                          style: TextStyle(
+                            fontSize: s(13),
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFFFF9800),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
+                  SizedBox(height: s(10)),
+                  SizedBox(
+                    height: s(320),
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      physics: const ClampingScrollPhysics(),
+                      itemCount: _popularPreviewServices.length,
+                      itemBuilder: (context, index) {
+                        return ServiceCard(
+                          service: _popularPreviewServices[index],
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ServiceDetailPage(
+                                  service: _popularPreviewServices[index],
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ],
-
               SizedBox(height: s(20)),
             ],
           ),

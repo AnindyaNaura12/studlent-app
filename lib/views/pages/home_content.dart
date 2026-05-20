@@ -1,9 +1,8 @@
 // ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
-import '../pages/filter_page.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../pages/service_detail_page.dart';
 import '../widgets/feature_item.dart';
-import '../widgets/filter_button.dart';
 import '../widgets/category_card.dart';
 import '../widgets/freelancer_card.dart';
 import '../../controllers/home_controller.dart';
@@ -12,10 +11,16 @@ import '../../controllers/auth_controller.dart';
 import '../../models/services_model.dart';
 
 class HomeContent extends StatefulWidget {
-  // ✅ TAMBAH: callback ke HomePage saat kategori dipencet
   final void Function(String category)? onCategoryTap;
+  final VoidCallback? onProfileTap;
+  final void Function(int index, {String? category})? onGlobalSearchNavigate;
 
-  const HomeContent({super.key, this.onCategoryTap}); // ✅ UBAH constructor
+  const HomeContent({
+    super.key,
+    this.onCategoryTap,
+    this.onProfileTap,
+    this.onGlobalSearchNavigate,
+  });
 
   @override
   State<HomeContent> createState() => _HomeContentState();
@@ -25,105 +30,331 @@ class _HomeContentState extends State<HomeContent> {
   final HomeController _controller = HomeController();
   final AuthController _controllerAuth = AuthController();
   final MyServicesController _servicesController = MyServicesController();
+  final SupabaseClient _supabase = Supabase.instance.client;
+  final TextEditingController _searchController = TextEditingController();
 
   List<ServiceModel> _filteredServices = [];
-  int? _selectedCategoryGridIndex;
-  int? _activePriceIndex;
-
-  final List<Map<String, dynamic>> _priceRanges = [
-    {'label': 'Rp 0 - 50.000', 'min': 0.0, 'max': 50000.0},
-    {'label': 'Rp 51.000 - 100.000', 'min': 51000.0, 'max': 100000.0},
-    {'label': 'Rp 101.000 - 150.000', 'min': 101000.0, 'max': 150000.0},
-    {'label': 'Rp 151.000 - 200.000', 'min': 151000.0, 'max': 200000.0},
-    {'label': 'Rp 201.000 - 250.000', 'min': 201000.0, 'max': 250000.0},
-    {'label': 'Rp 251.000 - 300.000', 'min': 251000.0, 'max': 300000.0},
-    {'label': 'Rp 301.000 - 350.000', 'min': 301000.0, 'max': 350000.0},
-    {'label': 'Rp 351.000 - 400.000', 'min': 351000.0, 'max': 400000.0},
-    {'label': 'Rp 401.000 - 450.000', 'min': 401000.0, 'max': 450000.0},
-  ];
+  List<Map<String, dynamic>> _searchResults = [];
+  String? _profileImageUrl;
+  bool _isLoggedIn = false;
+  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
     _filteredServices = _servicesController.services;
+    _loadUserProfilePhoto();
   }
 
-  void _filterByCategoryButton(int index) {
-    final categories = _controller.getCategories();
-    final all = _servicesController.services;
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadUserProfilePhoto() async {
+    final user = _supabase.auth.currentUser;
+
+    if (user == null) {
+      if (!mounted) return;
+      setState(() {
+        _isLoggedIn = false;
+        _profileImageUrl = null;
+      });
+      return;
+    }
+
+    try {
+      final data = await _supabase
+          .from('users')
+          .select('id_user, email, foto')
+          .eq('email', user.email!)
+          .maybeSingle();
+
+      if (!mounted) return;
+
+      final imageUrl = data?['foto'] as String?;
+
+      setState(() {
+        _isLoggedIn = true;
+        _profileImageUrl = imageUrl != null && imageUrl.trim().isNotEmpty
+            ? imageUrl
+            : null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoggedIn = true;
+        _profileImageUrl = null;
+      });
+    }
+  }
+
+  void _handleProfileTap() {
+    if (!_isLoggedIn) {
+      _controllerAuth.goToRegisterCover(context);
+      return;
+    }
+
+    widget.onProfileTap?.call();
+  }
+
+  String _safe(dynamic value) {
+    if (value == null) return '';
+    return value.toString().toLowerCase();
+  }
+
+  String _normalizeText(String text) {
+    return text
+        .toLowerCase()
+        .replaceAll('&', 'and')
+        .replaceAll('/', ' ')
+        .replaceAll('-', ' ')
+        .replaceAll(RegExp(r'[^\w\s]'), '')
+        .trim()
+        .replaceAll(RegExp(r'\s+'), ' ');
+  }
+
+  String _getSearchItemImage(Map<String, dynamic> item) {
+    final type = (item['type'] ?? '').toString().toLowerCase();
+    final rawTitle = (item['title'] ?? '').toString();
+    final rawSubtitle = (item['subtitle'] ?? '').toString();
+
+    final title = _normalizeText(rawTitle);
+    final subtitle = _normalizeText(rawSubtitle);
+    final combined = '$title $subtitle';
+
+    if (type == 'page') {
+      if (title == 'home') return 'assets/images/icons/home.png';
+      if (title == 'services') return 'assets/images/icons/services.png';
+      if (title == 'chat') return 'assets/images/icons/chat.png';
+      if (title == 'my orders') return 'assets/images/icons/bookings.png';
+      if (title == 'my profile') return 'assets/images/icons/profile.png';
+      return 'assets/images/icons/services.png';
+    }
+
+    if (type == 'category') {
+      if (title == 'website development') {
+        return 'assets/images/icons/website_development.png';
+      }
+      if (title == 'graphic design') {
+        return 'assets/images/icons/graphic_design.png';
+      }
+      if (title == 'photography') {
+        return 'assets/images/icons/photography.png';
+      }
+      if (title == 'video editing') {
+        return 'assets/images/icons/video_editing.png';
+      }
+      if (title == 'image editing') {
+        return 'assets/images/icons/image_editing.png';
+      }
+      if (title == 'writing and translation' ||
+          title == 'writing translation') {
+        return 'assets/images/icons/writing_translation.png';
+      }
+
+      return 'assets/images/icons/services.png';
+    }
+
+    if (type == 'service') {
+      if (combined.contains('website development') ||
+          combined.contains('website') ||
+          combined.contains('web development')) {
+        return 'assets/images/icons/website_development.png';
+      }
+
+      if (combined.contains('graphic design') ||
+          combined.contains('graphic') ||
+          combined.contains('design')) {
+        return 'assets/images/icons/graphic_design.png';
+      }
+
+      if (combined.contains('photography') || combined.contains('photo')) {
+        return 'assets/images/icons/photography.png';
+      }
+
+      if (combined.contains('video editing') || combined.contains('video')) {
+        return 'assets/images/icons/video_editing.png';
+      }
+
+      if (combined.contains('image editing') || combined.contains('image')) {
+        return 'assets/images/icons/image_editing.png';
+      }
+
+      if (combined.contains('writing and translation') ||
+          combined.contains('writing translation') ||
+          combined.contains('writing') ||
+          combined.contains('translation')) {
+        return 'assets/images/icons/writing_translation.png';
+      }
+
+      return 'assets/images/icons/services.png';
+    }
+
+    return 'assets/images/icons/services.png';
+  }
+
+  void _onSearchChanged(String value) {
+    final query = value.trim().toLowerCase();
 
     setState(() {
-      if (_selectedCategoryGridIndex == index) {
-        _selectedCategoryGridIndex = null;
-        _filteredServices = all;
+      _searchQuery = value;
+
+      if (query.isEmpty) {
+        _searchResults = [];
         return;
       }
 
-      _selectedCategoryGridIndex = index;
-      final selectedCat = categories[index].title.toLowerCase();
+      final categories = _controller.getCategories();
 
-      _filteredServices = all.where((service) {
-        final serviceCategory = service.category.toLowerCase();
-        final serviceTitle = service.title.toLowerCase();
-        return serviceCategory.contains(selectedCat) ||
-            serviceTitle.contains(selectedCat);
+      final List<Map<String, dynamic>> pageTargets = [
+        {
+          'title': 'Home',
+          'subtitle': 'Go to Home page',
+          'type': 'page',
+          'index': 0,
+          'keywords': 'home main dashboard studlent',
+        },
+        {
+          'title': 'Services',
+          'subtitle': 'Go to Services page',
+          'type': 'page',
+          'index': 1,
+          'keywords': 'services service freelancer job jasa category kategori',
+        },
+        {
+          'title': 'Chat',
+          'subtitle': 'Go to Chat page',
+          'type': 'page',
+          'index': 2,
+          'keywords': 'chat message messages inbox pesan',
+        },
+        {
+          'title': 'My Orders',
+          'subtitle': 'Go to My Orders page',
+          'type': 'page',
+          'index': 3,
+          'keywords': 'orders bookings pesanan transaksi order booking',
+        },
+        {
+          'title': 'My Profile',
+          'subtitle': 'Go to Profile page',
+          'type': 'page',
+          'index': 4,
+          'keywords': 'profile profil akun account my profile saya',
+        },
+      ];
+
+      final categoryTargets = categories.map((cat) {
+        return {
+          'title': cat.title,
+          'subtitle': 'Category in Services',
+          'type': 'category',
+          'index': 1,
+          'category': cat.title,
+          'keywords': '${cat.title.toLowerCase()} category service jasa',
+        };
       }).toList();
+
+      final serviceTargets = _servicesController.services.map((service) {
+        final extraKeywords = [
+          _safe(service.title),
+          _safe(service.category),
+          _safe(service.basicPackage.price),
+        ].join(' ');
+
+        return {
+          'title': service.title,
+          'subtitle': 'Service • ${service.category}',
+          'type': 'service',
+          'service': service,
+          'keywords': extraKeywords,
+        };
+      }).toList();
+
+      final allTargets = [
+        ...pageTargets,
+        ...categoryTargets,
+        ...serviceTargets,
+      ];
+
+      _searchResults = allTargets
+          .where((item) {
+            final title = _safe(item['title']);
+            final subtitle = _safe(item['subtitle']);
+            final keywords = _safe(item['keywords']);
+
+            return title.contains(query) ||
+                subtitle.contains(query) ||
+                keywords.contains(query);
+          })
+          .take(10)
+          .toList();
     });
   }
 
-  void _applyBottomSheetFilter(Map<String, dynamic> result) {
-    final categoryIndex = result['categoryIndex'] as int?;
-    final priceIndex = result['priceIndex'] as int?;
-    final all = _servicesController.services;
-    final categories = _controller.getCategories();
+  void _handleSearchItemTap(Map<String, dynamic> item) {
+    final type = item['type'];
+
+    if (type == 'page') {
+      widget.onGlobalSearchNavigate?.call(item['index'] as int);
+    } else if (type == 'category') {
+      widget.onGlobalSearchNavigate?.call(
+        item['index'] as int,
+        category: item['category'] as String,
+      );
+    } else if (type == 'service') {
+      final service = item['service'] as ServiceModel;
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => ServiceDetailPage(service: service)),
+      );
+    }
 
     setState(() {
-      _selectedCategoryGridIndex = categoryIndex;
-      _activePriceIndex = priceIndex;
-
-      if (categoryIndex == null && priceIndex == null) {
-        _filteredServices = all;
-        return;
-      }
-
-      _filteredServices = all.where((service) {
-        bool matchCategory = true;
-        if (categoryIndex != null && categoryIndex < categories.length) {
-          final selectedCat = categories[categoryIndex].title.toLowerCase();
-          matchCategory =
-              service.category.toLowerCase().contains(selectedCat) ||
-              service.title.toLowerCase().contains(selectedCat);
-        }
-
-        bool matchPrice = true;
-        if (priceIndex != null && priceIndex < _priceRanges.length) {
-          final rawPrice =
-              double.tryParse(
-                service.basicPackage.price
-                    .replaceAll('Rp', '')
-                    .replaceAll('.', '')
-                    .replaceAll(' ', '')
-                    .trim(),
-              ) ??
-              0;
-
-          final min = _priceRanges[priceIndex]['min'] as double;
-          final max = _priceRanges[priceIndex]['max'] as double?;
-
-          matchPrice = rawPrice >= min && (max == null || rawPrice <= max);
-        }
-
-        return matchCategory && matchPrice;
-      }).toList();
+      _searchController.clear();
+      _searchQuery = '';
+      _searchResults = [];
     });
   }
 
-  void _resetAllFilters() {
-    setState(() {
-      _selectedCategoryGridIndex = null;
-      _activePriceIndex = null;
-      _filteredServices = _servicesController.services;
-    });
+  Widget _buildProfileAvatar(double Function(double) s) {
+    final hasImage =
+        _profileImageUrl != null && _profileImageUrl!.trim().isNotEmpty;
+
+    return GestureDetector(
+      onTap: _handleProfileTap,
+      child: Container(
+        width: s(44),
+        height: s(44),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 6,
+              offset: Offset(0, 2),
+            ),
+          ],
+          border: Border.all(color: Colors.orange.withOpacity(0.18), width: 1),
+        ),
+        child: hasImage
+            ? ClipOval(
+                child: Image.network(
+                  _profileImageUrl!,
+                  width: s(44),
+                  height: s(44),
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) {
+                    return Icon(Icons.person, size: s(22), color: Colors.grey);
+                  },
+                ),
+              )
+            : Icon(Icons.person, size: s(22), color: Colors.grey),
+      ),
+    );
   }
 
   @override
@@ -143,98 +374,187 @@ class _HomeContentState extends State<HomeContent> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // HEADER
-              Row(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Image.asset(
-                    'assets/images/logo_studlent.png',
-                    height: s(40),
-                    errorBuilder: (_, __, ___) =>
-                        Icon(Icons.school, size: s(40), color: Colors.orange),
-                  ),
-                  SizedBox(width: s(12)),
-                  Expanded(
-                    child: Container(
-                      height: s(45),
-                      padding: EdgeInsets.symmetric(horizontal: s(12)),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(s(12)),
-                        boxShadow: const [
-                          BoxShadow(color: Colors.black12, blurRadius: 6),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.search, color: Colors.grey, size: s(20)),
-                          SizedBox(width: s(8)),
-                          Expanded(
-                            child: TextField(
-                              style: TextStyle(fontSize: s(13)),
-                              decoration: const InputDecoration(
-                                hintText: "Search services...",
-                                border: InputBorder.none,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: s(10)),
-                  FilterButton(
-                    onTap: () async {
-                      final result =
-                          await showModalBottomSheet<Map<String, dynamic>>(
-                            context: context,
-                            isScrollControlled: true,
-                            backgroundColor: Colors.transparent,
-                            builder: (_) => const FilterSheet(),
-                          );
-
-                      if (result != null) {
-                        _applyBottomSheetFilter(result);
-                      }
-                    },
-                  ),
-                ],
-              ),
-
-              if (_selectedCategoryGridIndex != null ||
-                  _activePriceIndex != null)
-                Padding(
-                  padding: EdgeInsets.only(top: s(10)),
-                  child: Row(
+                  Row(
                     children: [
-                      const Icon(
-                        Icons.filter_alt,
-                        size: 14,
-                        color: Color(0xFFFF9800),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Filter aktif • ${_filteredServices.length} hasil',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFFFF9800),
-                          fontWeight: FontWeight.w500,
+                      Image.asset(
+                        'assets/images/logo_studlent.png',
+                        height: s(40),
+                        errorBuilder: (_, __, ___) => Icon(
+                          Icons.school,
+                          size: s(40),
+                          color: Colors.orange,
                         ),
                       ),
-                      const Spacer(),
-                      GestureDetector(
-                        onTap: _resetAllFilters,
-                        child: const Text(
-                          'Hapus filter',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.red,
-                            fontWeight: FontWeight.w500,
+                      SizedBox(width: s(12)),
+                      Expanded(
+                        child: Container(
+                          height: s(45),
+                          padding: EdgeInsets.symmetric(horizontal: s(12)),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(s(12)),
+                            boxShadow: const [
+                              BoxShadow(color: Colors.black12, blurRadius: 6),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.search,
+                                color: Colors.grey,
+                                size: s(20),
+                              ),
+                              SizedBox(width: s(8)),
+                              Expanded(
+                                child: TextField(
+                                  controller: _searchController,
+                                  onChanged: _onSearchChanged,
+                                  style: TextStyle(fontSize: s(13)),
+                                  decoration: InputDecoration(
+                                    hintText: "Search all pages...",
+                                    border: InputBorder.none,
+                                    suffixIcon: _searchQuery.trim().isNotEmpty
+                                        ? IconButton(
+                                            onPressed: () {
+                                              setState(() {
+                                                _searchController.clear();
+                                                _searchQuery = '';
+                                                _searchResults = [];
+                                              });
+                                            },
+                                            icon: Icon(
+                                              Icons.close,
+                                              size: s(18),
+                                              color: Colors.grey,
+                                            ),
+                                          )
+                                        : null,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
+                      SizedBox(width: s(10)),
+                      _buildProfileAvatar(s),
                     ],
                   ),
-                ),
+
+                  if (_searchResults.isNotEmpty) ...[
+                    SizedBox(height: s(10)),
+                    Container(
+                      width: double.infinity,
+                      constraints: BoxConstraints(maxHeight: s(320)),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(s(18)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.08),
+                            blurRadius: 18,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(s(18)),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          padding: EdgeInsets.symmetric(vertical: s(6)),
+                          itemCount: _searchResults.length,
+                          separatorBuilder: (_, __) => Divider(
+                            height: 1,
+                            thickness: 1,
+                            color: Colors.grey.shade200,
+                          ),
+                          itemBuilder: (context, index) {
+                            final item = _searchResults[index];
+                            final String imagePath = _getSearchItemImage(item);
+
+                            return InkWell(
+                              onTap: () => _handleSearchItemTap(item),
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: s(16),
+                                  vertical: s(12),
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      width: s(42),
+                                      height: s(42),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFFF8EE),
+                                        borderRadius: BorderRadius.circular(
+                                          s(12),
+                                        ),
+                                        border: Border.all(
+                                          color: Colors.orange.withOpacity(
+                                            0.15,
+                                          ),
+                                          width: 1,
+                                        ),
+                                      ),
+                                      padding: EdgeInsets.all(s(8)),
+                                      child: Image.asset(
+                                        imagePath,
+                                        fit: BoxFit.contain,
+                                        errorBuilder: (_, __, ___) {
+                                          return Image.asset(
+                                            'assets/images/icons/services.png',
+                                            fit: BoxFit.contain,
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                    SizedBox(width: s(12)),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            item['title'],
+                                            style: TextStyle(
+                                              fontSize: s(15),
+                                              fontWeight: FontWeight.w700,
+                                              color: Colors.black87,
+                                            ),
+                                          ),
+                                          SizedBox(height: s(4)),
+                                          Text(
+                                            item['subtitle'],
+                                            style: TextStyle(
+                                              fontSize: s(12),
+                                              color: Colors.black54,
+                                              height: 1.35,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    SizedBox(width: s(8)),
+                                    Icon(
+                                      Icons.arrow_forward_ios_rounded,
+                                      size: s(14),
+                                      color: Colors.grey,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
 
               SizedBox(height: s(28)),
 
@@ -360,12 +680,10 @@ class _HomeContentState extends State<HomeContent> {
                 crossAxisSpacing: s(12),
                 mainAxisSpacing: s(12),
                 childAspectRatio: 2.2,
-                // ✅ UBAH: dari asMap().entries → panggil onCategoryTap ke HomePage
                 children: categories.map((cat) {
                   return CategoryCard(
                     category: cat,
                     onTap: () {
-                      // ✅ UBAH: tidak filter di Home, tapi pindah ke ServicesPage
                       widget.onCategoryTap?.call(cat.title);
                     },
                   );
@@ -390,7 +708,7 @@ class _HomeContentState extends State<HomeContent> {
                   padding: EdgeInsets.symmetric(vertical: s(24)),
                   child: Center(
                     child: Text(
-                      'Tidak ada service yang sesuai filter',
+                      'Tidak ada service yang tersedia',
                       style: TextStyle(fontSize: s(13), color: Colors.black45),
                     ),
                   ),
@@ -415,84 +733,6 @@ class _HomeContentState extends State<HomeContent> {
                     }).toList(),
                   ),
                 ),
-
-              SizedBox(height: s(24)),
-
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.all(s(20)),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(s(20)),
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFFFE0B2), Color(0xFFFFB74D)],
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "Make It All Happen",
-                            style: TextStyle(
-                              fontSize: s(17),
-                              fontWeight: FontWeight.bold,
-                              height: 1.2,
-                              color: Colors.black87,
-                            ),
-                          ),
-                          SizedBox(height: s(6)),
-                          Text(
-                            "Connect with skilled students and get your work done faster.",
-                            style: TextStyle(
-                              fontSize: s(12),
-                              color: Colors.black87.withOpacity(0.7),
-                              height: 1.4,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(width: s(12)),
-                    Container(
-                      decoration: BoxDecoration(
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.orange.withOpacity(0.25),
-                            blurRadius: 12,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: ElevatedButton(
-                        onPressed: () {
-                          _controllerAuth.goToRegisterCover(context);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFFA726),
-                          padding: EdgeInsets.symmetric(
-                            horizontal: s(16),
-                            vertical: s(12),
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(s(14)),
-                          ),
-                          elevation: 0,
-                        ),
-                        child: Text(
-                          "Start Now",
-                          style: TextStyle(
-                            fontSize: s(13),
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
 
               SizedBox(height: s(16)),
             ],
