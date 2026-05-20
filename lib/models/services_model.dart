@@ -25,21 +25,20 @@ class PackageModel {
   }
 
   Map<String, dynamic> toJson() => {
-    'id_package': id,
-    'nama': name,
-    'harga':
-        double.tryParse(
-          price
-              .replaceAll('Rp', '')
-              .replaceAll('.', '')
-              .replaceAll(' ', '')
-              .trim(),
-        ) ??
-        0,
-    'delivery_time':
-        int.tryParse(deliveryTime.replaceAll(RegExp(r'[^0-9]'), '')) ?? 3,
-    'deskripsi': shortDescription,
-  };
+        'id_package': id,
+        'nama': name,
+        'harga': double.tryParse(
+              price
+                  .replaceAll('Rp', '')
+                  .replaceAll('.', '')
+                  .replaceAll(' ', '')
+                  .trim(),
+            ) ??
+            0,
+        'delivery_time':
+            int.tryParse(deliveryTime.replaceAll(RegExp(r'[^0-9]'), '')) ?? 3,
+        'deskripsi': shortDescription,
+      };
 
   static String _formatPrice(double price) {
     final formatted = price.toInt().toString();
@@ -71,8 +70,8 @@ class ServiceModel {
   final String? freelancerName;
 
   // ── TAMBAH: field untuk koneksi ke DB ─────────────────────
-  final int? freelancerId; // ← id_freelancer di tabel services
-  int? packageId; // ← id_package yang dipilih user (basic/std/premium)
+  final int? freelancerId;
+  int? packageId;
 
   ServiceModel({
     required this.id,
@@ -82,7 +81,6 @@ class ServiceModel {
     this.imagePath,
     this.serviceImages = const [],
     PackageModel? basicPackage,
-    // Default values untuk data tambahan
     this.name = '',
     this.university = '',
     this.skills = '',
@@ -92,6 +90,18 @@ class ServiceModel {
     this.freelancerName,
   }) : basicPackage = basicPackage ?? PackageModel();
 
+  // ── FIX TAMBAHAN (TIDAK MERUBAH STRUKTUR, HANYA AMANIN IMAGE) ──
+  static String? _cleanImage(String? url) {
+    if (url == null || url.isEmpty) return null;
+
+    // FIX kasus "assets/https://..."
+    if (url.startsWith('assets/http')) {
+      return url.replaceFirst('assets/', '');
+    }
+
+    return url;
+  }
+
   // ── fromJson dari tabel service_detail di Supabase ────────
   factory ServiceModel.fromJson(Map<String, dynamic> json) {
     return ServiceModel(
@@ -99,16 +109,24 @@ class ServiceModel {
       title: json['title'] ?? '',
       category: json['category'] ?? '',
       description: json['description'] ?? '',
-      imagePath: json['image_path'],
+
+      // ✅ FIX DI SINI (WAJIB)
+      imagePath: _cleanImage(json['image_path']),
+
       serviceImages: json['service_images'] != null
           ? List<String>.from(json['service_images'])
+              .map((e) => _cleanImage(e) ?? '')
+              .where((e) => e.isNotEmpty)
+              .toList()
           : [],
+
       basicPackage: PackageModel(
-        id           : json['basic_package_id'] as int?,
-        price        : 'Rp ${PackageModel._formatPrice((json['basic_price'] ?? 0).toDouble())}',
-        deliveryTime : '${json['basic_delivery_time'] ?? 3} days',
+        id: json['basic_package_id'] as int?,
+        price: 'Rp ${PackageModel._formatPrice((json['basic_price'] ?? 0).toDouble())}',
+        deliveryTime: '${json['basic_delivery_time'] ?? 3} days',
         shortDescription: json['basic_description'] ?? '',
       ),
+
       name: json['freelancer_name'] ?? '',
       university: json['university'] ?? '',
       skills: json['skills'] ?? '',

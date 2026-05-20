@@ -40,18 +40,10 @@ class FreelancerCardHorizontal extends StatelessWidget {
             // ================= IMAGE =================
             ClipRRect(
               borderRadius: BorderRadius.circular(scale(14)),
-              child: Image.asset(
-                // PERBAIKAN: Gunakan operator ?? untuk handle null
-                service.imagePath ?? 'assets/images/placeholder.png',
+              child: SizedBox(
                 width: scale(90),
                 height: scale(90),
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  width: scale(90),
-                  height: scale(90),
-                  color: Colors.grey[200],
-                  child: Icon(Icons.broken_image, size: scale(30)),
-                ),
+                child: _buildImage(service.imagePath),
               ),
             ),
 
@@ -157,6 +149,32 @@ class FreelancerCardHorizontal extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+   Widget _buildImage(String? imagePath) {
+    if (imagePath != null && imagePath.startsWith('http')) {
+      return Image.network(
+        imagePath,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _placeholder(),
+      );
+    }
+    if (imagePath != null && imagePath.isNotEmpty) {
+      return Image.asset(
+        imagePath,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _placeholder(),
+      );
+    }
+    return _placeholder();
+  }
+
+  Widget _placeholder() {
+    return Container(
+      color: Colors.grey.shade200,
+      child: const Center(
+        child: Icon(Icons.image, color: Colors.grey, size: 32),
       ),
     );
   }

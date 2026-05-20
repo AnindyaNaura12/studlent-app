@@ -1,5 +1,6 @@
 // ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../widgets/custom_back_button.dart';
 import '../../models/services_model.dart';
 import 'detail_profile_freelancer.dart';
@@ -16,9 +17,119 @@ class ServiceDetailPage extends StatefulWidget {
 }
 
 class _ServiceDetailPageState extends State<ServiceDetailPage> {
-  int selectedTab = 1;
+  int selectedTab = 0;
 
-  final MyServicesController controller = MyServicesController();
+  final ServicesController controller = ServicesController();
+  final _supabase = Supabase.instance.client;
+
+  List<PackageModel> _packages = [];
+  String? _freelancerPhotoUrl;
+  bool _loadingPackages = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    await Future.wait([
+      _loadPackages(),
+      _loadFreelancerPhoto(),
+    ]);
+  }
+
+  Future<void> _loadPackages() async {
+    try {
+      final idService = int.tryParse(widget.service.id);
+      if (idService == null) {
+        setState(() => _loadingPackages = false);
+        return;
+      }
+
+      final data = await _supabase
+          .from('service_packages')
+          .select()
+          .eq('id_service', idService)
+          .order('id_package', ascending: true);
+
+      final packages = (data as List).map((e) => PackageModel.fromJson(e)).toList();
+
+      if (mounted) {
+        setState(() {
+          _packages = packages;
+          _loadingPackages = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('loadPackages error: $e');
+      if (mounted) setState(() => _loadingPackages = false);
+    }
+  }
+
+  Future<void> _loadFreelancerPhoto() async {
+    try {
+      final freelancerId = widget.service.freelancerId;
+      if (freelancerId == null) return;
+
+      // Coba ambil dari freelancer_profiles dulu
+      final fpData = await _supabase
+          .from('freelancer_profiles')
+          .select('foto_freelancer')
+          .eq('id_user', freelancerId)
+          .maybeSingle();
+
+      String? photoUrl;
+
+      if (fpData != null &&
+          fpData['foto_freelancer'] != null &&
+          (fpData['foto_freelancer'] as String).isNotEmpty) {
+        photoUrl = fpData['foto_freelancer'] as String;
+      } else {
+        // Fallback ke tabel users
+        final userData = await _supabase
+            .from('users')
+            .select('foto')
+            .eq('id_user', freelancerId)
+            .maybeSingle();
+
+        if (userData != null && userData['foto'] != null) {
+          photoUrl = userData['foto'] as String;
+        }
+      }
+
+      if (mounted) setState(() => _freelancerPhotoUrl = photoUrl);
+    } catch (e) {
+      debugPrint('loadFreelancerPhoto error: $e');
+    }
+  }
+
+  String get _currentTitle {
+    if (_packages.isEmpty) return controller.getPackageTitle(selectedTab);
+    if (selectedTab < _packages.length) {
+      final n = _packages[selectedTab].name;
+      return '${n[0].toUpperCase()}${n.substring(1)} Package';
+    }
+    return '';
+  }
+
+  String get _currentPrice {
+    if (_packages.isEmpty) return controller.getPackagePrice(selectedTab, widget.service);
+    if (selectedTab < _packages.length) return _packages[selectedTab].price;
+    return '';
+  }
+
+  String get _currentDesc {
+    if (_packages.isEmpty) return controller.getPackageDescription(selectedTab, widget.service);
+    if (selectedTab < _packages.length) return _packages[selectedTab].shortDescription;
+    return '';
+  }
+
+  String get _currentDelivery {
+    if (_packages.isEmpty) return widget.service.basicPackage.deliveryTime;
+    if (selectedTab < _packages.length) return _packages[selectedTab].deliveryTime;
+    return '';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,9 +138,6 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
         (size * (screenWidth / 375)).clamp(size * 0.75, size * 1.3);
 
     final service = widget.service;
-    final title = controller.getPackageTitle(selectedTab);
-    final desc = controller.getPackageDescription(selectedTab, service);
-    final price = controller.getPackagePrice(selectedTab, service);
 
     return Scaffold(
       backgroundColor: const Color(0xFFFFF8EE),
@@ -42,7 +150,7 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ── Header ──
+                    // Header
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       child: Stack(
@@ -66,7 +174,7 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                       ),
                     ),
 
-                    // ── Title & Rating ──
+                    // Title & Rating
                     Text(
                       service.title,
                       style: TextStyle(
@@ -103,28 +211,27 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
 
                     SizedBox(height: s(16)),
 
-                    // ── Gambar Service ──
+                    // Gambar Service (thumbnail dari storage)
                     ClipRRect(
                       borderRadius: BorderRadius.circular(s(16)),
-                      child: Image.asset(
-                        service.imagePath ?? 'assets/images/placeholder.png',
-                        width: double.infinity,
-                        height: s(180),
-                        fit: BoxFit.cover,
-                      ),
+                      child: _buildServiceImage(service, s),
                     ),
 
                     SizedBox(height: s(16)),
 
-                    // ── Profil Freelancer ──
+                    // Profil Freelancer — pakai _freelancerPhotoUrl bukan service.imagePath
                     Row(
                       children: [
                         CircleAvatar(
-                          backgroundImage: AssetImage(
-                            service.imagePath ??
-                                'assets/images/placeholder.png',
-                          ),
                           radius: s(20),
+                          backgroundColor: Colors.grey.shade200,
+                          backgroundImage: _freelancerPhotoUrl != null &&
+                                  _freelancerPhotoUrl!.startsWith('http')
+                              ? NetworkImage(_freelancerPhotoUrl!)
+                              : null,
+                          child: _freelancerPhotoUrl == null
+                              ? Icon(Icons.person, size: s(20), color: Colors.grey)
+                              : null,
                         ),
                         SizedBox(width: s(10)),
                         Column(
@@ -139,8 +246,7 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                             ),
                             SizedBox(height: s(2)),
                             GestureDetector(
-                              onTap: () =>
-                                  controller.goToProfile(context, service),
+                              onTap: () => controller.goToProfile(context, service),
                               child: Container(
                                 padding: EdgeInsets.symmetric(
                                   horizontal: s(10),
@@ -166,7 +272,7 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
 
                     SizedBox(height: s(20)),
 
-                    // ── Package Pricing ──
+                    // Package Pricing — dari DB
                     Text(
                       "Package Pricing",
                       style: TextStyle(
@@ -175,57 +281,82 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                       ),
                     ),
                     SizedBox(height: s(10)),
+
                     Container(
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(s(20)),
                         border: Border.all(color: Colors.grey.shade300),
                       ),
                       child: Row(
-                        children: [
-                          _tab("Basic", 0, s),
-                          _tab("Standard", 1, s),
-                          _tab("Premium", 2, s),
-                        ],
+                        children: _loadingPackages
+                            ? [
+                                _tab("Basic", 0, s),
+                                _tab("Standard", 1, s),
+                                _tab("Premium", 2, s),
+                              ]
+                            : _packages.isNotEmpty
+                                ? _packages.asMap().entries.map((e) {
+                                    final name = e.value.name;
+                                    return _tab(
+                                      '${name[0].toUpperCase()}${name.substring(1)}',
+                                      e.key,
+                                      s,
+                                    );
+                                  }).toList()
+                                : [
+                                    _tab("Basic", 0, s),
+                                    _tab("Standard", 1, s),
+                                    _tab("Premium", 2, s),
+                                  ],
                       ),
                     ),
+
                     SizedBox(height: s(12)),
-                    Container(
-                      padding: EdgeInsets.all(s(12)),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEED9B7),
-                        borderRadius: BorderRadius.circular(s(14)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            title,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: s(12),
+
+                    _loadingPackages
+                        ? const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(16),
+                              child: CircularProgressIndicator(),
+                            ),
+                          )
+                        : Container(
+                            padding: EdgeInsets.all(s(12)),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEED9B7),
+                              borderRadius: BorderRadius.circular(s(14)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _currentTitle,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: s(12),
+                                  ),
+                                ),
+                                SizedBox(height: s(4)),
+                                Text(
+                                  _currentPrice,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: s(14),
+                                  ),
+                                ),
+                                SizedBox(height: s(4)),
+                                Text(_currentDesc, style: TextStyle(fontSize: s(11))),
+                                Text(
+                                  "Delivery: $_currentDelivery",
+                                  style: TextStyle(fontSize: s(11)),
+                                ),
+                              ],
                             ),
                           ),
-                          SizedBox(height: s(4)),
-                          Text(
-                            price,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: s(14),
-                            ),
-                          ),
-                          SizedBox(height: s(4)),
-                          Text(desc, style: TextStyle(fontSize: s(11))),
-                          Text(
-                            "Delivery: ${service.basicPackage.deliveryTime}",
-                            style: TextStyle(fontSize: s(11)),
-                          ),
-                        ],
-                      ),
-                    ),
 
                     SizedBox(height: s(20)),
 
-                    // ── About ──
+                    // About
                     Text(
                       "About This Service",
                       style: TextStyle(
@@ -243,7 +374,7 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
               ),
             ),
 
-            // ── Bottom Action Bar ──
+            // Bottom Action Bar
             Container(
               padding: EdgeInsets.all(s(16)),
               decoration: BoxDecoration(
@@ -258,7 +389,7 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
               child: Row(
                 children: [
                   Text(
-                    price,
+                    _currentPrice,
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: s(16),
@@ -271,10 +402,9 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                         context,
                         MaterialPageRoute(
                           builder: (_) => ContactFreelancerPage(
-                            // Pastikan 'idFreelancer' ada di ServiceModel kamu
-                            freelancerId: service.freelancerId ?? 0, 
+                            freelancerId: service.freelancerId ?? 0,
                             freelancerName: service.name,
-                            image: service.imagePath ?? "assets/images/icons/profile.png",
+                            image: _freelancerPhotoUrl ?? '',
                           ),
                         ),
                       );
@@ -283,7 +413,6 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                   ),
                   SizedBox(width: s(10)),
                   ElevatedButton(
-                    // ← FIX: pakai controller, bukan Navigator.push langsung
                     onPressed: () => controller.goToOrderNow(context, service),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFFFA726),
@@ -306,6 +435,41 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildServiceImage(ServiceModel service, double Function(double) s) {
+    final imgPath = service.imagePath;
+    if (imgPath != null && imgPath.startsWith('http')) {
+      return Image.network(
+        imgPath,
+        width: double.infinity,
+        height: s(180),
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _placeholderImage(s),
+      );
+    }
+    if (service.serviceImages.isNotEmpty) {
+      final first = service.serviceImages.first;
+      if (first.startsWith('http')) {
+        return Image.network(
+          first,
+          width: double.infinity,
+          height: s(180),
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _placeholderImage(s),
+        );
+      }
+    }
+    return _placeholderImage(s);
+  }
+
+  Widget _placeholderImage(double Function(double) s) {
+    return Container(
+      width: double.infinity,
+      height: s(180),
+      color: Colors.grey.shade200,
+      child: const Icon(Icons.image, color: Colors.grey, size: 48),
     );
   }
 

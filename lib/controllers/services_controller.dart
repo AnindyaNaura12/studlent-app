@@ -7,7 +7,7 @@ import '../views/pages/service_detail_page.dart';
 import '../views/pages/login_page.dart';
 import '../views/pages/detail_order_page.dart';
 
-class MyServicesController {
+class ServicesController {
   final supabase = Supabase.instance.client;
 
   // ── Cek status login ──────────────────────────────────────
@@ -89,20 +89,50 @@ class MyServicesController {
   ];
 
   // ── Fetch services dari Supabase ──────────────────────────
-  Future<List<ServiceModel>> fetchServicesFromSupabase() async {
+  Future<List<ServiceModel>> fetchServicesFiltered({
+    String searchQuery = '',
+    String? category,
+    int? minPrice,
+    int? maxPrice,
+  }) async {
     try {
-      final data = await supabase
+      var query = supabase
           .from('service_detail')
           .select()
-          .eq('status', 'approved')
-          .order('rating_avg', ascending: false);
+          .eq('status', 'active');
 
-      return (data as List).map((e) => ServiceModel.fromJson(e)).toList();
+      if (category != null && category.isNotEmpty) {
+        query = query.eq('category', category);
+      }
+      if (minPrice != null) {
+        query = query.gte('basic_price', minPrice);
+      }
+      if (maxPrice != null) {
+        query = query.lte('basic_price', maxPrice);
+      }
+
+      final data = await query.order('rating_avg', ascending: false);
+
+      List<ServiceModel> results =
+          (data as List).map((e) => ServiceModel.fromJson(e)).toList();
+
+      // Search filter dilakukan di client karena LIKE butuh index khusus
+      if (searchQuery.isNotEmpty) {
+        final q = searchQuery.toLowerCase();
+        results = results.where((s) {
+          return s.title.toLowerCase().contains(q) ||
+              s.name.toLowerCase().contains(q) ||
+              s.category.toLowerCase().contains(q) ||
+              s.description.toLowerCase().contains(q);
+        }).toList();
+      }
+
+      return results;
     } catch (e) {
-      return services; // fallback ke dummy data
+      debugPrint('ERROR FETCH FILTERED: $e');
+      return [];
     }
   }
-
   // ── Package helpers ───────────────────────────────────────
   String getPackageTitle(int selectedTab) {
     switch (selectedTab) {
