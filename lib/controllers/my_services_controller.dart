@@ -5,7 +5,7 @@ class MyServicesController {
     ServiceModel(
       id: '1',
       title: 'App Design - StuddyBuddy',
-      category: 'Design',
+      category: 'Graphic Design',
       description: 'Modern UI for study group organization',
       imagePath: 'assets/images/freelancers/freelancer_1.png',
       serviceImages: [],
@@ -14,16 +14,16 @@ class MyServicesController {
         deliveryTime: '3 days',
         shortDescription: '2 Modern Concepts + Vector Files + Favicon',
       ),
-      name: 'Nafila Zahra',        // ← TAMBAH
-      university: 'Universitas Brawijaya', // ← TAMBAH
-      skills: 'Figma, Adobe XD, Prototyping', // ← TAMBAH
-      rating: 4.8,                 // ← TAMBAH
-      totalReviews: 24,            // ← TAMBAH
+      name: 'Nafila Zahra',
+      university: 'Universitas Brawijaya',
+      skills: 'Figma, Adobe XD, Prototyping',
+      rating: 4.8,
+      totalReviews: 24,
     ),
     ServiceModel(
       id: '2',
       title: 'Web Design - Organization',
-      category: 'Design Web',
+      category: 'Website Development',
       description: 'What You Get...',
       imagePath: 'assets/images/freelancers/freelancer_1.png',
       serviceImages: [],
@@ -32,24 +32,21 @@ class MyServicesController {
         deliveryTime: '3 days',
         shortDescription: '2 Modern Concepts + Vector Files + Favicon',
       ),
-      name: 'Nafila Zahra',        // ← TAMBAH
-      university: 'Universitas Brawijaya', // ← TAMBAH
-      skills: 'HTML, CSS, Figma',  // ← TAMBAH
-      rating: 4.5,                 // ← TAMBAH
-      totalReviews: 18,            // ← TAMBAH
+      name: 'Nafila Zahra',
+      university: 'Universitas Brawijaya',
+      skills: 'HTML, CSS, Figma',
+      rating: 4.5,
+      totalReviews: 18,
     ),
   ];
 
-  // =============================================
-  // TAMBAHKAN DUA VARIABEL INI AGAR DROPDOWN BEKERJA
-  // =============================================
   final List<String> categories = [
-    'Design',
-    'Design Web',
-    'Mobile Development',
-    'Write & Translation',
-    'Digital Marketing',
-    'Video & Animation',
+    'Website Development',
+    'Graphic Design',
+    'Photography',
+    'Video Editing',
+    'Image Editing',
+    'Writing & Translation',
   ];
 
   final List<String> deliveryTimes = [

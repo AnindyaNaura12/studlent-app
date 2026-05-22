@@ -200,7 +200,7 @@ class _AddServicePageState extends State<AddServicePage> {
                   ],
                 ),
               ),
-
+ 
               _buildLabel('Service title'),
               _buildTextField(
                 controller: _titleController,
