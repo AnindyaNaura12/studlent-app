@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/services_model.dart';
 import '../pages/my_orders_page.dart';
+import 'payment_success_page.dart';
 
 class DetailOrderPage extends StatefulWidget {
   final ServiceModel service;
@@ -81,8 +82,8 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
       }
 
       final int clientId = userData['id_user'] as int;
-      final int freelancerId = service.freelancerId ?? 1;
-      final int serviceId = int.tryParse(service.id) ?? 1;
+      final int freelancerId =  9;
+      final int serviceId = 8;
       final int? packageId = service.packageId; // ← dari ServiceModel
 
       // 3. Hitung deadline dari delivery time
@@ -165,7 +166,12 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
 
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const MyOrdersPage()),
+        MaterialPageRoute(builder: (_) => PaymentSuccessPage(
+      idOrder: 999,
+      amount: "500000", // Kamu bisa ganti dengan ID order yang baru dibuat
+      serviceName: service.title,       // 👈 Pastikan variabel service.title sesuai
+    ),
+        ),
         (route) => route.isFirst,
       );
     } catch (e) {

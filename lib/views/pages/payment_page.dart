@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '/controllers/payment_service.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'payment_success_page.dart';
 
 class PaymentPage extends StatefulWidget {
   final int orderId;
@@ -129,8 +130,19 @@ class _PaymentPageState extends State<PaymentPage> {
 
               ElevatedButton(
                 onPressed: () {
-                  openPayment(payment!['payment_url']);
+                  //openPayment(payment!['payment_url']);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => PaymentSuccessPage(
+                        idOrder: widget.orderId,
+                        amount: total.toStringAsFixed(0),
+                        serviceName: "Pesanan Jasa", 
+                      ),
+                    ),
+                  );
                 },
+  
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 45),
                   backgroundColor: Colors.blue,
