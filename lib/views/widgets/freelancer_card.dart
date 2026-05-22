@@ -39,14 +39,7 @@ class ServiceCard extends StatelessWidget {
               child: SizedBox(
                 height: s(120),
                 width: double.infinity,
-                child: Image.asset(
-                  service.imagePath ?? 'assets/images/placeholder.png',
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    color: Colors.grey[200],
-                    child: Icon(Icons.person, size: s(50), color: Colors.grey),
-                  ),
-                ),
+                child: _buildImage(service, s),
               ),
             ),
 
@@ -149,6 +142,36 @@ class ServiceCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildImage(ServiceModel service, double Function(double) s) {
+    final url = service.imagePath != null &&
+            service.imagePath!.startsWith('http')
+        ? service.imagePath!
+        : service.serviceImages.isNotEmpty &&
+                service.serviceImages.first.startsWith('http')
+            ? service.serviceImages.first
+            : null;
+
+    if (url != null) {
+      return Image.network(
+        url,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: s(120),
+        errorBuilder: (_, __, ___) => _placeholder(s),
+      );
+    }
+    return _placeholder(s);
+  }
+
+  Widget _placeholder(double Function(double) s) {
+    return Container(
+      color: Colors.grey[200],
+      width: double.infinity,
+      height: s(120),
+      child: Icon(Icons.image, size: s(40), color: Colors.grey),
     );
   }
 }

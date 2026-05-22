@@ -5,7 +5,11 @@ class ServiceCard extends StatelessWidget {
   final ServiceModel service;
   final VoidCallback? onTap;
 
-  const ServiceCard({super.key, required this.service, this.onTap});
+  const ServiceCard({
+    super.key,
+    required this.service,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -21,50 +25,50 @@ class ServiceCard extends StatelessWidget {
         margin: EdgeInsets.only(right: s(14), bottom: s(4)),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(s(20)),
+          borderRadius: BorderRadius.circular(s(16)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
-              blurRadius: s(12),
-              offset: Offset(0, s(4)),
+              color: Colors.black.withOpacity(0.09),
+              blurRadius: s(10),
+              offset: Offset(0, s(3)),
             ),
           ],
         ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ================= IMAGE =================
             ClipRRect(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(s(20))),
+              borderRadius:
+                  BorderRadius.vertical(top: Radius.circular(s(16))),
               child: SizedBox(
                 height: s(120),
                 width: double.infinity,
-                child: Image.asset(
-                  service.imagePath ?? 'assets/images/placeholder.png',
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    color: Colors.grey[200],
-                    child: Icon(Icons.person, size: s(50), color: Colors.grey),
-                  ),
-                ),
+                child: _buildImage(service, s),
               ),
             ),
+
+            // ================= INFO =================
             Padding(
               padding: EdgeInsets.fromLTRB(s(12), s(10), s(12), s(12)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // ================= TITLE SERVICE =================
                   Text(
                     service.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: s(12.5),
+                      fontSize: s(12),
                       color: Colors.black87,
                     ),
                   ),
-                  SizedBox(height: s(4)),
+
+                  SizedBox(height: s(2)),
+
+                  // ================= NAME + RATING =================
                   Row(
                     children: [
                       Expanded(
@@ -75,7 +79,7 @@ class ServiceCard extends StatelessWidget {
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: s(13),
-                            color: const Color(0xFFFFB84C),
+                            color: const Color(0xFFFFB74D),
                           ),
                         ),
                       ),
@@ -85,48 +89,55 @@ class ServiceCard extends StatelessWidget {
                       Text(
                         '${service.rating}',
                         style: TextStyle(
-                          fontSize: s(10.5),
+                          fontSize: s(10),
                           fontWeight: FontWeight.bold,
                           color: Colors.black87,
                         ),
                       ),
                     ],
                   ),
-                  SizedBox(height: s(6)),
+
+                  SizedBox(height: s(4)),
+
+                  // ================= SHORT DESCRIPTION =================
                   Text(
                     service.basicPackage.shortDescription,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: s(10.5),
+                      fontSize: s(10),
                       color: Colors.grey[600],
-                      height: 1.35,
+                      height: 1.4,
                     ),
                   ),
-                  SizedBox(height: s(6)),
+
+                  SizedBox(height: s(4)),
+
+                  // ================= UNIVERSITY =================
                   Text(
                     service.university,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: s(10.5),
-                      color: Colors.grey[600],
-                    ),
+                    style:
+                        TextStyle(fontSize: s(10), color: Colors.grey[600]),
                   ),
-                  SizedBox(height: s(14)),
+
+                  SizedBox(height: s(10)),
+
+                  // ================= PRICE BUTTON =================
                   Container(
                     width: double.infinity,
-                    padding: EdgeInsets.symmetric(vertical: s(10)),
+                    padding: EdgeInsets.symmetric(vertical: s(8)),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFB84C),
-                      borderRadius: BorderRadius.circular(s(24)),
+                      color: const Color(0xFFFFB74D),
+                      borderRadius: BorderRadius.circular(s(20)),
                     ),
                     child: Text(
                       service.basicPackage.price,
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: s(12.5),
                         fontWeight: FontWeight.bold,
+                        fontSize: s(12),
                         color: Colors.white,
                       ),
                     ),
@@ -139,4 +150,34 @@ class ServiceCard extends StatelessWidget {
       ),
     );
   }
-}
+
+  Widget _buildImage(ServiceModel service, double Function(double) s) {
+    final url = service.imagePath != null &&
+            service.imagePath!.startsWith('http')
+        ? service.imagePath!
+        : service.serviceImages.isNotEmpty &&
+                service.serviceImages.first.startsWith('http')
+            ? service.serviceImages.first
+            : null;
+
+    if (url != null) {
+      return Image.network(
+        url,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: s(120),
+        errorBuilder: (_, __, ___) => _placeholder(s),
+      );
+    }
+    return _placeholder(s);
+  }
+
+  Widget _placeholder(double Function(double) s) {
+    return Container(
+      color: Colors.grey[200],
+      width: double.infinity,
+      height: s(120),
+      child: Icon(Icons.image, size: s(40), color: Colors.grey),
+    );
+  }
+} 

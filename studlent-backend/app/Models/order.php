@@ -10,15 +10,24 @@ class Order extends Model
 
     protected $fillable = [
         'id_client',
+        'id_freelancer', // ← pastikan ada ini
         'id_service',
+        'id_package',
         'detail_pesanan',
+        'catatan',
         'deadline',
-        'status'
+        'status',
+        'progress',
     ];
     
     public function client()
     {
         return $this->belongsTo(User::class, 'id_client', 'id_user');
+    }
+
+    public function freelancer()
+    {
+        return $this->belongsTo(User::class, 'id_freelancer', 'id_user');
     }
 
     public function payment()
