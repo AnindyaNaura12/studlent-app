@@ -1,11 +1,13 @@
 // ignore_for_file: deprecated_member_use
 
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../widgets/custom_back_button.dart';
-import '../../models/services_model.dart';
 import '../../controllers/my_services_controller.dart';
+import '../../models/service_category_model.dart';
 
 class AddServicePage extends StatefulWidget {
   final MyServicesController controller;
@@ -43,9 +45,22 @@ class _AddServicePageState extends State<AddServicePage> {
     },
   };
 
-  String? _selectedCategory;
+  int? _selectedCategoryId;
   int _selectedPackageTab = 0;
   bool _loading = false;
+  bool _loadingCategories = false;
+
+  List<ServiceCategory> _categories = [];
+
+  Uint8List? _imageBytes;
+  String? _imageMimeType;
+  bool _uploadingImage = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCategories();
+  }
 
   @override
   void dispose() {
@@ -61,19 +76,140 @@ class _AddServicePageState extends State<AddServicePage> {
     super.dispose();
   }
 
-  String get _currentPackageKey =>
-      _selectedPackageTab == 0
-          ? 'basic'
-          : _selectedPackageTab == 1
-          ? 'standard'
-          : 'premium';
+  String get _currentPackageKey {
+    if (_selectedPackageTab == 0) return 'basic';
+    if (_selectedPackageTab == 1) return 'standard';
+    return 'premium';
+  }
+
+  Future<void> _loadCategories() async {
+    setState(() => _loadingCategories = true);
+
+    try {
+      await widget.controller.fetchCategories();
+
+      if (!mounted) return;
+
+      debugPrint('TOTAL CATEGORY: ${widget.controller.categories.length}');
+      for (final c in widget.controller.categories) {
+        debugPrint('CATEGORY => ${c.id} | ${c.name}');
+      }
+
+      setState(() {
+        _categories = widget.controller.categories;
+      });
+    } catch (e) {
+      debugPrint('ERROR LOAD CATEGORIES: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _loadingCategories = false);
+      }
+    }
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      setState(() => _uploadingImage = true);
+
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80,
+        maxWidth: 1000,
+      );
+
+      if (picked == null) {
+        setState(() => _uploadingImage = false);
+        return;
+      }
+
+      final bytes = await picked.readAsBytes();
+
+      String mimeType = picked.mimeType ?? '';
+      if (mimeType.isEmpty || mimeType.contains('blob')) {
+        if (bytes.length >= 4) {
+          if (bytes[0] == 0xFF && bytes[1] == 0xD8) {
+            mimeType = 'image/jpeg';
+          } else if (bytes[0] == 0x89 &&
+              bytes[1] == 0x50 &&
+              bytes[2] == 0x4E &&
+              bytes[3] == 0x47) {
+            mimeType = 'image/png';
+          } else if (bytes[0] == 0x47 && bytes[1] == 0x49) {
+            mimeType = 'image/gif';
+          } else if (bytes[0] == 0x52 &&
+              bytes[1] == 0x49 &&
+              bytes[2] == 0x46 &&
+              bytes[3] == 0x46) {
+            mimeType = 'image/webp';
+          } else {
+            mimeType = 'image/jpeg';
+          }
+        } else {
+          mimeType = 'image/jpeg';
+        }
+      }
+
+      setState(() {
+        _imageBytes = bytes;
+        _imageMimeType = mimeType;
+        _uploadingImage = false;
+      });
+    } catch (e) {
+      setState(() => _uploadingImage = false);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal pilih gambar: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<String?> _uploadImageToStorage() async {
+    if (_imageBytes == null) return null;
+
+    try {
+      final supabase = Supabase.instance.client;
+      final ext = (_imageMimeType ?? 'image/jpeg')
+          .split('/')
+          .last
+          .replaceAll('jpeg', 'jpg');
+
+      final fileName = 'service_${DateTime.now().millisecondsSinceEpoch}.$ext';
+
+      await supabase.storage
+          .from('services')
+          .uploadBinary(
+            fileName,
+            _imageBytes!,
+            fileOptions: FileOptions(
+              upsert: false,
+              contentType: _imageMimeType ?? 'image/jpeg',
+            ),
+          );
+
+      return supabase.storage.from('services').getPublicUrl(fileName);
+    } catch (e) {
+      debugPrint('uploadImageToStorage error: $e');
+      return null;
+    }
+  }
 
   Future<void> _onRequestPressed() async {
     if (_titleController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Service title wajib diisi'),
-        ),
+        const SnackBar(content: Text('Service title wajib diisi')),
+      );
+      return;
+    }
+
+    if (_selectedCategoryId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Service category wajib dipilih')),
       );
       return;
     }
@@ -82,11 +218,16 @@ class _AddServicePageState extends State<AddServicePage> {
 
     try {
       final supabase = Supabase.instance.client;
-
       final authUser = supabase.auth.currentUser;
 
       if (authUser == null) {
         setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('User belum login'),
+            backgroundColor: Colors.red,
+          ),
+        );
         return;
       }
 
@@ -96,29 +237,35 @@ class _AddServicePageState extends State<AddServicePage> {
           .eq('email', authUser.email!)
           .single();
 
-      final categoryResult = await supabase
-          .from('service_categories')
-          .select('id_category')
-          .eq('nama', _selectedCategory ?? '');
-
-      final idCategory = categoryResult.isNotEmpty
-          ? categoryResult[0]['id_category']
-          : null;
+      String? thumbnailUrl;
+      if (_imageBytes != null) {
+        thumbnailUrl = await _uploadImageToStorage();
+      }
 
       final serviceResult = await supabase
           .from('services')
           .insert({
             'id_freelancer': user['id_user'],
-            'id_category': idCategory,
+            'id_category': _selectedCategoryId,
             'judul': _titleController.text.trim(),
             'deskripsi': _descController.text.trim(),
+            'thumbnail_url': thumbnailUrl,
             'status': 'pending',
             'created_at': DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toIso8601String(),
           })
           .select()
           .single();
 
       final idService = serviceResult['id_service'];
+
+      if (thumbnailUrl != null) {
+        await supabase.from('service_images').insert({
+          'id_service': idService,
+          'image_url': thumbnailUrl,
+          'created_at': DateTime.now().toIso8601String(),
+        });
+      }
 
       final packages = ['basic', 'standard', 'premium'];
 
@@ -139,14 +286,17 @@ class _AddServicePageState extends State<AddServicePage> {
               ) ??
               0,
           'deskripsi': ctrl['desc']!.text.trim(),
+          'created_at': DateTime.now().toIso8601String(),
         });
       }
+
+      await widget.controller.fetchServices();
+
+      if (!mounted) return;
 
       setState(() => _loading = false);
 
       widget.onServiceAdded();
-
-      Navigator.pop(context);
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -154,15 +304,16 @@ class _AddServicePageState extends State<AddServicePage> {
           backgroundColor: Colors.green,
         ),
       );
+
+      Navigator.pop(context);
     } catch (e) {
       setState(() => _loading = false);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -172,14 +323,13 @@ class _AddServicePageState extends State<AddServicePage> {
       backgroundColor: const Color(0xFFFFF8EE),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 24),
-
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 44,
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
@@ -189,113 +339,148 @@ class _AddServicePageState extends State<AddServicePage> {
                         onTap: () => Navigator.pop(context),
                       ),
                     ),
-
                     const Text(
                       'Add a new service',
                       style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black,
                       ),
                     ),
                   ],
                 ),
               ),
+              const SizedBox(height: 12),
 
-              _buildLabel('Service title'),
+              _buildLabel('Service Title'),
               _buildTextField(
                 controller: _titleController,
                 hint: 'Masukkan judul service',
               ),
-
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
               _buildLabel('Service Category'),
               _buildDropdown(),
+              const SizedBox(height: 12),
 
-              const SizedBox(height: 16),
+              _buildLabel('Service Image'),
+              const Padding(
+                padding: EdgeInsets.only(bottom: 6),
+                child: Text(
+                  'Upload gambar preview service kamu',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Color(0xFFA8A8A8),
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ),
+              _buildImagePicker(),
+              const SizedBox(height: 12),
 
               _buildLabel('Service Description'),
               _buildDescriptionField(),
-
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
 
               const Text(
                 'Pricing & Packages',
                 style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black,
                 ),
               ),
-
-              const SizedBox(height: 12),
-
+              const SizedBox(height: 2),
+              const Text(
+                'Isi harga & detail untuk setiap paket',
+                style: TextStyle(fontSize: 10, color: Color(0xFFA8A8A8)),
+              ),
+              const SizedBox(height: 10),
               _buildPackageTabs(),
-
-              const SizedBox(height: 16),
-
+              const SizedBox(height: 10),
               _buildPricingSection(),
-
-              const SizedBox(height: 32),
+              const SizedBox(height: 18),
 
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(30),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      child: const Text(
-                        'Cancel',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w500,
+                  Container(
+                    height: 31,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: const Color(0xFFE5E5E5)),
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(18),
+                        onTap: () => Navigator.pop(context),
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 14),
+                          child: Center(
+                            child: Text(
+                              'Cancel',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Color(0xFF7D7D7D),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ),
                   ),
-
-                  const SizedBox(width: 12),
-
-                  GestureDetector(
-                    onTap: _loading ? null : _onRequestPressed,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 28,
-                        vertical: 12,
+                  const SizedBox(width: 8),
+                  Container(
+                    height: 31,
+                    decoration: BoxDecoration(
+                      color: _loading
+                          ? const Color(0xFFE0E0E0)
+                          : const Color(0xFFF4B544),
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x14000000),
+                          blurRadius: 4,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(18),
+                        onTap: _loading ? null : _onRequestPressed,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 18),
+                          child: Center(
+                            child: _loading
+                                ? const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.black,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Request',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.black,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                          ),
+                        ),
                       ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFB74D),
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      child: _loading
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.black,
-                              ),
-                            )
-                          : const Text(
-                              'Request',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black,
-                              ),
-                            ),
                     ),
                   ),
                 ],
               ),
-
-              const SizedBox(height: 30),
+              const SizedBox(height: 14),
             ],
           ),
         ),
@@ -303,14 +488,96 @@ class _AddServicePageState extends State<AddServicePage> {
     );
   }
 
+  Widget _buildImagePicker() {
+    return GestureDetector(
+      onTap: _uploadingImage ? null : _pickImage,
+      child: Container(
+        width: double.infinity,
+        height: 120,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFD8D8D8), width: 1),
+        ),
+        child: _uploadingImage
+            ? const Center(
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Color(0xFFBDBDBD),
+                ),
+              )
+            : _imageBytes != null
+            ? Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.memory(
+                      _imageBytes!,
+                      width: double.infinity,
+                      height: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.55),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.camera_alt, size: 12, color: Colors.white),
+                          SizedBox(width: 4),
+                          Text(
+                            'Ganti',
+                            style: TextStyle(fontSize: 11, color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            : Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.add_photo_alternate_outlined,
+                    size: 30,
+                    color: const Color(0xFFC6C6C6),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Tap untuk pilih gambar',
+                    style: TextStyle(fontSize: 10, color: Color(0xFF9F9F9F)),
+                  ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    'JPG, PNG, WEBP',
+                    style: TextStyle(fontSize: 9, color: Color(0xFFC3C3C3)),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
   Widget _buildLabel(String text) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 5),
       child: Text(
         text,
         style: const TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 15,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: Colors.black,
         ),
       ),
     );
@@ -321,19 +588,23 @@ class _AddServicePageState extends State<AddServicePage> {
     required String hint,
   }) {
     return Container(
+      height: 38,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(19),
+        border: Border.all(color: const Color(0xFFDCDCDC), width: 1),
       ),
       child: TextField(
         controller: controller,
+        style: const TextStyle(fontSize: 12, color: Colors.black87),
         decoration: InputDecoration(
           hintText: hint,
+          hintStyle: const TextStyle(color: Color(0xFFC4C4C4), fontSize: 11),
           border: InputBorder.none,
+          isDense: true,
           contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 14,
+            horizontal: 14,
+            vertical: 12,
           ),
         ),
       ),
@@ -342,49 +613,81 @@ class _AddServicePageState extends State<AddServicePage> {
 
   Widget _buildDropdown() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      height: 38,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(19),
+        border: Border.all(color: const Color(0xFFDCDCDC), width: 1),
       ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: _selectedCategory,
-          isExpanded: true,
-          hint: const Text('Pilih kategori'),
-          items: widget.controller.categories
-              .map<DropdownMenuItem<String>>(
-                (String cat) => DropdownMenuItem<String>(
-                  value: cat,
-                  child: Text(cat),
+      child: _loadingCategories
+          ? const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Loading kategori...',
+                style: TextStyle(color: Color(0xFFC4C4C4), fontSize: 11),
+              ),
+            )
+          : _categories.isEmpty
+          ? const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Kategori belum tersedia',
+                style: TextStyle(color: Color(0xFFC4C4C4), fontSize: 11),
+              ),
+            )
+          : DropdownButtonHideUnderline(
+              child: DropdownButton<int>(
+                value: _selectedCategoryId,
+                isExpanded: true,
+                hint: const Text(
+                  'Pilih kategori',
+                  style: TextStyle(color: Color(0xFFC4C4C4), fontSize: 11),
                 ),
-              )
-              .toList(),
-          onChanged: (val) {
-            setState(() {
-              _selectedCategory = val;
-            });
-          },
-        ),
-      ),
+                icon: const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  size: 16,
+                  color: Color(0xFF7C7C7C),
+                ),
+                items: _categories.map((cat) {
+                  return DropdownMenuItem<int>(
+                    value: cat.id,
+                    child: Text(
+                      cat.name,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedCategoryId = value;
+                  });
+                },
+              ),
+            ),
     );
   }
 
   Widget _buildDescriptionField() {
     return Container(
+      height: 78,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFDCDCDC), width: 1),
       ),
       child: TextField(
         controller: _descController,
         maxLines: 5,
+        style: const TextStyle(fontSize: 12, color: Colors.black87),
         decoration: const InputDecoration(
-          hintText: 'Jelaskan service kamu',
+          hintText: 'Jelaskan service kamu secara detail...',
+          hintStyle: TextStyle(color: Color(0xFFC4C4C4), fontSize: 11),
           border: InputBorder.none,
-          contentPadding: EdgeInsets.all(16),
+          contentPadding: EdgeInsets.all(12),
         ),
       ),
     );
@@ -394,9 +697,10 @@ class _AddServicePageState extends State<AddServicePage> {
     final tabs = ['Basic', 'Standard', 'Premium'];
 
     return Container(
+      height: 28,
       decoration: BoxDecoration(
-        color: const Color(0xFFF5DFA0),
-        borderRadius: BorderRadius.circular(8),
+        color: const Color(0xFFF2DE99),
+        borderRadius: BorderRadius.circular(6),
       ),
       child: Row(
         children: List.generate(tabs.length, (i) {
@@ -404,27 +708,23 @@ class _AddServicePageState extends State<AddServicePage> {
 
           return Expanded(
             child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  _selectedPackageTab = i;
-                });
-              },
+              onTap: () => setState(() => _selectedPackageTab = i),
               child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? const Color(0xFFE8C060)
+                      ? const Color(0xFFE1BC4C)
                       : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: Center(
                   child: Text(
                     tabs[i],
                     style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: isSelected
-                          ? Colors.black
-                          : Colors.black54,
+                      fontSize: 10,
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w500,
+                      color: const Color(0xFF5B4B1F),
                     ),
                   ),
                 ),
@@ -438,61 +738,107 @@ class _AddServicePageState extends State<AddServicePage> {
 
   Widget _buildPricingSection() {
     final ctrlMap = _packageControllers[_currentPackageKey]!;
+    final packageName =
+        _currentPackageKey[0].toUpperCase() + _currentPackageKey.substring(1);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Package: ${_currentPackageKey.toUpperCase()}',
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-
-        const SizedBox(height: 12),
-
-        _buildPriceField(ctrlMap['price']!),
-
-        const SizedBox(height: 12),
-
-        _buildDeliveryField(ctrlMap['delivery']!),
-
-        const SizedBox(height: 12),
-
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey.shade300),
-          ),
-          child: TextField(
-            controller: ctrlMap['desc']!,
-            maxLines: 4,
-            decoration: const InputDecoration(
-              hintText: 'Short Description',
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.all(16),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE9E9E9), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Paket $packageName',
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
             ),
           ),
-        ),
-      ],
+          const SizedBox(height: 10),
+          const Text(
+            'Harga (Rp)',
+            style: TextStyle(
+              fontSize: 10,
+              color: Color(0xFF8B8B8B),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 5),
+          _buildPriceField(ctrlMap['price']!),
+          const SizedBox(height: 10),
+          const Text(
+            'Delivery Time (hari)',
+            style: TextStyle(
+              fontSize: 10,
+              color: Color(0xFF8B8B8B),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 5),
+          _buildDeliveryField(ctrlMap['delivery']!),
+          const SizedBox(height: 10),
+          const Text(
+            'Deskripsi Paket',
+            style: TextStyle(
+              fontSize: 10,
+              color: Color(0xFF8B8B8B),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Container(
+            height: 64,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF9F9F9),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFE1E1E1), width: 1),
+            ),
+            child: TextField(
+              controller: ctrlMap['desc']!,
+              maxLines: 3,
+              style: const TextStyle(fontSize: 11, color: Colors.black87),
+              decoration: InputDecoration(
+                hintText: 'Apa yang didapat di paket $packageName?',
+                hintStyle: const TextStyle(
+                  color: Color(0xFFC4C4C4),
+                  fontSize: 11,
+                ),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 10,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildPriceField(TextEditingController controller) {
     return Container(
+      height: 34,
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade300),
+        color: const Color(0xFFF9F9F9),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE1E1E1), width: 1),
       ),
       child: TextField(
         controller: controller,
         keyboardType: TextInputType.number,
+        style: const TextStyle(fontSize: 11, color: Colors.black87),
         decoration: const InputDecoration(
-          hintText: 'Rp 50.000',
+          hintText: 'Contoh: 150000',
+          hintStyle: TextStyle(color: Color(0xFFC4C4C4), fontSize: 11),
           border: InputBorder.none,
-          contentPadding: EdgeInsets.all(16),
+          contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         ),
       ),
     );
@@ -500,18 +846,21 @@ class _AddServicePageState extends State<AddServicePage> {
 
   Widget _buildDeliveryField(TextEditingController controller) {
     return Container(
+      height: 34,
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade300),
+        color: const Color(0xFFF9F9F9),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE1E1E1), width: 1),
       ),
       child: TextField(
         controller: controller,
         keyboardType: TextInputType.number,
+        style: const TextStyle(fontSize: 11, color: Colors.black87),
         decoration: const InputDecoration(
-          hintText: 'Delivery time (hari)',
+          hintText: 'Contoh: 3',
+          hintStyle: TextStyle(color: Color(0xFFC4C4C4), fontSize: 11),
           border: InputBorder.none,
-          contentPadding: EdgeInsets.all(16),
+          contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         ),
       ),
     );

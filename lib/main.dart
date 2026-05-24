@@ -7,7 +7,6 @@ final ValueNotifier<String> globalUsername = ValueNotifier<String>(
   '',
 ); // ✅ aman
 
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 

@@ -5,11 +5,7 @@ class ServiceCard extends StatelessWidget {
   final ServiceModel service;
   final VoidCallback? onTap;
 
-  const ServiceCard({
-    super.key,
-    required this.service,
-    this.onTap,
-  });
+  const ServiceCard({super.key, required this.service, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -39,20 +35,11 @@ class ServiceCard extends StatelessWidget {
           children: [
             // ================= IMAGE =================
             ClipRRect(
-              borderRadius:
-                  BorderRadius.vertical(top: Radius.circular(s(16))),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(s(16))),
               child: SizedBox(
                 height: s(120),
                 width: double.infinity,
-                child: Image.asset(
-                  service.imagePath ?? 'assets/images/placeholder.png',
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    color: Colors.grey[200],
-                    child:
-                        Icon(Icons.person, size: s(50), color: Colors.grey),
-                  ),
-                ),
+                child: _buildImage(service, s),
               ),
             ),
 
@@ -126,8 +113,7 @@ class ServiceCard extends StatelessWidget {
                     service.university,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style:
-                        TextStyle(fontSize: s(10), color: Colors.grey[600]),
+                    style: TextStyle(fontSize: s(10), color: Colors.grey[600]),
                   ),
 
                   SizedBox(height: s(10)),
@@ -156,6 +142,36 @@ class ServiceCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildImage(ServiceModel service, double Function(double) s) {
+    final url = service.imagePath != null &&
+            service.imagePath!.startsWith('http')
+        ? service.imagePath!
+        : service.serviceImages.isNotEmpty &&
+                service.serviceImages.first.startsWith('http')
+            ? service.serviceImages.first
+            : null;
+
+    if (url != null) {
+      return Image.network(
+        url,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: s(120),
+        errorBuilder: (_, __, ___) => _placeholder(s),
+      );
+    }
+    return _placeholder(s);
+  }
+
+  Widget _placeholder(double Function(double) s) {
+    return Container(
+      color: Colors.grey[200],
+      width: double.infinity,
+      height: s(120),
+      child: Icon(Icons.image, size: s(40), color: Colors.grey),
     );
   }
 }

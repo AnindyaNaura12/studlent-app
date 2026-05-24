@@ -92,15 +92,19 @@ class _ProfilePageState extends State<ProfilePage> {
       setState(() {
         _userData = data;
         _controller.isLoggedIn = true;
-        _controller.isFreelancer = data['role'] == 'freelancer';
-        _nameController.text = data['nama'] ?? '';
+
+        // ✅ Cek is_freelancer, bukan role
+        _controller.isFreelancer = data['is_freelancer'] == true;
+
+        _nameController.text     = data['nama'] ?? '';
         _usernameController.text = data['username'] ?? '';
-        _emailController.text = data['email'] ?? '';
+        _emailController.text    = data['email'] ?? '';
         _loading = false;
-        globalUsername.value = data['username'] ?? ''; // ← TAMBAH
+        globalUsername.value = data['username'] ?? '';
       });
 
-      if (data['role'] == 'freelancer') {
+      // Load freelancer stats kalau memang freelancer
+      if (data['is_freelancer'] == true) {
         final stats = await _controller.getFreelancerStats(
           data['id_user'],
           'monthly',
@@ -778,13 +782,19 @@ class _ProfilePageState extends State<ProfilePage> {
     return GestureDetector(
       onTap: () async {
         if (text == "Freelance") {
-          final isRegistered = _userData?['role'] == 'freelancer';
+          // Cek apakah sudah daftar freelancer
+          final isRegistered = _userData?['is_freelancer'] == true;
           if (!isRegistered) {
+            // Belum daftar → arahkan ke RegisterFreelancerPage
             _showJoinFreelanceDialog(context);
             return;
           }
+          // Sudah daftar → switch ke tampilan freelancer
+          setState(() => _controller.isFreelancer = true);
+        } else {
+          // Switch ke tampilan client — tidak ubah DB sama sekali
+          setState(() => _controller.isFreelancer = false);
         }
-        setState(() => _controller.isFreelancer = text == "Freelance");
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),

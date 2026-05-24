@@ -1,80 +1,64 @@
 <?php
 
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\ChatController;
 use App\Http\Controllers\DealController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PaymentController;
-use App\Http\Controllers\MidtransWebhookController;
 use App\Http\Controllers\EscrowController;
 use App\Http\Controllers\RevisionController;
+use App\Http\Controllers\MidtransWebhookController;
 
-/*
-|--------------------------------------------------------------------------
-| AUTH
-|--------------------------------------------------------------------------
-*/
+// ─────────────────────────────────────────────────────────────
+// PUBLIC ROUTES — tanpa auth
+// ─────────────────────────────────────────────────────────────
 Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
+Route::post('/login',    [AuthController::class, 'login']);
 
-/*
-|--------------------------------------------------------------------------
-| PROTECTED ROUTES
-|--------------------------------------------------------------------------
-*/
+// Webhook Midtrans — tanpa auth, yang hit server Midtrans bukan user
+Route::post('/midtrans/callback', [MidtransWebhookController::class, 'callback']);
+
+// ─────────────────────────────────────────────────────────────
+// PROTECTED ROUTES — wajib login (Sanctum)
+// ─────────────────────────────────────────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
 
-    /*
-    |--------------------------------------------------------------------------
-    | CHAT SYSTEM
-    |--------------------------------------------------------------------------
-    */
-    Route::post('/chat/send', [ChatController::class, 'send']);
-    Route::get('/chat/{orderId}', [ChatController::class, 'get']);
+    // ── Auth ──────────────────────────────────────────────────
+    Route::post('/logout', [AuthController::class, 'logout']);
+    Route::get('/me',      [AuthController::class, 'me']);
 
-    /*
-    |--------------------------------------------------------------------------
-    | DEAL SYSTEM
-    |--------------------------------------------------------------------------
-    */
-    Route::post('/deal', [DealController::class, 'create']);
-    Route::post('/deal/accept/{id}', [DealController::class, 'accept']);
+    // ── Deal ──────────────────────────────────────────────────
+    Route::post('/deals',            [DealController::class, 'create']);
+    Route::post('/deals/{id}/accept',[DealController::class, 'accept']);
 
-    /*
-    |--------------------------------------------------------------------------
-    | ORDER SYSTEM
-    |--------------------------------------------------------------------------
-    */
-    Route::post('/order/{dealId}', [OrderController::class, 'createFromDeal']);
+    // ── Order ─────────────────────────────────────────────────
+    Route::post('/orders/from-deal/{dealId}', [OrderController::class, 'createFromDeal']);
 
-    /*
-    |--------------------------------------------------------------------------
-    | PAYMENT SYSTEM (MIDTRANS)
-    |--------------------------------------------------------------------------
-    */
-    Route::get('/pay/{orderId}', [PaymentController::class, 'pay']);
-
-    /*
-    |--------------------------------------------------------------------------
-    | REVISION SYSTEM
-    |--------------------------------------------------------------------------
-    */
-    Route::post('/revision', [RevisionController::class, 'request']);
-
-    /*
-    |--------------------------------------------------------------------------
-    | ESCROW RELEASE (ADMIN ONLY)
-    |--------------------------------------------------------------------------
-    */
-    Route::middleware('role:admin')->group(function () {
-        Route::post('/escrow/release/{paymentId}', [EscrowController::class, 'release']);
+    // Polling status — dicek Flutter tiap 4 detik setelah buka WebView
+    Route::get('/orders/{id}/status', function ($id) {
+        $order = \App\Models\Order::with('payment')->findOrFail($id);
+        return response()->json([
+            'status'         => $order->status,
+            'payment_status' => $order->payment?->status,
+        ]);
     });
-});
 
-/*
-|--------------------------------------------------------------------------
-| MIDTRANS WEBHOOK (NO AUTH)
-|--------------------------------------------------------------------------
-*/
-Route::post('/midtrans/callback', [MidtransWebhookController::class, 'callback']);
+    // ── Payment ───────────────────────────────────────────────
+
+    // Method lama — tetap ada
+    Route::post('/payments/{orderId}/pay', [PaymentController::class, 'pay']);
+
+    // Method baru — Flutter hit ini untuk dapat payment_url Midtrans
+    Route::post('/payment/initiate', [PaymentController::class, 'initiatePayment']);
+
+    // Method baru — Flutter hit ini saat client tekan "Pesanan Selesai"
+    Route::post('/payment/complete', [PaymentController::class, 'completeOrder']);
+
+    // ── Escrow ────────────────────────────────────────────────
+    Route::post('/escrow/{paymentId}/release', [EscrowController::class, 'release'])
+        ->middleware('ensure.payment.paid'); // pastikan payment sudah lunas
+
+    // ── Revision ──────────────────────────────────────────────
+    Route::post('/revisions', [RevisionController::class, 'request']);
+});
