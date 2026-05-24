@@ -88,20 +88,22 @@ class _ProfilePageState extends State<ProfilePage> {
 
     if (!mounted) return;
 
-    if (data != null) {
-      setState(() {
-        _userData = data;
-        _controller.isLoggedIn = true;
+   if (data != null) {
+    setState(() {
+      _userData = data;
+      _controller.isLoggedIn = true;
 
-        // ✅ Cek is_freelancer, bukan role
-        _controller.isFreelancer = data['is_freelancer'] == true;
+      // SELALU buka profile client saat pertama masuk
+      _controller.isFreelancer = false;
 
-        _nameController.text     = data['nama'] ?? '';
-        _usernameController.text = data['username'] ?? '';
-        _emailController.text    = data['email'] ?? '';
-        _loading = false;
-        globalUsername.value = data['username'] ?? '';
-      });
+      _nameController.text = data['nama'] ?? '';
+      _usernameController.text = data['username'] ?? '';
+      _emailController.text = data['email'] ?? '';
+
+      _loading = false;
+      globalUsername.value = data['username'] ?? '';
+      }
+    );
 
       // Load freelancer stats kalau memang freelancer
       if (data['is_freelancer'] == true) {

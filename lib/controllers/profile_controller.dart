@@ -83,7 +83,8 @@ class ProfileController {
           .from('services')
           .select('id_service')
           .eq('id_freelancer', idUser)
-          .eq('status', 'approved');
+          .eq('status', 'active');
+
 
       // Hitung rating rata-rata
       final reviews = await supabase
@@ -103,14 +104,17 @@ class ProfileController {
       // Filter earned berdasarkan periode
       DateTime fromDate;
       final now = DateTime.now();
+
       switch (period) {
         case 'weekly':
           fromDate = now.subtract(const Duration(days: 7));
           break;
+
         case 'yearly':
           fromDate = DateTime(now.year, 1, 1);
           break;
-        default: // monthly
+
+        default:
           fromDate = DateTime(now.year, now.month, 1);
       }
 
@@ -120,10 +124,9 @@ class ProfileController {
           .eq('status', 'paid')
           .gte('tanggal_bayar', fromDate.toIso8601String());
 
-      // Filter hanya order milik freelancer ini
       double earned = 0;
+
       for (var p in payments as List) {
-        // Cek via orders table
         earned += (p['freelancer_receive'] ?? 0).toDouble();
       }
 
@@ -134,7 +137,12 @@ class ProfileController {
       };
     } catch (e) {
       debugPrint('getFreelancerStats error: $e');
-      return {'services': 0, 'rating': 0.0, 'earned': 0.0};
+
+      return {
+        'services': 0,
+        'rating': 0.0,
+        'earned': 0.0,
+      };
     }
   }
 

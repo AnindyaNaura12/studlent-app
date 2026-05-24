@@ -1,6 +1,6 @@
 // ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'; // ← TAMBAH INI
 import '../../models/message_model.dart';
 import '../../controllers/chat_controller.dart';
 
@@ -42,7 +42,6 @@ class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
 
     Stream<List<Message>>? stream;
     if (userId != null) {
-      // Filter hanya pesan antara user ini dan freelancer ini
       stream = supabase
           .from('messages')
           .stream(primaryKey: ['id'])
@@ -50,10 +49,10 @@ class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
           .map((data) {
             return data
                 .where((json) {
-                  final sender   = json['sender_id'] as int?;
+                  final sender = json['sender_id'] as int?;
                   final receiver = json['receiver_id'] as int?;
                   return (sender == userId && receiver == widget.freelancerId) ||
-                         (sender == widget.freelancerId && receiver == userId);
+                      (sender == widget.freelancerId && receiver == userId);
                 })
                 .map((json) => Message.fromJson(json))
                 .toList();
@@ -61,12 +60,13 @@ class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
     }
 
     setState(() {
-      _myUserId       = userId;
+      _myUserId = userId;
       _messagesStream = stream;
-      _loadingUserId  = false;
+      _loadingUserId = false;
     });
   }
 
+  // ← FIX: Future.delayed sekarang di dalam fungsi sendMessage
   Future<void> sendMessage() async {
     if (_controller.text.trim().isEmpty) return;
     if (_myUserId == null) return;
@@ -76,14 +76,15 @@ class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
 
     try {
       await supabase.from('messages').insert({
-        'text':        text,
-        'sender_id':   _myUserId,
+        'text': text,
+        'sender_id': _myUserId,
         'receiver_id': widget.freelancerId,
       });
     } catch (e) {
-      debugPrint("Gagal kirim pesan: $e");
+      debugPrint("Gagal memproses pengiriman pesan: $e");
     }
 
+    // ← FIX: ini harus di dalam sendMessage, bukan di luar
     Future.delayed(const Duration(milliseconds: 100), () {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
@@ -95,9 +96,17 @@ class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
     });
   }
 
+  // ← FIX: nama konsisten jadi formatTime
   String formatTime(DateTime time) {
     return "${time.hour.toString().padLeft(2, '0')}:"
         "${time.minute.toString().padLeft(2, '0')}";
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
@@ -141,7 +150,6 @@ class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
                 )
               : Column(
                   children: [
-                    // Chat Area
                     Expanded(
                       child: Container(
                         padding: const EdgeInsets.all(16),
@@ -162,8 +170,10 @@ class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
                               );
                             }
 
-                            if (snapshot.connectionState == ConnectionState.waiting) {
-                              return const Center(child: CircularProgressIndicator());
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return const Center(
+                                  child: CircularProgressIndicator());
                             }
 
                             final messages = snapshot.data ?? [];
@@ -174,7 +184,8 @@ class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Icon(Icons.chat_bubble_outline,
-                                        size: 48, color: Colors.grey.shade300),
+                                        size: 48,
+                                        color: Colors.grey.shade300),
                                     const SizedBox(height: 12),
                                     const Text(
                                       'Belum ada pesan.\nMulai percakapan!',
@@ -198,7 +209,8 @@ class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
                               controller: _scrollController,
                               itemCount: messages.length,
                               itemBuilder: (context, index) {
-                                final msg      = messages[index];
+                                final msg = messages[index];
+                                // ← FIX: pakai _myUserId bukan widget.freelancerId
                                 final isSender = msg.senderId == _myUserId;
 
                                 return Align(
@@ -209,22 +221,29 @@ class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
                                     mainAxisAlignment: isSender
                                         ? MainAxisAlignment.end
                                         : MainAxisAlignment.start,
-                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.end,
                                     children: [
                                       if (!isSender) ...[
                                         CircleAvatar(
                                           radius: 14,
-                                          backgroundImage: widget.image.isNotEmpty &&
-                                                  widget.image.startsWith('http')
-                                              ? NetworkImage(widget.image) as ImageProvider
+                                          backgroundImage: widget
+                                                      .image.isNotEmpty &&
+                                                  widget.image
+                                                      .startsWith('http')
+                                              ? NetworkImage(widget.image)
+                                                  as ImageProvider
                                               : null,
                                           child: widget.image.isEmpty ||
-                                                  !widget.image.startsWith('http')
-                                              ? const Icon(Icons.person, size: 14)
+                                                  !widget.image
+                                                      .startsWith('http')
+                                              ? const Icon(Icons.person,
+                                                  size: 14)
                                               : null,
                                         ),
                                         const SizedBox(width: 6),
                                       ],
+                                      // ← FIX: nama method konsisten
                                       _chatBubble(msg, isSender),
                                       if (isSender) const SizedBox(width: 6),
                                     ],
@@ -237,10 +256,9 @@ class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
                       ),
                     ),
 
-                    // Input
                     Container(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 8),
                       color: Colors.white,
                       child: Row(
                         children: [
@@ -253,8 +271,8 @@ class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
                                 hintText: "Type message",
                                 filled: true,
                                 fillColor: Colors.grey[200],
-                                contentPadding:
-                                    const EdgeInsets.symmetric(horizontal: 16),
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(25),
                                   borderSide: BorderSide.none,
@@ -271,7 +289,8 @@ class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
                                 color: Color(0xFFFFA726),
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(Icons.send, color: Colors.white),
+                              child: const Icon(Icons.send,
+                                  color: Colors.white),
                             ),
                           ),
                         ],
@@ -282,6 +301,7 @@ class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
     );
   }
 
+  // ← FIX: nama jadi _chatBubble (konsisten dengan yang dipanggil di atas)
   Widget _chatBubble(Message msg, bool isSender) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -296,6 +316,7 @@ class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
         children: [
           Text(msg.text),
           const SizedBox(height: 4),
+          // ← FIX: nama konsisten formatTime
           Text(
             formatTime(msg.time),
             style: const TextStyle(fontSize: 10, color: Colors.grey),

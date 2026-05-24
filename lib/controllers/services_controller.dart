@@ -94,7 +94,7 @@ class ServicesController {
   // ── Dummy fallback ────────────────────────────────────────
   List<ServiceModel> services = [
     ServiceModel(
-      id: '1',
+      id: '11',
       title: 'App Design - StudyBuddy',
       category: 'Design',
       description: 'Modern UI for study group organization',
