@@ -46,8 +46,8 @@ class _ServicesPageState extends State<ServicesPage> {
   List<ServiceModel> _popularPreviewServices = [];
 
   final List<Map<String, dynamic>> _priceRanges = [
-    {'label': 'Rp 0 - 50.000',       'min': 0.0,      'max': 50000.0},
-    {'label': 'Rp 51.000 - 100.000',  'min': 51000.0,  'max': 100000.0},
+    {'label': 'Rp 0 - 50.000', 'min': 0.0, 'max': 50000.0},
+    {'label': 'Rp 51.000 - 100.000', 'min': 51000.0, 'max': 100000.0},
     {'label': 'Rp 101.000 - 150.000', 'min': 101000.0, 'max': 150000.0},
     {'label': 'Rp 151.000 - 200.000', 'min': 151000.0, 'max': 200000.0},
     {'label': 'Rp 201.000 - 250.000', 'min': 201000.0, 'max': 250000.0},
@@ -146,7 +146,11 @@ class _ServicesPageState extends State<ServicesPage> {
 
   double _parsePrice(String raw) {
     return double.tryParse(
-          raw.replaceAll('Rp', '').replaceAll('.', '').replaceAll(' ', '').trim(),
+          raw
+              .replaceAll('Rp', '')
+              .replaceAll('.', '')
+              .replaceAll(' ', '')
+              .trim(),
         ) ??
         0;
   }
@@ -169,12 +173,14 @@ class _ServicesPageState extends State<ServicesPage> {
       bool matchCategory = true;
       if (widget.initialCategory != null) {
         final cat = widget.initialCategory!.toLowerCase();
-        matchCategory = service.category.toLowerCase().contains(cat) ||
+        matchCategory =
+            service.category.toLowerCase().contains(cat) ||
             service.title.toLowerCase().contains(cat);
       } else if (_activeCategoryIndex != null &&
           _activeCategoryIndex! < categories.length) {
         final cat = categories[_activeCategoryIndex!].title.toLowerCase();
-        matchCategory = service.category.toLowerCase().contains(cat) ||
+        matchCategory =
+            service.category.toLowerCase().contains(cat) ||
             service.title.toLowerCase().contains(cat);
       }
 
@@ -234,8 +240,9 @@ class _ServicesPageState extends State<ServicesPage> {
       backgroundColor: Colors.transparent,
       builder: (_) => FilterSheet(
         onlyPrice: widget.initialCategory != null,
-        initialCategoryIndex:
-            widget.initialCategory != null ? null : _activeCategoryIndex,
+        initialCategoryIndex: widget.initialCategory != null
+            ? null
+            : _activeCategoryIndex,
         initialPriceIndex: _activePriceIndex,
       ),
     );
@@ -286,8 +293,8 @@ class _ServicesPageState extends State<ServicesPage> {
 
     final List<ServiceModel> displayedServices =
         (widget.initialCategory != null || _isFilterActive)
-            ? _filteredServices
-            : _randomSuggestedServices;
+        ? _filteredServices
+        : _randomSuggestedServices;
 
     return Scaffold(
       backgroundColor: const Color(0xFFFFF8EE),
@@ -334,7 +341,9 @@ class _ServicesPageState extends State<ServicesPage> {
                             decoration: InputDecoration(
                               hintText: "What you're looking for?",
                               hintStyle: TextStyle(
-                                  fontSize: s(13), color: Colors.grey),
+                                fontSize: s(13),
+                                color: Colors.grey,
+                              ),
                               prefixIcon: Icon(Icons.search, size: s(20)),
                               suffixIcon: _searchQuery.trim().isNotEmpty
                                   ? IconButton(
@@ -344,8 +353,9 @@ class _ServicesPageState extends State<ServicesPage> {
                                   : null,
                               filled: true,
                               fillColor: Colors.white,
-                              contentPadding:
-                                  EdgeInsets.symmetric(vertical: s(14)),
+                              contentPadding: EdgeInsets.symmetric(
+                                vertical: s(14),
+                              ),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(s(30)),
                                 borderSide: BorderSide.none,
@@ -395,8 +405,9 @@ class _ServicesPageState extends State<ServicesPage> {
                               ),
                             if (_activePriceIndex != null)
                               _buildFilterChip(
-                                label: _priceRanges[_activePriceIndex!]
-                                    ['label'] as String,
+                                label:
+                                    _priceRanges[_activePriceIndex!]['label']
+                                        as String,
                                 onDeleted: _removePriceFilter,
                                 s: s,
                               ),
@@ -423,7 +434,8 @@ class _ServicesPageState extends State<ServicesPage> {
                             onPressed: () => Navigator.push(
                               context,
                               MaterialPageRoute(
-                                  builder: (_) => const AllServicesPage()),
+                                builder: (_) => const AllServicesPage(),
+                              ),
                             ),
                             child: Text(
                               "Show All",
@@ -445,14 +457,18 @@ class _ServicesPageState extends State<ServicesPage> {
                             child: Center(
                               child: Column(
                                 children: [
-                                  Icon(Icons.search_off,
-                                      size: s(48), color: Colors.black26),
+                                  Icon(
+                                    Icons.search_off,
+                                    size: s(48),
+                                    color: Colors.black26,
+                                  ),
                                   SizedBox(height: s(8)),
                                   Text(
                                     'Tidak ada service yang sesuai',
                                     style: TextStyle(
-                                        fontSize: s(13),
-                                        color: Colors.black45),
+                                      fontSize: s(13),
+                                      color: Colors.black45,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -478,8 +494,7 @@ class _ServicesPageState extends State<ServicesPage> {
                           ),
 
                     // ── POPULAR SECTION ──
-                    if (!_isFilterActive &&
-                        widget.initialCategory == null) ...[
+                    if (!_isFilterActive && widget.initialCategory == null) ...[
                       SizedBox(height: s(16)),
                       if (_popularPreviewServices.isNotEmpty) ...[
                         Row(
@@ -497,8 +512,8 @@ class _ServicesPageState extends State<ServicesPage> {
                               onPressed: () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                    builder: (_) =>
-                                        const PopularServicesPage()),
+                                  builder: (_) => const PopularServicesPage(),
+                                ),
                               ),
                               child: Text(
                                 "Show All",
@@ -525,8 +540,7 @@ class _ServicesPageState extends State<ServicesPage> {
                                   context,
                                   MaterialPageRoute(
                                     builder: (_) => ServiceDetailPage(
-                                      service:
-                                          _popularPreviewServices[index],
+                                      service: _popularPreviewServices[index],
                                     ),
                                   ),
                                 ),

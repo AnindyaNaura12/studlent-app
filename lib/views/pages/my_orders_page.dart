@@ -14,17 +14,26 @@ class _MyOrdersPageState extends State<MyOrdersPage>
     with SingleTickerProviderStateMixin {
   final MyOrdersController _controller = MyOrdersController();
   late TabController _tabController;
+  late Future<List<OrderModel>> _ordersFuture;
 
   final List<String> _tabs = [
+    'All',
     'Active',
-    'In Progress',
-    'Completed',
+    'Done',
   ];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: _tabs.length, vsync: this);
+    _refreshOrders();
+  }
+
+  // Fungsi trigger async fetch
+  Future<void> _refreshOrders() async {
+    setState(() {
+      _ordersFuture = _controller.fetchUserOrders();
+    });
   }
 
   @override
@@ -97,28 +106,82 @@ class _MyOrdersPageState extends State<MyOrdersPage>
 
             const Divider(height: 1),
 
-            // ── TAB CONTENT ──
+            // ── TAB CONTENT WITH FUTURE BUILDER ──
             Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: _tabs.map((status) {
-                  final orders = _controller.getByStatus(status);
-                  if (orders.isEmpty) {
-                    return const Center(
-                      child: Text(
-                        'Tidak ada order.',
-                        style: TextStyle(color: Colors.grey),
-                      ),
+              child: RefreshIndicator(
+                color: const Color(0xFFFFB74D),
+                onRefresh: _refreshOrders,
+                child: FutureBuilder<List<OrderModel>>(
+                  future: _ordersFuture,
+                  builder: (context, snapshot) {
+                    // 1. Loading State
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFFFFB74D),
+                        ),
+                      );
+                    }
+
+                    // 2. Error State
+                    if (snapshot.hasError) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                            const SizedBox(height: 16),
+                            Text('Terjadi kesalahan:\n${snapshot.error}', textAlign: TextAlign.center,),
+                            TextButton(
+                              onPressed: _refreshOrders,
+                              child: const Text('Coba Lagi'),
+                            )
+                          ],
+                        ),
+                      );
+                    }
+
+                    // 3. Success State
+                    final allOrders = snapshot.data ?? [];
+
+                    return TabBarView(
+                      controller: _tabController,
+                      children: _tabs.map((tabName) {
+                        final filteredOrders = _controller.getOrdersByTab(allOrders, tabName);
+                        
+                        // Empty State
+                        if (filteredOrders.isEmpty) {
+                          return Center(
+                            child: SingleChildScrollView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.inbox, size: 64, color: Colors.grey.shade300),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'Tidak ada order di tab ini.',
+                                    style: TextStyle(color: Colors.grey.shade600),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }
+
+                        // Populated List
+                        return ListView.builder(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.all(16),
+                          itemCount: filteredOrders.length,
+                          itemBuilder: (context, index) {
+                            return _buildOrderCard(filteredOrders[index]);
+                          },
+                        );
+                      }).toList(),
                     );
-                  }
-                  return ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: orders.length,
-                    itemBuilder: (context, index) {
-                      return _buildOrderCard(orders[index]);
-                    },
-                  );
-                }).toList(),
+                  },
+                ),
               ),
             ),
           ],
@@ -128,6 +191,9 @@ class _MyOrdersPageState extends State<MyOrdersPage>
   }
 
   Widget _buildOrderCard(OrderModel order) {
+    // Cek apakah avatar dari asset lokal atau network URL (supaya aman jika dari database)
+    final isNetworkImage = order.freelancerAvatar.startsWith('http');
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
@@ -150,7 +216,10 @@ class _MyOrdersPageState extends State<MyOrdersPage>
             children: [
               CircleAvatar(
                 radius: 28,
-                backgroundImage: AssetImage(order.freelancerAvatar),
+                backgroundColor: Colors.grey[200],
+                backgroundImage: isNetworkImage 
+                    ? NetworkImage(order.freelancerAvatar) as ImageProvider
+                    : AssetImage(order.freelancerAvatar),
                 onBackgroundImageError: (_, __) {},
               ),
               const SizedBox(width: 12),
@@ -164,6 +233,8 @@ class _MyOrdersPageState extends State<MyOrdersPage>
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     Text(
                       order.serviceName,
@@ -171,6 +242,8 @@ class _MyOrdersPageState extends State<MyOrdersPage>
                         fontSize: 13,
                         color: Colors.black54,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -215,7 +288,7 @@ class _MyOrdersPageState extends State<MyOrdersPage>
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  order.status,
+                  _controller.formatDisplayStatus(order.status), // String di-format agar cantik
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 12,

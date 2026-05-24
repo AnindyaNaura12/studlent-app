@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../widgets/custom_back_button.dart';
 import '../../models/services_model.dart';
+import '../../models/service_category_model.dart';
 import '../../controllers/my_services_controller.dart';
 
 class EditServicePage extends StatefulWidget {
@@ -26,28 +29,182 @@ class _EditServicePageState extends State<EditServicePage> {
   late TextEditingController _deliveryController;
   late TextEditingController _shortDescController;
 
-  String? _selectedCategory;
+  final ImagePicker _picker = ImagePicker();
+  final _supabase = Supabase.instance.client;
+
+  int? _selectedCategoryId;
   int _selectedPackageTab = 0;
   List<String> _serviceImages = [];
+  bool _loadingCategories = false;
+  bool _saving = false;
+  bool _uploadingImage = false;
+
+  List<ServiceCategory> _categories = [];
+
+  late Map<String, String> _basicPackageData;
+  late Map<String, String> _standardPackageData;
+  late Map<String, String> _premiumPackageData;
 
   @override
   void initState() {
     super.initState();
+
     _titleController = TextEditingController(text: widget.service.title);
     _descController = TextEditingController(text: widget.service.description);
+
+    _basicPackageData = {
+      'price': widget.service.basicPackage.price,
+      'deliveryTime': widget.service.basicPackage.deliveryTime,
+      'shortDescription': widget.service.basicPackage.shortDescription,
+    };
+
+    _standardPackageData = {
+      'price': widget.service.standardPackage?.price ?? '',
+      'deliveryTime': widget.service.standardPackage?.deliveryTime ?? '',
+      'shortDescription':
+          widget.service.standardPackage?.shortDescription ?? '',
+    };
+
+    _premiumPackageData = {
+      'price': widget.service.premiumPackage?.price ?? '',
+      'deliveryTime': widget.service.premiumPackage?.deliveryTime ?? '',
+      'shortDescription': widget.service.premiumPackage?.shortDescription ?? '',
+    };
+
     _priceController = TextEditingController(
-      text: widget.service.basicPackage.price,
+      text: _basicPackageData['price'] ?? '',
     );
     _deliveryController = TextEditingController(
-      text: widget.service.basicPackage.deliveryTime,
+      text: _basicPackageData['deliveryTime'] ?? '',
     );
     _shortDescController = TextEditingController(
-      text: widget.service.basicPackage.shortDescription,
+      text: _basicPackageData['shortDescription'] ?? '',
     );
-    _selectedCategory = widget.service.category.isNotEmpty
-        ? widget.service.category
-        : null;
+
     _serviceImages = List<String>.from(widget.service.serviceImages);
+
+    _loadCategories();
+  }
+
+  Future<void> _loadCategories() async {
+    setState(() => _loadingCategories = true);
+
+    try {
+      await widget.controller.fetchCategories();
+
+      final loadedCategories = widget.controller.categories;
+      final selectedId = widget.controller.findCategoryIdByName(
+        widget.service.category,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _categories = loadedCategories;
+        _selectedCategoryId = selectedId;
+      });
+    } catch (e) {
+      debugPrint('ERROR LOAD CATEGORIES: $e');
+      _showSnackBar('Gagal memuat kategori', Colors.red);
+    } finally {
+      if (mounted) {
+        setState(() => _loadingCategories = false);
+      }
+    }
+  }
+
+  void _showSnackBar(String message, Color color) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
+  }
+
+  void _saveCurrentPackageData() {
+    final currentData = {
+      'price': _priceController.text.trim(),
+      'deliveryTime': _deliveryController.text.trim(),
+      'shortDescription': _shortDescController.text.trim(),
+    };
+
+    if (_selectedPackageTab == 0) {
+      _basicPackageData = currentData;
+    } else if (_selectedPackageTab == 1) {
+      _standardPackageData = currentData;
+    } else {
+      _premiumPackageData = currentData;
+    }
+  }
+
+  void _loadPackageData(int tabIndex) {
+    Map<String, String> selectedData;
+
+    if (tabIndex == 0) {
+      selectedData = _basicPackageData;
+    } else if (tabIndex == 1) {
+      selectedData = _standardPackageData;
+    } else {
+      selectedData = _premiumPackageData;
+    }
+
+    _priceController.text = selectedData['price'] ?? '';
+    _deliveryController.text = selectedData['deliveryTime'] ?? '';
+    _shortDescController.text = selectedData['shortDescription'] ?? '';
+  }
+
+  void _changePackageTab(int newTab) {
+    _saveCurrentPackageData();
+    setState(() {
+      _selectedPackageTab = newTab;
+    });
+    _loadPackageData(newTab);
+  }
+
+  Future<void> _pickAndUploadImage() async {
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+      );
+
+      if (pickedFile == null) return;
+
+      setState(() => _uploadingImage = true);
+
+      final bytes = await pickedFile.readAsBytes();
+      final fileExt = pickedFile.name.split('.').last.toLowerCase();
+      final fileName =
+          'service_${widget.service.id}_${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+      final filePath = 'services/$fileName';
+
+      await _supabase.storage
+          .from('service-images')
+          .uploadBinary(
+            filePath,
+            bytes,
+            fileOptions: FileOptions(
+              upsert: false,
+              contentType: pickedFile.mimeType ?? 'image/$fileExt',
+            ),
+          );
+
+      final imageUrl = _supabase.storage
+          .from('service-images')
+          .getPublicUrl(filePath);
+
+      if (!mounted) return;
+
+      setState(() {
+        _serviceImages.add(imageUrl);
+        _uploadingImage = false;
+      });
+
+      _showSnackBar('Gambar berhasil diupload', Colors.green);
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() => _uploadingImage = false);
+      _showSnackBar('Gagal upload gambar: $e', Colors.red);
+    }
   }
 
   @override
@@ -60,18 +217,56 @@ class _EditServicePageState extends State<EditServicePage> {
     super.dispose();
   }
 
-  void _onSavePressed() {
-    widget.service.title = _titleController.text.trim();
-    widget.service.category = _selectedCategory ?? '';
-    widget.service.description = _descController.text.trim();
-    widget.service.basicPackage.price = _priceController.text.trim();
-    widget.service.basicPackage.deliveryTime = _deliveryController.text.trim();
-    widget.service.basicPackage.shortDescription = _shortDescController.text
-        .trim();
-    widget.service.serviceImages = List<String>.from(_serviceImages);
+  Future<void> _onSavePressed() async {
+    if (_titleController.text.trim().isEmpty) {
+      _showSnackBar('Title wajib diisi', Colors.red);
+      return;
+    }
 
-    widget.controller.updateService(widget.service, widget.onServiceUpdated);
-    Navigator.pop(context);
+    if (_selectedCategoryId == null) {
+      _showSnackBar('Category wajib dipilih', Colors.red);
+      return;
+    }
+
+    _saveCurrentPackageData();
+
+    setState(() => _saving = true);
+
+    try {
+      final success = await widget.controller.updateService(
+        idService: int.parse(widget.service.id),
+        categoryId: _selectedCategoryId,
+        title: _titleController.text.trim(),
+        description: _descController.text.trim(),
+        serviceImages: _serviceImages,
+        basicPrice: _basicPackageData['price'],
+        basicDeliveryTime: _basicPackageData['deliveryTime'],
+        basicShortDescription: _basicPackageData['shortDescription'],
+        standardPrice: _standardPackageData['price'],
+        standardDeliveryTime: _standardPackageData['deliveryTime'],
+        standardShortDescription: _standardPackageData['shortDescription'],
+        premiumPrice: _premiumPackageData['price'],
+        premiumDeliveryTime: _premiumPackageData['deliveryTime'],
+        premiumShortDescription: _premiumPackageData['shortDescription'],
+      );
+
+      if (!mounted) return;
+
+      setState(() => _saving = false);
+
+      if (success) {
+        widget.onServiceUpdated();
+        Navigator.pop(context);
+        _showSnackBar('Service berhasil diupdate', Colors.green);
+      } else {
+        _showSnackBar('Gagal mengupdate service', Colors.red);
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() => _saving = false);
+      _showSnackBar('Error: $e', Colors.red);
+    }
   }
 
   @override
@@ -85,21 +280,17 @@ class _EditServicePageState extends State<EditServicePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 16),
-              // ── TOP BAR ──
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    // Back button di kiri
                     Align(
                       alignment: Alignment.centerLeft,
                       child: CustomBackButton(
                         onTap: () => Navigator.pop(context),
                       ),
                     ),
-
-                    // Title di tengah
                     const Text(
                       'Edit Service',
                       style: TextStyle(
@@ -111,22 +302,15 @@ class _EditServicePageState extends State<EditServicePage> {
                   ],
                 ),
               ),
-             // ── TITLE FIELD ──
               _buildLabel('Title'),
               _buildEditableField(controller: _titleController),
               const SizedBox(height: 16),
-
-              // ── SERVICE CATEGORY ──
               _buildLabel('Service Category'),
               _buildDropdown(),
               const SizedBox(height: 16),
-
-              // ── DESCRIPTION ──
               _buildLabel('Description'),
               _buildDescriptionField(),
               const SizedBox(height: 20),
-
-              // ── PRICING & PACKAGES ──
               const Text(
                 'Pricing & Packages',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
@@ -136,18 +320,16 @@ class _EditServicePageState extends State<EditServicePage> {
               const SizedBox(height: 12),
               _buildPricingSection(),
               const SizedBox(height: 24),
-
-              // ── SERVICE IMAGES ──
               _buildLabel('Service Images'),
               _buildServiceImagesSection(),
               const SizedBox(height: 32),
-
-              // ── SAVE BUTTON ──
               SizedBox(
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton(
-                  onPressed: _onSavePressed,
+                  onPressed: (_saving || _uploadingImage)
+                      ? null
+                      : _onSavePressed,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF3B82F6),
                     shape: RoundedRectangleBorder(
@@ -155,14 +337,23 @@ class _EditServicePageState extends State<EditServicePage> {
                     ),
                     elevation: 2,
                   ),
-                  child: const Text(
-                    'Save Changes',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  child: _saving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Save Changes',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(height: 30),
@@ -172,10 +363,6 @@ class _EditServicePageState extends State<EditServicePage> {
       ),
     );
   }
-
-  // ─────────────────────────────────────────────
-  // WIDGETS
-  // ─────────────────────────────────────────────
 
   Widget _buildLabel(String text) {
     return Padding(
@@ -225,18 +412,29 @@ class _EditServicePageState extends State<EditServicePage> {
         borderRadius: BorderRadius.circular(30),
         border: Border.all(color: Colors.grey.shade300),
       ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          isExpanded: true,
-          value: _selectedCategory,
-          hint: const Text(''),
-          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black54),
-          items: widget.controller.categories.map((cat) {
-            return DropdownMenuItem<String>(value: cat, child: Text(cat));
-          }).toList(),
-          onChanged: (val) => setState(() => _selectedCategory = val),
-        ),
-      ),
+      child: _loadingCategories
+          ? const Padding(
+              padding: EdgeInsets.symmetric(vertical: 14),
+              child: Text('Loading categories...'),
+            )
+          : DropdownButtonHideUnderline(
+              child: DropdownButton<int>(
+                isExpanded: true,
+                value: _selectedCategoryId,
+                hint: const Text('Pilih kategori'),
+                icon: const Icon(
+                  Icons.keyboard_arrow_down,
+                  color: Colors.black54,
+                ),
+                items: _categories.map((cat) {
+                  return DropdownMenuItem<int>(
+                    value: cat.id,
+                    child: Text(cat.name),
+                  );
+                }).toList(),
+                onChanged: (val) => setState(() => _selectedCategoryId = val),
+              ),
+            ),
     );
   }
 
@@ -285,7 +483,7 @@ class _EditServicePageState extends State<EditServicePage> {
           final isSelected = _selectedPackageTab == i;
           return Expanded(
             child: GestureDetector(
-              onTap: () => setState(() => _selectedPackageTab = i),
+              onTap: () => _changePackageTab(i),
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
@@ -327,7 +525,6 @@ class _EditServicePageState extends State<EditServicePage> {
         const SizedBox(height: 8),
         Row(
           children: [
-            // Price
             Expanded(
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -358,7 +555,6 @@ class _EditServicePageState extends State<EditServicePage> {
               ),
             ),
             const SizedBox(width: 10),
-            // Delivery time
             Expanded(
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -433,28 +629,51 @@ class _EditServicePageState extends State<EditServicePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Grid gambar
         if (_serviceImages.isNotEmpty)
           Wrap(
             spacing: 10,
             runSpacing: 10,
             children: _serviceImages.asMap().entries.map((entry) {
+              final imagePath = entry.value;
+              final isNetworkImage =
+                  imagePath.startsWith('http://') ||
+                  imagePath.startsWith('https://');
+
               return Stack(
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: Image.asset(
-                      entry.value,
-                      width: 140,
-                      height: 120,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        width: 140,
-                        height: 120,
-                        color: Colors.grey[200],
-                        child: const Icon(Icons.image, color: Colors.grey),
-                      ),
-                    ),
+                    child: isNetworkImage
+                        ? Image.network(
+                            imagePath,
+                            width: 140,
+                            height: 120,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              width: 140,
+                              height: 120,
+                              color: Colors.grey[200],
+                              child: const Icon(
+                                Icons.image,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          )
+                        : Image.asset(
+                            imagePath,
+                            width: 140,
+                            height: 120,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              width: 140,
+                              height: 120,
+                              color: Colors.grey[200],
+                              child: const Icon(
+                                Icons.image,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ),
                   ),
                   Positioned(
                     top: 4,
@@ -484,18 +703,9 @@ class _EditServicePageState extends State<EditServicePage> {
               );
             }).toList(),
           ),
-
         const SizedBox(height: 12),
-
-        // Upload button
         GestureDetector(
-          onTap: () {
-            // TODO: image picker
-            // Simulasi tambah gambar
-            setState(() {
-              _serviceImages.add('assets/images/portfolio_sample.png');
-            });
-          },
+          onTap: _uploadingImage ? null : _pickAndUploadImage,
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 16),
@@ -507,15 +717,21 @@ class _EditServicePageState extends State<EditServicePage> {
                 style: BorderStyle.solid,
               ),
             ),
-            child: const Center(
-              child: Text(
-                '+ Upload Image',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
+            child: Center(
+              child: _uploadingImage
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text(
+                      '+ Upload Image',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
             ),
           ),
         ),

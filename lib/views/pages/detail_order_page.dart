@@ -1,11 +1,9 @@
 // ignore_for_file: deprecated_member_use
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/services_model.dart';
-import 'my_orders_page.dart';
-import 'payment_webview_page.dart';
+import '../pages/my_orders_page.dart';
+import 'payment_success_page.dart';
 
 class DetailOrderPage extends StatefulWidget {
   final ServiceModel service;
@@ -22,9 +20,6 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
 
   final _supabase = Supabase.instance.client;
   bool _isProcessing = false;
-
-  // Ganti dengan URL Laravel kamu (ngrok saat development)
-  static const String _baseUrl = 'https://YOUR-NGROK-URL.ngrok-free.app/api';
 
   final List<Map<String, dynamic>> _eWalletMethods = [
     {'name': 'Shopeepay', 'balance': 'Rp200.000', 'activated': true},
@@ -47,7 +42,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
   }
 
   // ─────────────────────────────────────────────────────────────
-  // CONFIRM & PAY
+  // CONFIRM & PAY → SUPABASE
   // ─────────────────────────────────────────────────────────────
   Future<void> _handleConfirmPay(
     double packagePrice,
@@ -57,8 +52,8 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
     if (_selectedPayment == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content         : Text('Pilih metode pembayaran terlebih dahulu'),
-          backgroundColor : Colors.orange,
+          content: Text('Pilih metode pembayaran terlebih dahulu'),
+          backgroundColor: Colors.orange,
         ),
       );
       return;
@@ -75,7 +70,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
         throw Exception('Sesi login tidak ditemukan. Silakan login ulang.');
       }
 
-      // 2. Ambil id_user dari tabel users (client)
+      // 2. Ambil id_user dari tabel users
       final userData = await _supabase
           .from('users')
           .select('id_user')
@@ -86,150 +81,109 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
         throw Exception('Data pengguna tidak ditemukan di database.');
       }
 
-      final int clientId  = userData['id_user'] as int;
-      final int serviceId = int.tryParse(service.id) ?? 1;
-      final int? packageId = service.packageId;
-
-      // ── FIX: validasi freelancerId tidak boleh null ──────────
-      // Ambil langsung dari DB jika ServiceModel tidak punya
-      int freelancerId;
-      if (service.freelancerId != null && service.freelancerId! > 0) {
-        freelancerId = service.freelancerId!;
-      } else {
-        // Fallback: ambil id_freelancer dari tabel services
-        final serviceData = await _supabase
-            .from('services')
-            .select('id_freelancer')
-            .eq('id_service', serviceId)
-            .maybeSingle();
-
-        if (serviceData == null || serviceData['id_freelancer'] == null) {
-          throw Exception(
-            'Data freelancer tidak ditemukan. Pastikan service memiliki freelancer.',
-          );
-        }
-        freelancerId = serviceData['id_freelancer'] as int;
-      }
-
-      // Debug — hapus setelah berhasil
-      debugPrint('=== DEBUG INSERT ORDER ===');
-      debugPrint('clientId     : $clientId');
-      debugPrint('freelancerId : $freelancerId');
-      debugPrint('serviceId    : $serviceId');
-      debugPrint('packageId    : $packageId');
-      debugPrint('==========================');
+      final int clientId = userData['id_user'] as int;
+      final int freelancerId = 9;
+      final int serviceId = 8;
+      final int? packageId = service.packageId; // ← dari ServiceModel
 
       // 3. Hitung deadline dari delivery time
-      final int deliveryDays = int.tryParse(
-        service.basicPackage.deliveryTime.replaceAll(RegExp(r'[^0-9]'), ''),
-      ) ?? 3;
+      final int deliveryDays =
+          int.tryParse(
+            service.basicPackage.deliveryTime.replaceAll(RegExp(r'[^0-9]'), ''),
+          ) ??
+          3;
 
       final String deadline = DateTime.now()
           .add(Duration(days: deliveryDays))
           .toIso8601String()
           .split('T')[0];
 
-      // 4. Insert ke tabel orders via Supabase
+      // 4. Insert ke tabel orders
       final orderResponse = await _supabase
           .from('orders')
           .insert({
-            'id_client'     : clientId,
-            'id_freelancer' : freelancerId,
-            'id_service'    : serviceId,
-            'id_package'    : packageId,
+            'id_client': clientId,
+            'id_freelancer': freelancerId,
+            'id_service': serviceId,
+            'id_package': packageId, // ← WAJIB sesuai DB
             'detail_pesanan': service.title,
-            'catatan'       : _noteController.text.trim(),
-            'deadline'      : deadline,
-            'status'        : 'menunggu_pembayaran',
-            'progress'      : 0,
+            'catatan': _noteController.text.trim(),
+            'deadline': deadline,
+            'status': 'menunggu_pembayaran',
+            'progress': 0,
           })
           .select()
           .single();
 
       final int orderId = orderResponse['id_order'] as int;
-      debugPrint('orderId: $orderId');
 
       // 5. Hitung fee
-      const double feePercent    = 10.0;
-      final double platformFee   = packagePrice * (feePercent / 100);
+      const double feePercent = 10.0;
+      final double platformFee = packagePrice * (feePercent / 100);
       final double freelancerGet = packagePrice - platformFee;
 
-      // 6. Insert ke tabel payments via Supabase
+      // 6. Insert ke tabel payments → ambil id_payment langsung dari response
       final paymentResponse = await _supabase
           .from('payments')
           .insert({
-            'id_order'          : orderId,
-            'metode'            : _selectedPayment,
-            'amount'            : total,
-            'admin_fee'         : adminFee,
-            'status'            : 'pending',
-            'escrow_status'     : 'hold',
-            'fee_percent'       : feePercent,
-            'platform_fee'      : platformFee,
+            'id_order': orderId,
+            'metode': _selectedPayment,
+            'amount': total,
+            'admin_fee': adminFee,
+            'status': 'pending',
+            'escrow_status': 'hold',
+            'fee_percent': feePercent,
+            'platform_fee': platformFee,
             'freelancer_receive': freelancerGet,
           })
           .select()
           .single();
 
       final int paymentId = paymentResponse['id_payment'] as int;
-      debugPrint('paymentId: $paymentId');
 
-      // 7. Insert ke tabel escrow via Supabase
+      // 7. Insert ke tabel escrow pakai paymentId dari response
       await _supabase.from('escrow').insert({
-        'id_payment'       : paymentId,
-        'amount'           : total,
-        'platform_fee'     : platformFee,
+        'id_payment': paymentId,
+        'amount': total,
+        'platform_fee': platformFee,
         'freelancer_amount': freelancerGet,
-        'status'           : 'hold',
+        'status': 'hold',
       });
-
-      // 8. Hit Laravel → dapat payment_url dari Midtrans
-      final session = _supabase.auth.currentSession;
-      final token   = session?.accessToken ?? '';
-
-      final laravelResponse = await http.post(
-        Uri.parse('$_baseUrl/payment/initiate'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type' : 'application/json',
-          'Accept'       : 'application/json',
-        },
-        body: jsonEncode({'id_order': orderId}),
-      );
-
-      debugPrint('Laravel status: ${laravelResponse.statusCode}');
-      debugPrint('Laravel body  : ${laravelResponse.body}');
-
-      if (laravelResponse.statusCode != 200) {
-        final error = jsonDecode(laravelResponse.body);
-        throw Exception(error['message'] ?? 'Gagal inisiasi pembayaran Midtrans');
-      }
-
-      final laravelData       = jsonDecode(laravelResponse.body);
-      final String paymentUrl = laravelData['payment_url'];
 
       if (!mounted) return;
 
-      // 9. Buka WebView — user bayar di dalam app
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => PaymentWebViewPage(
-            paymentUrl : paymentUrl,
-            orderId    : orderId,
-            amount     : total,
-          ),
+      // 8. Sukses → ke MyOrdersPage
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Order berhasil dibuat! Menunggu pembayaran...'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
         ),
       );
 
+      await Future.delayed(const Duration(seconds: 1));
+      if (!mounted) return;
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PaymentSuccessPage(
+            idOrder: 999,
+            amount:
+                "500000", // Kamu bisa ganti dengan ID order yang baru dibuat
+            serviceName:
+                service.title, // 👈 Pastikan variabel service.title sesuai
+          ),
+        ),
+        (route) => route.isFirst,
+      );
     } catch (e) {
       if (!mounted) return;
-      debugPrint('ERROR _handleConfirmPay: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content         : Text('❌ Gagal membuat order: ${e.toString()}'),
-          backgroundColor : Colors.red,
-          duration        : const Duration(seconds: 4),
+          content: Text('❌ Gagal membuat order: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
         ),
       );
     } finally {
@@ -238,7 +192,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
   }
 
   // ─────────────────────────────────────────────────────────────
-  // BUILD — tidak ada perubahan di sini
+  // BUILD
   // ─────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
@@ -250,8 +204,9 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
               .replaceAll('.', '')
               .replaceAll(' ', '')
               .trim(),
-        ) ?? 90000;
-    const double adminFee = 2000;
+        ) ??
+        90000;
+    const double adminFee = 2000; // sesuai DEFAULT di DB
     final double total = packagePrice + adminFee;
 
     return Scaffold(
@@ -259,6 +214,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
       body: SafeArea(
         child: Column(
           children: [
+            // ── SCROLLABLE CONTENT ──
             Expanded(
               child: SingleChildScrollView(
                 child: Column(
@@ -274,24 +230,29 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                         children: [
                           Align(
                             alignment: Alignment.centerLeft,
-                            // ✅ PERUBAHAN: ganti GestureDetector+Container → IconButton
-                            child: IconButton(
-                              onPressed: () => Navigator.pop(context),
-                              icon: const Icon(
-                                Icons.arrow_back,
-                                color: Colors.black,
-                              ),
-                              style: IconButton.styleFrom(
-                                foregroundColor: Colors.black,
+                            child: GestureDetector(
+                              onTap: () => Navigator.pop(context),
+                              child: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade200,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.arrow_back,
+                                  size: 20,
+                                  color: Colors.black,
+                                ),
                               ),
                             ),
                           ),
                           const Text(
                             'Detail Order',
                             style: TextStyle(
-                              fontSize  : 20,
+                              fontSize: 20,
                               fontWeight: FontWeight.bold,
-                              color     : Colors.black,
+                              color: Colors.black,
                             ),
                           ),
                         ],
@@ -316,10 +277,10 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                                     height: 100,
                                     fit: BoxFit.cover,
                                     errorBuilder: (_, __, ___) => Container(
-                                      width : 110,
+                                      width: 110,
                                       height: 100,
-                                      color : Colors.grey[200],
-                                      child : const Icon(
+                                      color: Colors.grey[200],
+                                      child: const Icon(
                                         Icons.image,
                                         color: Colors.grey,
                                       ),
@@ -329,14 +290,15 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         service.title,
                                         style: const TextStyle(
-                                          fontSize  : 14,
+                                          fontSize: 14,
                                           fontWeight: FontWeight.bold,
-                                          color     : Colors.black,
+                                          color: Colors.black,
                                         ),
                                       ),
                                       const SizedBox(height: 4),
@@ -344,7 +306,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                                         '${service.basicPackage.deliveryTime} delivery',
                                         style: const TextStyle(
                                           fontSize: 12,
-                                          color   : Colors.black54,
+                                          color: Colors.black54,
                                         ),
                                       ),
                                       const SizedBox(height: 4),
@@ -352,7 +314,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                                         '${service.category} | ${service.university}',
                                         style: const TextStyle(
                                           fontSize: 11,
-                                          color   : Colors.black54,
+                                          color: Colors.black54,
                                         ),
                                       ),
                                       const SizedBox(height: 6),
@@ -361,21 +323,21 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                                           Text(
                                             service.name,
                                             style: const TextStyle(
-                                              fontSize  : 13,
+                                              fontSize: 13,
                                               fontWeight: FontWeight.bold,
-                                              color     : Color(0xFFFFA726),
+                                              color: Color(0xFFFFA726),
                                             ),
                                           ),
                                           const SizedBox(width: 8),
                                           const Icon(
                                             Icons.star,
                                             color: Colors.amber,
-                                            size : 14,
+                                            size: 14,
                                           ),
                                           Text(
                                             ' ${service.rating}',
                                             style: const TextStyle(
-                                              fontSize  : 13,
+                                              fontSize: 13,
                                               fontWeight: FontWeight.bold,
                                             ),
                                           ),
@@ -397,7 +359,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                                 const Text(
                                   "What's include",
                                   style: TextStyle(
-                                    fontSize  : 14,
+                                    fontSize: 14,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -418,7 +380,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                                 const Text(
                                   'Price Summary',
                                   style: TextStyle(
-                                    fontSize  : 14,
+                                    fontSize: 14,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -453,7 +415,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                                 const Text(
                                   'File Requirement',
                                   style: TextStyle(
-                                    fontSize  : 14,
+                                    fontSize: 14,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -468,11 +430,13 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                                           border: Border.all(
                                             color: Colors.grey.shade300,
                                           ),
-                                          borderRadius: BorderRadius.circular(8),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
                                         ),
                                         child: const Icon(
                                           Icons.attach_file,
-                                          size : 24,
+                                          size: 24,
                                           color: Colors.black87,
                                         ),
                                       ),
@@ -486,11 +450,13 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                                           border: Border.all(
                                             color: Colors.grey.shade300,
                                           ),
-                                          borderRadius: BorderRadius.circular(8),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
                                         ),
                                         child: const Icon(
                                           Icons.image_outlined,
-                                          size : 24,
+                                          size: 24,
                                           color: Colors.black87,
                                         ),
                                       ),
@@ -510,21 +476,21 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                                 const Text(
                                   'Note',
                                   style: TextStyle(
-                                    fontSize  : 14,
+                                    fontSize: 14,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
                                 const SizedBox(height: 8),
                                 TextField(
                                   controller: _noteController,
-                                  maxLines  : 3,
+                                  maxLines: 3,
                                   decoration: const InputDecoration(
-                                    hintText    : 'Type here...',
-                                    hintStyle   : TextStyle(
-                                      color   : Colors.black38,
+                                    hintText: 'Type here...',
+                                    hintStyle: TextStyle(
+                                      color: Colors.black38,
                                       fontSize: 13,
                                     ),
-                                    border        : InputBorder.none,
+                                    border: InputBorder.none,
                                     contentPadding: EdgeInsets.zero,
                                   ),
                                   style: const TextStyle(fontSize: 13),
@@ -542,23 +508,25 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                                 const Text(
                                   'Payment methods',
                                   style: TextStyle(
-                                    fontSize  : 14,
+                                    fontSize: 14,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
                                 const SizedBox(height: 14),
+
+                                // ── E-WALLET ──
                                 const Row(
                                   children: [
                                     Icon(
                                       Icons.account_balance_wallet_outlined,
-                                      size : 22,
+                                      size: 22,
                                       color: Colors.black87,
                                     ),
                                     SizedBox(width: 8),
                                     Text(
                                       'E - Wallet',
                                       style: TextStyle(
-                                        fontSize  : 14,
+                                        fontSize: 14,
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
@@ -568,21 +536,24 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                                 ..._eWalletMethods.map(
                                   (method) => _buildPaymentItem(method),
                                 ),
+
                                 const SizedBox(height: 8),
                                 const Divider(height: 1),
                                 const SizedBox(height: 12),
+
+                                // ── BANK TRANSFER ──
                                 const Row(
                                   children: [
                                     Icon(
                                       Icons.account_balance_outlined,
-                                      size : 22,
+                                      size: 22,
                                       color: Colors.black87,
                                     ),
                                     SizedBox(width: 8),
                                     Text(
                                       'Bank Transfer',
                                       style: TextStyle(
-                                        fontSize  : 14,
+                                        fontSize: 14,
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
@@ -606,15 +577,15 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
 
             // ── BOTTOM CONFIRM BUTTON ──
             Container(
-              color  : Colors.white,
+              color: Colors.white,
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-              child  : Column(
+              child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   SizedBox(
-                    width : double.infinity,
+                    width: double.infinity,
                     height: 54,
-                    child : ElevatedButton(
+                    child: ElevatedButton(
                       onPressed: _isProcessing
                           ? null
                           : () => _handleConfirmPay(
@@ -623,7 +594,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                               total,
                             ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor        : const Color(0xFFFFA726),
+                        backgroundColor: const Color(0xFFFFA726),
                         disabledBackgroundColor: const Color(0xFFFFD49E),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(30),
@@ -632,18 +603,18 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                       ),
                       child: _isProcessing
                           ? const SizedBox(
-                              width : 24,
+                              width: 24,
                               height: 24,
-                              child : CircularProgressIndicator(
-                                color      : Colors.black,
+                              child: CircularProgressIndicator(
+                                color: Colors.black,
                                 strokeWidth: 2.5,
                               ),
                             )
                           : const Text(
                               'Confirm & Pay',
                               style: TextStyle(
-                                color     : Colors.black,
-                                fontSize  : 17,
+                                color: Colors.black,
+                                fontSize: 17,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -667,19 +638,20 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
   // ─────────────────────────────────────────────────────────────
   // HELPERS
   // ─────────────────────────────────────────────────────────────
+
   Widget _buildCard({required Widget child}) {
     return Container(
-      width  : double.infinity,
+      width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color        : Colors.white,
-        borderRadius : BorderRadius.circular(14),
-        border       : Border.all(color: Colors.grey.shade200),
-        boxShadow    : [
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
           BoxShadow(
-            color     : Colors.black.withOpacity(0.04),
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 8,
-            offset    : const Offset(0, 2),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -707,17 +679,17 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
         Text(
           label,
           style: TextStyle(
-            fontSize  : 13,
+            fontSize: 13,
             fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-            color     : isBold ? Colors.black : Colors.black54,
+            color: isBold ? Colors.black : Colors.black54,
           ),
         ),
         Text(
           value,
           style: TextStyle(
-            fontSize  : 13,
+            fontSize: 13,
             fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-            color     : Colors.black,
+            color: Colors.black,
           ),
         ),
       ],
@@ -726,7 +698,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
 
   Widget _buildPaymentItem(Map<String, dynamic> method) {
     final bool isActivated = method['activated'] as bool;
-    final bool isSelected  = _selectedPayment == method['name'];
+    final bool isSelected = _selectedPayment == method['name'];
 
     return Padding(
       padding: const EdgeInsets.only(left: 30, bottom: 10),
@@ -738,14 +710,14 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                 style: const TextStyle(fontSize: 13, color: Colors.black),
                 children: [
                   TextSpan(
-                    text : method['name'],
+                    text: method['name'],
                     style: const TextStyle(fontWeight: FontWeight.w500),
                   ),
                   if (method['balance'] != null)
                     TextSpan(
-                      text : ' (${method['balance']})',
+                      text: ' (${method['balance']})',
                       style: const TextStyle(
-                        color   : Colors.black54,
+                        color: Colors.black54,
                         fontSize: 12,
                       ),
                     ),
@@ -757,10 +729,10 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
             GestureDetector(
               onTap: () => setState(() => _selectedPayment = method['name']),
               child: Container(
-                width : 22,
+                width: 22,
                 height: 22,
                 decoration: BoxDecoration(
-                  shape : BoxShape.circle,
+                  shape: BoxShape.circle,
                   border: Border.all(
                     color: isSelected
                         ? const Color(0xFFFFA726)
@@ -771,7 +743,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                 child: isSelected
                     ? Center(
                         child: Container(
-                          width : 12,
+                          width: 12,
                           height: 12,
                           decoration: const BoxDecoration(
                             color: Color(0xFFFFA726),
@@ -786,14 +758,14 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
-                border      : Border.all(color: const Color(0xFFFFA726)),
+                border: Border.all(color: const Color(0xFFFFA726)),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: const Text(
                 'Activate',
                 style: TextStyle(
-                  fontSize  : 11,
-                  color     : Color(0xFFFFA726),
+                  fontSize: 11,
+                  color: Color(0xFFFFA726),
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -805,7 +777,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
 
   String _formatPrice(double price) {
     final formatted = price.toInt().toString();
-    final result    = StringBuffer();
+    final result = StringBuffer();
     int count = 0;
     for (int i = formatted.length - 1; i >= 0; i--) {
       if (count > 0 && count % 3 == 0) result.write('.');

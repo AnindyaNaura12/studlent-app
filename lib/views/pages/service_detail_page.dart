@@ -33,10 +33,7 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
   }
 
   Future<void> _loadData() async {
-    await Future.wait([
-      _loadPackages(),
-      _loadFreelancerPhoto(),
-    ]);
+    await Future.wait([_loadPackages(), _loadFreelancerPhoto()]);
   }
 
   Future<void> _loadPackages() async {
@@ -53,7 +50,9 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
           .eq('id_service', idService)
           .order('id_package', ascending: true);
 
-      final packages = (data as List).map((e) => PackageModel.fromJson(e)).toList();
+      final packages = (data as List)
+          .map((e) => PackageModel.fromJson(e))
+          .toList();
 
       if (mounted) {
         setState(() {
@@ -114,20 +113,24 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
   }
 
   String get _currentPrice {
-    if (_packages.isEmpty) return controller.getPackagePrice(selectedTab, widget.service);
+    if (_packages.isEmpty)
+      return controller.getPackagePrice(selectedTab, widget.service);
     if (selectedTab < _packages.length) return _packages[selectedTab].price;
     return '';
   }
 
   String get _currentDesc {
-    if (_packages.isEmpty) return controller.getPackageDescription(selectedTab, widget.service);
-    if (selectedTab < _packages.length) return _packages[selectedTab].shortDescription;
+    if (_packages.isEmpty)
+      return controller.getPackageDescription(selectedTab, widget.service);
+    if (selectedTab < _packages.length)
+      return _packages[selectedTab].shortDescription;
     return '';
   }
 
   String get _currentDelivery {
     if (_packages.isEmpty) return widget.service.basicPackage.deliveryTime;
-    if (selectedTab < _packages.length) return _packages[selectedTab].deliveryTime;
+    if (selectedTab < _packages.length)
+      return _packages[selectedTab].deliveryTime;
     return '';
   }
 
@@ -225,12 +228,17 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                         CircleAvatar(
                           radius: s(20),
                           backgroundColor: Colors.grey.shade200,
-                          backgroundImage: _freelancerPhotoUrl != null &&
+                          backgroundImage:
+                              _freelancerPhotoUrl != null &&
                                   _freelancerPhotoUrl!.startsWith('http')
                               ? NetworkImage(_freelancerPhotoUrl!)
                               : null,
                           child: _freelancerPhotoUrl == null
-                              ? Icon(Icons.person, size: s(20), color: Colors.grey)
+                              ? Icon(
+                                  Icons.person,
+                                  size: s(20),
+                                  color: Colors.grey,
+                                )
                               : null,
                         ),
                         SizedBox(width: s(10)),
@@ -246,7 +254,8 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                             ),
                             SizedBox(height: s(2)),
                             GestureDetector(
-                              onTap: () => controller.goToProfile(context, service),
+                              onTap: () =>
+                                  controller.goToProfile(context, service),
                               child: Container(
                                 padding: EdgeInsets.symmetric(
                                   horizontal: s(10),
@@ -295,19 +304,19 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                                 _tab("Premium", 2, s),
                               ]
                             : _packages.isNotEmpty
-                                ? _packages.asMap().entries.map((e) {
-                                    final name = e.value.name;
-                                    return _tab(
-                                      '${name[0].toUpperCase()}${name.substring(1)}',
-                                      e.key,
-                                      s,
-                                    );
-                                  }).toList()
-                                : [
-                                    _tab("Basic", 0, s),
-                                    _tab("Standard", 1, s),
-                                    _tab("Premium", 2, s),
-                                  ],
+                            ? _packages.asMap().entries.map((e) {
+                                final name = e.value.name;
+                                return _tab(
+                                  '${name[0].toUpperCase()}${name.substring(1)}',
+                                  e.key,
+                                  s,
+                                );
+                              }).toList()
+                            : [
+                                _tab("Basic", 0, s),
+                                _tab("Standard", 1, s),
+                                _tab("Premium", 2, s),
+                              ],
                       ),
                     ),
 
@@ -345,7 +354,10 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                                   ),
                                 ),
                                 SizedBox(height: s(4)),
-                                Text(_currentDesc, style: TextStyle(fontSize: s(11))),
+                                Text(
+                                  _currentDesc,
+                                  style: TextStyle(fontSize: s(11)),
+                                ),
                                 Text(
                                   "Delivery: $_currentDelivery",
                                   style: TextStyle(fontSize: s(11)),

@@ -1,6 +1,4 @@
-// ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/message_model.dart';
 import '../../controllers/chat_controller.dart';
 
@@ -23,67 +21,54 @@ class ContactFreelancerPage extends StatefulWidget {
 class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+
+  // Inisialisasi Controller sesuai arsitektur MVC
   final ChatController _chatController = ChatController();
-  final SupabaseClient supabase = Supabase.instance.client;
 
   int? _myUserId;
-  bool _loadingUserId = true;
   Stream<List<Message>>? _messagesStream;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _initChat();
+    _loadChatContext();
   }
 
-  Future<void> _initChat() async {
+  // Mempersiapkan data secara aman melalui Controller sebelum menampilkan chat
+  Future<void> _loadChatContext() async {
     final userId = await _chatController.getMyUserId();
-    if (!mounted) return;
-
-    Stream<List<Message>>? stream;
-    if (userId != null) {
-      // Filter hanya pesan antara user ini dan freelancer ini
-      stream = supabase
-          .from('messages')
-          .stream(primaryKey: ['id'])
-          .order('created_at', ascending: true)
-          .map((data) {
-            return data
-                .where((json) {
-                  final sender   = json['sender_id'] as int?;
-                  final receiver = json['receiver_id'] as int?;
-                  return (sender == userId && receiver == widget.freelancerId) ||
-                         (sender == widget.freelancerId && receiver == userId);
-                })
-                .map((json) => Message.fromJson(json))
-                .toList();
-          });
+    if (mounted) {
+      setState(() {
+        _myUserId = userId;
+        if (userId != null) {
+          // Menghubungkan Stream yang disediakan oleh Controller
+          _messagesStream = _chatController.getMessagesStream(
+            widget.freelancerId,
+          );
+        }
+        _isLoading = false;
+      });
     }
-
-    setState(() {
-      _myUserId       = userId;
-      _messagesStream = stream;
-      _loadingUserId  = false;
-    });
   }
 
-  Future<void> sendMessage() async {
-    if (_controller.text.trim().isEmpty) return;
-    if (_myUserId == null) return;
-
+  // Menangani aksi kirim pesan
+  Future<void> _handleSendMessage() async {
     final text = _controller.text.trim();
-    _controller.clear();
+    if (text.isEmpty || _myUserId == null) return;
+
+    _controller.clear(); // Bersihkan textfield langsung demi UX yang cepat
 
     try {
-      await supabase.from('messages').insert({
-        'text':        text,
-        'sender_id':   _myUserId,
-        'receiver_id': widget.freelancerId,
-      });
+      // Mendelegasikan logika pengiriman data ke Controller
+      await _chatController.sendMessage(text, widget.freelancerId);
+      _scrollToBottom();
     } catch (e) {
-      debugPrint("Gagal kirim pesan: $e");
+      debugPrint("Gagal memproses pengiriman pesan: $e");
     }
+  }
 
+  void _scrollToBottom() {
     Future.delayed(const Duration(milliseconds: 100), () {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
@@ -95,9 +80,15 @@ class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
     });
   }
 
-  String formatTime(DateTime time) {
-    return "${time.hour.toString().padLeft(2, '0')}:"
-        "${time.minute.toString().padLeft(2, '0')}";
+  String _formatTime(DateTime time) {
+    return "${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}";
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
@@ -108,181 +99,161 @@ class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
         backgroundColor: const Color(0xFFD8CCB4),
         elevation: 0,
         centerTitle: true,
-        leading: const BackButton(color: Colors.black),
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircleAvatar(
-              radius: 16,
-              backgroundImage: widget.image.isNotEmpty &&
-                      widget.image.startsWith('http')
-                  ? NetworkImage(widget.image)
-                  : null,
-              child: widget.image.isEmpty || !widget.image.startsWith('http')
-                  ? const Icon(Icons.person, size: 16)
-                  : null,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              widget.freelancerName,
-              style: const TextStyle(color: Colors.black, fontSize: 16),
-            ),
-          ],
+        title: Text(
+          widget.freelancerName,
+          style: const TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.bold,
+          ),
         ),
+        iconTheme: const IconThemeData(color: Colors.black),
       ),
-      body: _loadingUserId
+      body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _myUserId == null
-              ? const Center(
-                  child: Text(
-                    'Silakan login untuk chat',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                )
-              : Column(
-                  children: [
-                    // Chat Area
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          borderRadius:
-                              BorderRadius.vertical(top: Radius.circular(30)),
-                        ),
-                        child: StreamBuilder<List<Message>>(
-                          stream: _messagesStream,
-                          builder: (context, snapshot) {
-                            if (snapshot.hasError) {
-                              return Center(
-                                child: Text(
-                                  "Error: ${snapshot.error}",
-                                  style: const TextStyle(color: Colors.red),
-                                ),
-                              );
-                            }
-
-                            if (snapshot.connectionState == ConnectionState.waiting) {
-                              return const Center(child: CircularProgressIndicator());
-                            }
-
-                            final messages = snapshot.data ?? [];
-
-                            if (messages.isEmpty) {
-                              return Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.chat_bubble_outline,
-                                        size: 48, color: Colors.grey.shade300),
-                                    const SizedBox(height: 12),
-                                    const Text(
-                                      'Belum ada pesan.\nMulai percakapan!',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(color: Colors.grey),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }
-
-                            WidgetsBinding.instance.addPostFrameCallback((_) {
-                              if (_scrollController.hasClients) {
-                                _scrollController.jumpTo(
-                                  _scrollController.position.maxScrollExtent,
-                                );
-                              }
-                            });
-
-                            return ListView.builder(
-                              controller: _scrollController,
-                              itemCount: messages.length,
-                              itemBuilder: (context, index) {
-                                final msg      = messages[index];
-                                final isSender = msg.senderId == _myUserId;
-
-                                return Align(
-                                  alignment: isSender
-                                      ? Alignment.centerRight
-                                      : Alignment.centerLeft,
-                                  child: Row(
-                                    mainAxisAlignment: isSender
-                                        ? MainAxisAlignment.end
-                                        : MainAxisAlignment.start,
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      if (!isSender) ...[
-                                        CircleAvatar(
-                                          radius: 14,
-                                          backgroundImage: widget.image.isNotEmpty &&
-                                                  widget.image.startsWith('http')
-                                              ? NetworkImage(widget.image) as ImageProvider
-                                              : null,
-                                          child: widget.image.isEmpty ||
-                                                  !widget.image.startsWith('http')
-                                              ? const Icon(Icons.person, size: 14)
-                                              : null,
-                                        ),
-                                        const SizedBox(width: 6),
-                                      ],
-                                      _chatBubble(msg, isSender),
-                                      if (isSender) const SizedBox(width: 6),
-                                    ],
+          : Column(
+              children: [
+                // ================= CHAT ROOM AREA =================
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(30),
+                      ),
+                    ),
+                    child: _messagesStream == null
+                        ? const Center(child: Text("Gagal memuat room chat."))
+                        : StreamBuilder<List<Message>>(
+                            stream: _messagesStream,
+                            builder: (context, snapshot) {
+                              if (snapshot.hasError) {
+                                return Center(
+                                  child: Text(
+                                    "Ups, terjadi kesalahan: ${snapshot.error}",
+                                    style: const TextStyle(color: Colors.red),
+                                    textAlign: TextAlign.center,
                                   ),
                                 );
-                              },
-                            );
-                          },
+                              }
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return const Center(
+                                  child: CircularProgressIndicator(),
+                                );
+                              }
+                              if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                                return const Center(
+                                  child: Text(
+                                    "Belum ada pesan. Mulai obrolan!",
+                                  ),
+                                );
+                              }
+                              if (_myUserId == null) {
+                                return const Center(
+                                  child: CircularProgressIndicator(),
+                                );
+                              }
+                              final messages = snapshot.data!;
+
+                              // Otomatis gulir ke pesan terbawah saat ada pesan baru masuk
+                              _scrollToBottom();
+
+                              return ListView.builder(
+                                controller: _scrollController,
+                                itemCount: messages.length,
+                                itemBuilder: (context, index) {
+                                  final msg = messages[index];
+
+                                  // Evaluasi posisi bubble chat: jika sender_id == ID kita, letakkan di KANAN
+                                  final isSender =
+                                      _myUserId != null &&
+                                      int.tryParse(msg.senderId.toString()) ==
+                                          _myUserId;
+
+                                  return Align(
+                                    alignment: isSender
+                                        ? Alignment.centerRight
+                                        : Alignment.centerLeft,
+                                    child: Row(
+                                      mainAxisAlignment: isSender
+                                          ? MainAxisAlignment.end
+                                          : MainAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
+                                      children: [
+                                        if (!isSender)
+                                          CircleAvatar(
+                                            radius: 14,
+                                            backgroundImage: AssetImage(
+                                              widget.image,
+                                            ),
+                                          ),
+                                        if (!isSender) const SizedBox(width: 6),
+
+                                        _buildChatBubble(msg, isSender),
+
+                                        if (isSender) const SizedBox(width: 6),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                  ),
+                ),
+
+                // ================= INPUT TEXT FIELD AREA =================
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
+                  color: Colors.white,
+                  child: Row(
+                    children: [
+                      const Icon(Icons.add, color: Colors.grey),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: _controller,
+                          decoration: InputDecoration(
+                            hintText: "Type message",
+                            filled: true,
+                            fillColor: Colors.grey[200],
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(25),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-
-                    // Input
-                    Container(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      color: Colors.white,
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _controller,
-                              textInputAction: TextInputAction.send,
-                              onSubmitted: (_) => sendMessage(),
-                              decoration: InputDecoration(
-                                hintText: "Type message",
-                                filled: true,
-                                fillColor: Colors.grey[200],
-                                contentPadding:
-                                    const EdgeInsets.symmetric(horizontal: 16),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(25),
-                                  borderSide: BorderSide.none,
-                                ),
-                              ),
-                            ),
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: _handleSendMessage,
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFFFA726),
+                            shape: BoxShape.circle,
                           ),
-                          const SizedBox(width: 8),
-                          GestureDetector(
-                            onTap: sendMessage,
-                            child: Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFFFA726),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.send, color: Colors.white),
-                            ),
-                          ),
-                        ],
+                          child: const Icon(Icons.send, color: Colors.white),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+              ],
+            ),
     );
   }
 
-  Widget _chatBubble(Message msg, bool isSender) {
+  // Widget Bubble Chat Komponen Komponen UI
+  Widget _buildChatBubble(Message msg, bool isSender) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
@@ -297,7 +268,7 @@ class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
           Text(msg.text),
           const SizedBox(height: 4),
           Text(
-            formatTime(msg.time),
+            _formatTime(msg.time),
             style: const TextStyle(fontSize: 10, color: Colors.grey),
           ),
         ],
