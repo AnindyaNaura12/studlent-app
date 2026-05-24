@@ -21,7 +21,7 @@ class ContactFreelancerPage extends StatefulWidget {
 class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  
+
   // Inisialisasi Controller sesuai arsitektur MVC
   final ChatController _chatController = ChatController();
 
@@ -43,7 +43,9 @@ class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
         _myUserId = userId;
         if (userId != null) {
           // Menghubungkan Stream yang disediakan oleh Controller
-          _messagesStream = _chatController.getMessagesStream(widget.freelancerId);
+          _messagesStream = _chatController.getMessagesStream(
+            widget.freelancerId,
+          );
         }
         _isLoading = false;
       });
@@ -99,7 +101,10 @@ class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
         centerTitle: true,
         title: Text(
           widget.freelancerName,
-          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         iconTheme: const IconThemeData(color: Colors.black),
       ),
@@ -113,7 +118,9 @@ class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
                     padding: const EdgeInsets.all(16),
                     decoration: const BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(30),
+                      ),
                     ),
                     child: _messagesStream == null
                         ? const Center(child: Text("Gagal memuat room chat."))
@@ -129,17 +136,26 @@ class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
                                   ),
                                 );
                               }
-                              if (snapshot.connectionState == ConnectionState.waiting) {
-                                return const Center(child: CircularProgressIndicator());
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return const Center(
+                                  child: CircularProgressIndicator(),
+                                );
                               }
                               if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                                return const Center(child: Text("Belum ada pesan. Mulai obrolan!"));
+                                return const Center(
+                                  child: Text(
+                                    "Belum ada pesan. Mulai obrolan!",
+                                  ),
+                                );
                               }
                               if (_myUserId == null) {
-                                return const Center(child: CircularProgressIndicator());
+                                return const Center(
+                                  child: CircularProgressIndicator(),
+                                );
                               }
                               final messages = snapshot.data!;
-                              
+
                               // Otomatis gulir ke pesan terbawah saat ada pesan baru masuk
                               _scrollToBottom();
 
@@ -148,26 +164,35 @@ class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
                                 itemCount: messages.length,
                                 itemBuilder: (context, index) {
                                   final msg = messages[index];
-                                  
+
                                   // Evaluasi posisi bubble chat: jika sender_id == ID kita, letakkan di KANAN
-                                  final isSender = _myUserId != null &&
-                                      int.tryParse(msg.senderId.toString()) == _myUserId;
+                                  final isSender =
+                                      _myUserId != null &&
+                                      int.tryParse(msg.senderId.toString()) ==
+                                          _myUserId;
 
                                   return Align(
-                                    alignment: isSender ? Alignment.centerRight : Alignment.centerLeft,
+                                    alignment: isSender
+                                        ? Alignment.centerRight
+                                        : Alignment.centerLeft,
                                     child: Row(
-                                      mainAxisAlignment: isSender ? MainAxisAlignment.end : MainAxisAlignment.start,
-                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                      mainAxisAlignment: isSender
+                                          ? MainAxisAlignment.end
+                                          : MainAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
                                       children: [
                                         if (!isSender)
                                           CircleAvatar(
                                             radius: 14,
-                                            backgroundImage: AssetImage(widget.image),
+                                            backgroundImage: AssetImage(
+                                              widget.image,
+                                            ),
                                           ),
                                         if (!isSender) const SizedBox(width: 6),
-                                        
+
                                         _buildChatBubble(msg, isSender),
-                                        
+
                                         if (isSender) const SizedBox(width: 6),
                                       ],
                                     ),
@@ -181,7 +206,10 @@ class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
 
                 // ================= INPUT TEXT FIELD AREA =================
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
                   color: Colors.white,
                   child: Row(
                     children: [
@@ -194,7 +222,9 @@ class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
                             hintText: "Type message",
                             filled: true,
                             fillColor: Colors.grey[200],
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                            ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(25),
                               borderSide: BorderSide.none,
@@ -216,7 +246,7 @@ class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
                       ),
                     ],
                   ),
-                )
+                ),
               ],
             ),
     );

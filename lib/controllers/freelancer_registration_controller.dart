@@ -65,7 +65,6 @@ class RegistrationController {
       return;
     }
 
-    // Tampilkan loading
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -85,30 +84,32 @@ class RegistrationController {
 
       final idUser = userResult['id_user'] as int;
 
-      // 2. Update role user menjadi freelancer
+      // 2. Update user — flag is_freelancer = true, role TIDAK diubah
       await supabase.from('users').update({
-        'role': 'freelancer',
+        'is_freelancer'      : true,
         'professional_status': model.professionalStatus,
-        'updated_at': DateTime.now().toIso8601String(),
+        'nama'               : model.fullName,
+        'no_hp'              : model.phoneNumber,
+        'updated_at'         : DateTime.now().toIso8601String(),
       }).eq('id_user', idUser);
 
       // 3. Insert ke freelancer_profiles
       await supabase.from('freelancer_profiles').upsert({
-        'id_user': idUser,
+        'id_user'            : idUser,
         'professional_status': model.professionalStatus,
-        'universitas': model.university,
-        'jurusan': model.major,
-        'bio': model.bio,
-        'no_rekening': model.accountNumber,
-        'bank_name': model.bankName,
-        'created_at': DateTime.now().toIso8601String(),
-        'updated_at': DateTime.now().toIso8601String(),
+        'universitas'        : model.university,
+        'jurusan'            : model.major,
+        'bio'                : model.bio,
+        'no_rekening'        : model.accountNumber,
+        'bank_name'          : model.bankName,
+        'created_at'         : DateTime.now().toIso8601String(),
+        'updated_at'         : DateTime.now().toIso8601String(),
       });
 
       // 4. Insert skills ke freelancer_skills
       for (final skill in model.selectedSkills) {
         await supabase.from('freelancer_skills').insert({
-          'id_user': idUser,
+          'id_user'   : idUser,
           'skill_name': skill.name,
           'created_at': DateTime.now().toIso8601String(),
         });
@@ -116,19 +117,17 @@ class RegistrationController {
 
       // 5. Buat wallet untuk freelancer
       await supabase.from('freelancer_wallet').upsert({
-        'id_user': idUser,
-        'balance': 0,
+        'id_user'   : idUser,
+        'balance'   : 0,
         'created_at': DateTime.now().toIso8601String(),
       });
 
-      // Tutup loading
-      if (context.mounted) Navigator.pop(context);
+      if (context.mounted) Navigator.pop(context); // tutup loading
 
-      // Sukses → ke Home
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Selamat! Kamu sekarang terdaftar sebagai freelancer 🎉'),
+            content        : Text('Selamat! Kamu sekarang terdaftar sebagai freelancer 🎉'),
             backgroundColor: Colors.green,
           ),
         );
@@ -139,13 +138,11 @@ class RegistrationController {
         );
       }
     } catch (e) {
-      // Tutup loading
-      if (context.mounted) Navigator.pop(context);
-
+      if (context.mounted) Navigator.pop(context); // tutup loading
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Gagal mendaftar: $e'),
+            content        : Text('Gagal mendaftar: $e'),
             backgroundColor: Colors.red,
           ),
         );

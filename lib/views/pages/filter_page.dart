@@ -3,7 +3,16 @@ import '../widgets/category_card.dart';
 import '../../controllers/home_controller.dart';
 
 class FilterSheet extends StatefulWidget {
-  const FilterSheet({super.key});
+  final bool onlyPrice;
+  final int? initialCategoryIndex;
+  final int? initialPriceIndex;
+
+  const FilterSheet({
+    super.key,
+    this.onlyPrice = false,
+    this.initialCategoryIndex,
+    this.initialPriceIndex,
+  });
 
   @override
   State<FilterSheet> createState() => _FilterSheetState();
@@ -27,9 +36,18 @@ class _FilterSheetState extends State<FilterSheet> {
     'Rp 401.000 - 450.000',
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _selectedCategoryIndex = widget.initialCategoryIndex;
+    _selectedPriceIndex = widget.initialPriceIndex;
+  }
+
   void _reset() {
     setState(() {
-      _selectedCategoryIndex = null;
+      if (!widget.onlyPrice) {
+        _selectedCategoryIndex = null;
+      }
       _selectedPriceIndex = null;
     });
   }
@@ -43,8 +61,7 @@ class _FilterSheetState extends State<FilterSheet> {
     final categories = _controller.getCategories();
 
     return DraggableScrollableSheet(
-      // Muncul setengah layar, bisa di-drag sampai 90%
-      initialChildSize: 0.6,
+      initialChildSize: widget.onlyPrice ? 0.45 : 0.6,
       minChildSize: 0.4,
       maxChildSize: 0.92,
       builder: (context, scrollController) {
@@ -55,8 +72,6 @@ class _FilterSheetState extends State<FilterSheet> {
           ),
           child: Column(
             children: [
-
-              // ================= DRAG HANDLE =================
               Padding(
                 padding: EdgeInsets.only(top: s(12), bottom: s(4)),
                 child: Container(
@@ -68,8 +83,6 @@ class _FilterSheetState extends State<FilterSheet> {
                   ),
                 ),
               ),
-
-              // ================= HEADER =================
               Padding(
                 padding: EdgeInsets.symmetric(
                   horizontal: s(16),
@@ -77,13 +90,10 @@ class _FilterSheetState extends State<FilterSheet> {
                 ),
                 child: Row(
                   children: [
-                    // Back / close button
                     IconButton(
                       icon: Icon(Icons.arrow_back, size: s(22)),
                       onPressed: () => Navigator.pop(context),
                     ),
-
-                    // Title
                     Expanded(
                       child: Text(
                         'Filter',
@@ -95,8 +105,6 @@ class _FilterSheetState extends State<FilterSheet> {
                         ),
                       ),
                     ),
-
-                    // Reset button
                     TextButton(
                       onPressed: _reset,
                       child: Text(
@@ -111,8 +119,6 @@ class _FilterSheetState extends State<FilterSheet> {
                   ],
                 ),
               ),
-
-              // ================= CONTENT =================
               Expanded(
                 child: SingleChildScrollView(
                   controller: scrollController,
@@ -121,49 +127,45 @@ class _FilterSheetState extends State<FilterSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-
                       SizedBox(height: s(8)),
-
-                      // ================= SERVICE CATEGORIES =================
-                      Text(
-                        'Service Categories',
-                        style: TextStyle(
-                          fontSize: s(16),
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
+                      if (!widget.onlyPrice) ...[
+                        Text(
+                          'Service Categories',
+                          style: TextStyle(
+                            fontSize: s(16),
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
                         ),
-                      ),
-
-                      SizedBox(height: s(14)),
-
-                      GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate:
-                            SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          crossAxisSpacing: s(10),
-                          mainAxisSpacing: s(10),
-                          childAspectRatio: 1.1,
+                        SizedBox(height: s(14)),
+                        GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 3,
+                                crossAxisSpacing: s(10),
+                                mainAxisSpacing: s(10),
+                                childAspectRatio: 1.1,
+                              ),
+                          itemCount: categories.length,
+                          itemBuilder: (context, index) {
+                            return CategoryCard(
+                              category: categories[index],
+                              isSelected: _selectedCategoryIndex == index,
+                              onTap: () {
+                                setState(() {
+                                  _selectedCategoryIndex =
+                                      _selectedCategoryIndex == index
+                                      ? null
+                                      : index;
+                                });
+                              },
+                            );
+                          },
                         ),
-                        itemCount: categories.length,
-                        itemBuilder: (context, index) {
-                          return CategoryCard(
-                            category: categories[index],
-                            isSelected: _selectedCategoryIndex == index,
-                            onTap: () {
-                              setState(() {
-                                _selectedCategoryIndex =
-                                    _selectedCategoryIndex == index ? null : index;
-                              });
-                            },
-                          );
-                        },
-                      ),
-
-                      SizedBox(height: s(28)),
-
-                      // ================= PRICE =================
+                        SizedBox(height: s(28)),
+                      ],
                       Text(
                         'Price',
                         style: TextStyle(
@@ -172,14 +174,11 @@ class _FilterSheetState extends State<FilterSheet> {
                           color: Colors.black87,
                         ),
                       ),
-
                       SizedBox(height: s(14)),
-
                       GridView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate:
-                            SliverGridDelegateWithFixedCrossAxisCount(
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 3,
                           crossAxisSpacing: s(10),
                           mainAxisSpacing: s(10),
@@ -200,18 +199,26 @@ class _FilterSheetState extends State<FilterSheet> {
                               decoration: BoxDecoration(
                                 gradient: isSelected
                                     ? const LinearGradient(
-                                        colors: [Color(0xFFFF9800), Color(0xFFFFB74D)],
+                                        colors: [
+                                          Color(0xFFFF9800),
+                                          Color(0xFFFFB74D),
+                                        ],
                                         begin: Alignment.topLeft,
                                         end: Alignment.bottomRight,
                                       )
                                     : const LinearGradient(
-                                        colors: [Color(0xFFFFD8A8), Color(0xFFFFF3E0)],
+                                        colors: [
+                                          Color(0xFFFFD8A8),
+                                          Color(0xFFFFF3E0),
+                                        ],
                                         begin: Alignment.topLeft,
                                         end: Alignment.bottomRight,
                                       ),
                                 borderRadius: BorderRadius.circular(s(10)),
                                 border: Border.all(
-                                  color: isSelected ? const Color(0xFFFF9800) : Colors.transparent,
+                                  color: isSelected
+                                      ? const Color(0xFFFF9800)
+                                      : Colors.transparent,
                                   width: 1.5,
                                 ),
                                 boxShadow: [
@@ -226,7 +233,9 @@ class _FilterSheetState extends State<FilterSheet> {
                               ),
                               child: Center(
                                 child: Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: s(4)),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: s(4),
+                                  ),
                                   child: Text(
                                     _priceRanges[index],
                                     textAlign: TextAlign.center,
@@ -235,7 +244,9 @@ class _FilterSheetState extends State<FilterSheet> {
                                     style: TextStyle(
                                       fontSize: s(9),
                                       fontWeight: FontWeight.w600,
-                                      color: isSelected ? Colors.white : Colors.black87,
+                                      color: isSelected
+                                          ? Colors.white
+                                          : Colors.black87,
                                       height: 1.3,
                                     ),
                                   ),
@@ -245,14 +256,11 @@ class _FilterSheetState extends State<FilterSheet> {
                           );
                         },
                       ),
-
                       SizedBox(height: s(30)),
                     ],
                   ),
                 ),
               ),
-
-              // ================= APPLY BUTTON =================
               Padding(
                 padding: EdgeInsets.fromLTRB(s(20), s(12), s(20), s(20)),
                 child: SizedBox(
@@ -261,7 +269,9 @@ class _FilterSheetState extends State<FilterSheet> {
                   child: ElevatedButton(
                     onPressed: () {
                       Navigator.pop(context, {
-                        'categoryIndex': _selectedCategoryIndex,
+                        'categoryIndex': widget.onlyPrice
+                            ? null
+                            : _selectedCategoryIndex,
                         'priceIndex': _selectedPriceIndex,
                       });
                     },

@@ -1,3 +1,4 @@
+// ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'home_content.dart';
 import 'freelance_profile_page.dart';
@@ -14,20 +15,49 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
+  String? _initialCategory;
 
-  final List<Widget> _pages = [
-    const HomeContent(),
-    const ServicesPage(),
-    const ChatListPage(),
-    const BookingsPage(),
-    const ProfilePage(),
-  ];
+  void _goToServicesWithCategory(String category) {
+    setState(() {
+      _initialCategory = category;
+      _selectedIndex = 1;
+    });
+  }
+
+  void _goToProfileTab() {
+    setState(() {
+      _selectedIndex = 4;
+      _initialCategory = null;
+    });
+  }
+
+  void _goToPageFromSearch(int index, {String? category}) {
+    setState(() {
+      _selectedIndex = index;
+      _initialCategory = index == 1 ? category : null;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final List<Widget> pages = [
+      HomeContent(
+        onCategoryTap: _goToServicesWithCategory,
+        onProfileTap: _goToProfileTab,
+        onGlobalSearchNavigate: _goToPageFromSearch,
+      ),
+      ServicesPage(
+        key: ValueKey(_initialCategory ?? 'all-services'),
+        initialCategory: _initialCategory,
+      ),
+      const ChatListPage(),
+      const BookingsPage(),
+      const ProfilePage(),
+    ];
+
     return Scaffold(
       backgroundColor: const Color(0xFFFFF8EE),
-      body: IndexedStack(index: _selectedIndex, children: _pages),
+      body: IndexedStack(index: _selectedIndex, children: pages),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -37,7 +67,12 @@ class _HomePageState extends State<HomePage> {
         ),
         child: BottomNavigationBar(
           currentIndex: _selectedIndex,
-          onTap: (index) => setState(() => _selectedIndex = index),
+          onTap: (index) {
+            setState(() {
+              _selectedIndex = index;
+              if (index != 1) _initialCategory = null;
+            });
+          },
           type: BottomNavigationBarType.fixed,
           backgroundColor: Colors.white,
           selectedItemColor: Colors.black,

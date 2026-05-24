@@ -82,7 +82,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
       }
 
       final int clientId = userData['id_user'] as int;
-      final int freelancerId =  9;
+      final int freelancerId = 9;
       final int serviceId = 8;
       final int? packageId = service.packageId; // ← dari ServiceModel
 
@@ -166,11 +166,14 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
 
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => PaymentSuccessPage(
-      idOrder: 999,
-      amount: "500000", // Kamu bisa ganti dengan ID order yang baru dibuat
-      serviceName: service.title,       // 👈 Pastikan variabel service.title sesuai
-    ),
+        MaterialPageRoute(
+          builder: (_) => PaymentSuccessPage(
+            idOrder: 999,
+            amount:
+                "500000", // Kamu bisa ganti dengan ID order yang baru dibuat
+            serviceName:
+                service.title, // 👈 Pastikan variabel service.title sesuai
+          ),
         ),
         (route) => route.isFirst,
       );

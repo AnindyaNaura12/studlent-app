@@ -1,7 +1,7 @@
-name: flutter_application_1
-description: "A new Flutter project."
+name: studlent
+description: "Studlent - Freelance Marketplace for Students"
 
-publish_to: 'none' 
+publish_to: 'none'
 
 version: 1.0.0+1
 
@@ -9,35 +9,56 @@ environment:
   sdk: ^3.10.8
 
 dependencies:
-  image_picker: ^1.1.2
-  supabase_flutter: ^2.0.0
   flutter:
     sdk: flutter
+  supabase_flutter: ^2.0.0
+  image_picker: ^1.1.2
   http: ^1.2.0
   url_launcher: ^6.3.0
-
+  flutter_native_splash: ^2.3.10  # ← TAMBAH
   cupertino_icons: ^1.0.8
+  
+  webview_flutter: ^4.8.0
+  
+  firebase_core: ^3.13.0
+  cloud_firestore: ^5.6.7
+  firebase_auth: ^5.5.3
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_launcher_icons: ^0.14.1
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.1  # ← PINDAH ke dev_dependencies
 
-flutter_icons:
+# ✅ Konfigurasi launcher icon (ganti flutter_icons → flutter_launcher_icons)
+flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/images/logo_app_studlent.png" 
+  image_path: "assets/images/logo_app_studlent.png"
+  adaptive_icon_background: "#FFF8EE"  # ← TAMBAH warna background
+  adaptive_icon_foreground: "assets/images/logo_app_studlent.png" # ← TAMBAH
   
 
-  flutter_lints: ^6.0.0
+# ✅ Konfigurasi splash screen
+flutter_native_splash:
+  color: "#FFF8EE"
+  image: assets/images/logo_studlent.png
+  android: true
+  ios: true
+
+  android_12:
+    color: "#FFF8EE"
+    image: assets/images/logo_studlent1.png
+    icon_background_color: "#FFF8EE"
 
 flutter:
   uses-material-design: true
   assets:
     - assets/images/logo_studlent.png
+    - assets/images/logo_app_studlent.png
     - assets/images/cover_regist.png
     - assets/images/hero_student.png
+    - assets/images/banner_studlent_bg.png
     - assets/images/icons/
     - assets/images/categories/
     - assets/images/freelancers/
-    - assets/images/banner_studlent_bg.png
