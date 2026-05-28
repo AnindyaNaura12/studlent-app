@@ -6,6 +6,7 @@ import '../../models/services_model.dart';
 import 'detail_profile_freelancer.dart';
 import '../../controllers/services_controller.dart';
 import 'contact_freelancer_page.dart';
+import 'detail_order_page.dart';
 
 class ServiceDetailPage extends StatefulWidget {
   final ServiceModel service;
@@ -425,14 +426,21 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                   ),
                   SizedBox(width: s(10)),
                   ElevatedButton(
-                    onPressed: () => controller.goToOrderNow(context, service),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFFA726),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(s(30)),
-                      ),
-                      elevation: 0,
-                    ),
+                    onPressed: () {
+                      final PackageModel? selected =
+                          _packages.isNotEmpty && selectedTab < _packages.length
+                          ? _packages[selectedTab]
+                          : null;
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => DetailOrderPage(
+                            service: service,
+                            selectedPackage: selected,
+                          ),
+                        ),
+                      );
+                    },
                     child: const Text(
                       "Order Now",
                       style: TextStyle(
