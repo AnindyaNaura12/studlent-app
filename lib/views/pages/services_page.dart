@@ -372,14 +372,7 @@ class _ServicesPageState extends State<ServicesPage> {
                               Positioned(
                                 right: 0,
                                 top: 0,
-                                child: Container(
-                                  width: s(10),
-                                  height: s(10),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.red,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
+                                child: Container(width: s(10), height: s(10)),
                               ),
                           ],
                         ),

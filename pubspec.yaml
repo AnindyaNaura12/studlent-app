@@ -48,8 +48,8 @@ flutter_native_splash:
 
   android_12:
     color: "#FFF8EE"
-    image: assets/images/logo_studlent1.png
-    icon_background_color: "#FFF8EE"
+    image: assets/images/logo_studlent4.png
+    
 
 flutter:
   uses-material-design: true

@@ -6,7 +6,7 @@ import '../../controllers/auth_controller.dart';
 import 'contact_freelancer_page.dart';
 import 'login_page.dart';
 import 'register_page.dart';
-import '../widgets/custom_back_button.dart'; 
+import '../widgets/custom_back_button.dart';
 
 class ChatListPage extends StatefulWidget {
   final bool isFreelancerMode;
@@ -19,9 +19,11 @@ class ChatListPage extends StatefulWidget {
 class _ChatListPageState extends State<ChatListPage> {
   final ChatController _chatController = ChatController();
   final AuthController _authController = AuthController();
-  
+  final TextEditingController _searchController = TextEditingController();
+
   late Future<List<ChatModel>> _chatListFuture;
   bool _isLoggedIn = false;
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -29,18 +31,36 @@ class _ChatListPageState extends State<ChatListPage> {
     _checkAuthAndLoad();
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   void _checkAuthAndLoad() {
-    // Mengecek langsung dari Supabase apakah ada sesi yang aktif
     _isLoggedIn = _authController.supabase.auth.currentUser != null;
     if (_isLoggedIn) {
       _chatListFuture = _chatController.getRealChatContacts();
     }
   }
 
+  List<ChatModel> _filterChats(List<ChatModel> chats) {
+    if (_searchQuery.trim().isEmpty) return chats;
+
+    final query = _searchQuery.toLowerCase().trim();
+
+    return chats.where((chat) {
+      final name = chat.name.toLowerCase();
+      final lastMessage = chat.lastMessage.toLowerCase();
+      return name.contains(query) || lastMessage.contains(query);
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    double scale(double size) => (size * (screenWidth / 375)).clamp(size * 0.85, size * 1.2);
+    double scale(double size) =>
+        (size * (screenWidth / 375)).clamp(size * 0.85, size * 1.2);
 
     if (!_isLoggedIn) {
       return _buildLoginPlaceholder(context);
@@ -48,14 +68,10 @@ class _ChatListPageState extends State<ChatListPage> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFFFF8EE),
-      body: SafeArea(
-        child: _buildChatContent(scale),
-      ),
+      body: SafeArea(child: _buildChatContent(scale)),
     );
   }
 
-  // Tampilan Empty State (Login Guard)
-  // Tampilan Empty State (Mirip dengan Guest Profile)
   Widget _buildLoginPlaceholder(BuildContext context) {
     return Container(
       width: double.infinity,
@@ -91,7 +107,11 @@ class _ChatListPageState extends State<ChatListPage> {
                   shape: BoxShape.circle,
                   color: Colors.grey.shade300,
                 ),
-                child: const Icon(Icons.chat_bubble_outline, size: 36, color: Colors.grey),
+                child: const Icon(
+                  Icons.chat_bubble_outline,
+                  size: 36,
+                  color: Colors.grey,
+                ),
               ),
             ),
             const SizedBox(height: 18),
@@ -126,10 +146,7 @@ class _ChatListPageState extends State<ChatListPage> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: const Color(0xFFE8D8C0),
-                    width: 2,
-                  ),
+                  border: Border.all(color: const Color(0xFFE8D8C0), width: 2),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.06),
@@ -164,7 +181,6 @@ class _ChatListPageState extends State<ChatListPage> {
                       height: 52,
                       child: ElevatedButton(
                         onPressed: () {
-                          // Arahkan ke halaman login, lalu refresh saat kembali
                           Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -195,7 +211,6 @@ class _ChatListPageState extends State<ChatListPage> {
                       height: 52,
                       child: ElevatedButton(
                         onPressed: () {
-                          // Arahkan ke halaman register
                           Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -232,6 +247,7 @@ class _ChatListPageState extends State<ChatListPage> {
 
   Widget _buildChatContent(double Function(double) scale) {
     final isWeb = MediaQuery.of(context).size.width > 600;
+
     return Center(
       child: Container(
         width: isWeb ? 900 : double.infinity,
@@ -240,47 +256,69 @@ class _ChatListPageState extends State<ChatListPage> {
           children: [
             SizedBox(height: scale(16)),
             Padding(
-          padding: EdgeInsets.fromLTRB(scale(20), scale(20), scale(20), scale(8)),
-          child: Row(
-            children: [
-              if (Navigator.canPop(context))
-                Padding(
-                  padding: EdgeInsets.only(right: scale(12)),
-                  child: CustomBackButton(
-                    onTap: () => Navigator.pop(context),
-                  ),
-                ),
-              
-              Text(
-                widget.isFreelancerMode ? "Client Messages" : "Chat", 
-                style: TextStyle(
-                  fontSize: isWeb ? 26 : scale(22), 
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
+              padding: EdgeInsets.fromLTRB(
+                scale(20),
+                scale(20),
+                scale(20),
+                scale(8),
               ),
-            ],
-          ),
-        ),
+              child: Row(
+                children: [
+                  if (Navigator.canPop(context))
+                    Padding(
+                      padding: EdgeInsets.only(right: scale(12)),
+                      child: CustomBackButton(
+                        onTap: () => Navigator.pop(context),
+                      ),
+                    ),
+                  Text(
+                    widget.isFreelancerMode ? "Client Messages" : "Chat",
+                    style: TextStyle(
+                      fontSize: isWeb ? 26 : scale(22),
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                  ),
+                ],
+              ),
+            ),
             SizedBox(height: scale(8)),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: scale(20)),
               child: TextField(
+                controller: _searchController,
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value;
+                  });
+                },
                 style: TextStyle(fontSize: scale(14)),
                 decoration: InputDecoration(
                   hintText: "Search messages or freelancers",
                   hintStyle: TextStyle(fontSize: scale(13)),
                   prefixIcon: Icon(Icons.search, size: scale(20)),
+                  suffixIcon: _searchQuery.trim().isNotEmpty
+                      ? IconButton(
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() {
+                              _searchQuery = '';
+                            });
+                          },
+                          icon: Icon(Icons.close, size: scale(18)),
+                        )
+                      : null,
                   filled: true,
                   fillColor: Colors.white,
                   contentPadding: EdgeInsets.symmetric(vertical: scale(12)),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(scale(30)), borderSide: BorderSide.none),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(scale(30)),
+                    borderSide: BorderSide.none,
+                  ),
                 ),
               ),
             ),
             SizedBox(height: scale(6)),
-            
-            // Mengambil Daftar Chat Nyata dari Database
             Expanded(
               child: FutureBuilder<List<ChatModel>>(
                 future: _chatListFuture,
@@ -288,34 +326,72 @@ class _ChatListPageState extends State<ChatListPage> {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
-                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+
+                  if (snapshot.hasError) {
                     return Center(
-                      child: Text("Belum ada obrolan.\nSilakan hubungi freelancer dari menu Booking/Services!",
-                        textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: scale(14)),
+                      child: Text(
+                        "Terjadi kesalahan saat memuat chat.",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontSize: scale(14),
+                        ),
                       ),
                     );
                   }
 
-                  final chatList = snapshot.data!;
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return Center(
+                      child: Text(
+                        "Belum ada obrolan.\nSilakan hubungi freelancer dari menu Booking/Services!",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontSize: scale(14),
+                        ),
+                      ),
+                    );
+                  }
+
+                  final filteredChats = _filterChats(snapshot.data!);
+
+                  if (filteredChats.isEmpty) {
+                    return Center(
+                      child: Text(
+                        "Chat tidak ditemukan.",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontSize: scale(14),
+                        ),
+                      ),
+                    );
+                  }
+
                   return ListView.builder(
                     padding: EdgeInsets.symmetric(vertical: scale(8)),
-                    itemCount: chatList.length,
+                    itemCount: filteredChats.length,
                     itemBuilder: (context, index) {
+                      final chat = filteredChats[index];
+
                       return Padding(
-                        padding: EdgeInsets.symmetric(horizontal: isWeb ? scale(10) : scale(16), vertical: scale(4)),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isWeb ? scale(10) : scale(16),
+                          vertical: scale(4),
+                        ),
                         child: ChatItemTile(
-                          chat: chatList[index],
+                          chat: chat,
                           onTap: () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (_) => ContactFreelancerPage(
-                                  freelancerId: chatList[index].freelancerId,
-                                  freelancerName: chatList[index].name,
-                                  image: chatList[index].imagePath,
+                                  freelancerId: chat.freelancerId,
+                                  freelancerName: chat.name,
+                                  image: chat.imagePath,
                                 ),
                               ),
-                            ).then((_) => setState(() => _checkAuthAndLoad())); // Refresh isi pesan saat kembali
+                            ).then((_) => setState(() => _checkAuthAndLoad()));
                           },
                         ),
                       );
