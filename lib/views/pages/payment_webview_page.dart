@@ -29,7 +29,7 @@ class _PaymentWebViewPageState extends State<PaymentWebViewPage> {
   Timer? _pollingTimer;
 
   // Ganti dengan URL Laravel kamu
-  static const String _baseUrl = 'https://YOUR-LARAVEL-URL.com/api';
+  static const String _baseUrl = 'http://192.168.1.x:8000/api';
 
   @override
   void initState() {

@@ -6,17 +6,14 @@ class PortfolioController {
   final supabase = Supabase.instance.client;
 
   final List<String> categories = [
-    'UI/UX Design',
-    'Web Development',
-    'Mobile Development',
+    'Website Development',
     'Graphic Design',
-    'Content Writing',
+    'Photography',
     'Video Editing',
+    'Image Editing',
+    'Writing & Translation',
   ];
 
-  // =========================
-  // GET PORTFOLIOS
-  // =========================
   Future<List<Map<String, dynamic>>> getPortfolios() async {
     try {
       final authUser = supabase.auth.currentUser;
@@ -25,19 +22,12 @@ class PortfolioController {
         return [];
       }
 
-      // =========================
-      // GET USER
-      // =========================
       final user = await supabase
           .from('users')
           .select('id_user')
           .eq('email', authUser.email!)
           .single();
 
-      // =========================
-      // FIX:
-      // Portfolios -> portfolios
-      // =========================
       final result = await supabase
           .from('portfolios')
           .select()
@@ -51,9 +41,6 @@ class PortfolioController {
     }
   }
 
-  // =========================
-  // UPLOAD IMAGE
-  // =========================
   Future<String?> uploadPortfolioImage() async {
     try {
       final picker = ImagePicker();
@@ -67,20 +54,10 @@ class PortfolioController {
       if (picked == null) return null;
 
       final bytes = await picked.readAsBytes();
-
-      // =========================
-      // FIX MIME TYPE
-      // =========================
-      final fileExt = picked.name.split('.').last;
-
+      final fileExt = picked.name.split('.').last.toLowerCase();
       final fileName =
           'portfolio_${DateTime.now().millisecondsSinceEpoch}.$fileExt';
 
-      // =========================
-      // FIX:
-      // Bucket name harus sama
-      // portfolios
-      // =========================
       await supabase.storage
           .from('Portofolios')
           .uploadBinary(
@@ -92,9 +69,6 @@ class PortfolioController {
             ),
           );
 
-      // =========================
-      // GET PUBLIC URL
-      // =========================
       final imageUrl = supabase.storage
           .from('Portofolios')
           .getPublicUrl(fileName);
@@ -106,9 +80,6 @@ class PortfolioController {
     }
   }
 
-  // =========================
-  // ADD PORTFOLIO
-  // =========================
   Future<bool> addPortfolio({
     required String title,
     required String description,
@@ -122,29 +93,19 @@ class PortfolioController {
         return false;
       }
 
-      // =========================
-      // GET USER
-      // =========================
       final user = await supabase
           .from('users')
           .select('id_user')
           .eq('email', authUser.email!)
           .single();
 
-      // =========================
-      // INSERT PORTFOLIO
-      // =========================
       await supabase.from('portfolios').insert({
         'id_user': user['id_user'],
         'judul': title,
         'deskripsi': description,
-
-        // =========================
-        // TAMBAHAN
-        // =========================
+        'category': category,
         'file_url': imageUrl,
         'thumbnail_url': imageUrl,
-
         'created_at': DateTime.now().toIso8601String(),
       });
 
@@ -155,9 +116,6 @@ class PortfolioController {
     }
   }
 
-  // =========================
-  // UPDATE PORTFOLIO
-  // =========================
   Future<bool> updatePortfolio({
     required int idPortfolio,
     required String title,
@@ -166,28 +124,18 @@ class PortfolioController {
     String? imageUrl,
   }) async {
     try {
-      final updates = {
+      final Map<String, dynamic> updates = {
         'judul': title,
         'deskripsi': description,
-
-        // =========================
-        // FIX
-        // =========================
+        'category': category,
         'updated_at': DateTime.now().toIso8601String(),
       };
 
-      // =========================
-      // UPDATE IMAGE
-      // =========================
       if (imageUrl != null) {
         updates['thumbnail_url'] = imageUrl;
         updates['file_url'] = imageUrl;
       }
 
-      // =========================
-      // FIX:
-      // Portfolios -> portfolios
-      // =========================
       await supabase
           .from('portfolios')
           .update(updates)
@@ -200,15 +148,8 @@ class PortfolioController {
     }
   }
 
-  // =========================
-  // DELETE PORTFOLIO
-  // =========================
   Future<bool> deletePortfolio(int idPortfolio) async {
     try {
-      // =========================
-      // FIX:
-      // Portfolios -> portfolios
-      // =========================
       await supabase
           .from('portfolios')
           .delete()

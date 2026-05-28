@@ -47,7 +47,7 @@ class MidtransWebhookController extends Controller
             // Sekaligus sinyal ke Flutter bahwa polling bisa stop
             $order = Order::find($payment->id_order);
             if ($order) {
-                $order->status = 'in_progress';
+                $order->status = 'diproses';
                 $order->save();
             }
 

@@ -14,21 +14,24 @@ use Illuminate\Http\Request;
 
 class PaymentController extends Controller
 {
+    // ─────────────────────────────────────────────────────────────
+    // METHOD LAMA — tetap tidak diubah
+    // ─────────────────────────────────────────────────────────────
     public function pay($orderId, MidtransService $midtrans)
     {
         $order = Order::findOrFail($orderId);
 
-       $deal = Deal::where('id_client', $order->id_client)
+        $deal = Deal::where('id_client', $order->id_client)
             ->where('status', 'accepted')
             ->first();
 
         if (!$deal) {
             return response()->json(['message' => 'Deal tidak ditemukan'], 404);
-        } // ← sesuaikan kolom foreign key-mu
+        }
 
         $basePrice = $deal->price;
-        $adminFee = 2500;
-        $total = $basePrice + $adminFee;
+        $adminFee  = 2500;
+        $total     = $basePrice + $adminFee;
 
         $snap = $midtrans->createTransaction($order, $total);
 
@@ -41,7 +44,6 @@ class PaymentController extends Controller
             'payment_url'    => $snap->redirect_url,
         ]);
 
-        // ← Return JSON yang bisa dibaca Flutter
         return response()->json([
             'order_id'    => $orderId,
             'amount'      => $total,
@@ -49,41 +51,49 @@ class PaymentController extends Controller
             'status'      => $payment->status,
         ]);
     }
-     public function initiatePayment(Request $request, MidtransService $midtrans)
+
+    // ─────────────────────────────────────────────────────────────
+    // METHOD BARU — dipanggil Flutter setelah insert order & payment
+    // Flutter kirim: order_id, payment_id, amount, customer, item
+    // ─────────────────────────────────────────────────────────────
+   public function initiatePayment(Request $request, MidtransService $midtrans)
     {
         $request->validate([
-            'id_order' => 'required|integer|exists:orders,id_order',
+            'order_id'   => 'required|integer|exists:orders,id_order',
+            'payment_id' => 'required|integer|exists:payments,id_payment',
+            'amount'     => 'required|integer|min:1000',
+            'customer'   => 'required|array',
+            'item'       => 'required|array',
         ]);
 
-        $order = Order::with('client')->findOrFail($request->id_order);
+        // ← load relasi client agar bisa dipakai di MidtransService
+        $order = Order::with('client')->findOrFail($request->order_id);
 
-        // Ambil payment pending yang sudah diinsert Flutter via Supabase
-        $payment = Payment::where('id_order', $order->id_order)
+        $payment = Payment::where('id_payment', $request->payment_id)
+            ->where('id_order', $request->order_id)
             ->where('status', 'pending')
-            ->first();
+            ->firstOrFail();
 
-        if (!$payment) {
-            return response()->json(['message' => 'Payment tidak ditemukan'], 404);
+        try {
+            $snap = $midtrans->createTransaction($order, (int) $request->amount);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Midtrans error: ' . $e->getMessage(),
+            ], 500);
         }
 
-        // Hit Midtrans → dapat token & redirect_url
-        $snap = $midtrans->createTransaction($order, $payment->amount);
-
-        // Simpan token & URL ke row payment yang sudah ada
         $payment->gateway_trx_id = $snap->token;
         $payment->payment_url    = $snap->redirect_url;
         $payment->save();
 
         return response()->json([
-            'payment_url' => $snap->redirect_url,
-            'token'       => $snap->token,
-            'amount'      => $payment->amount,
+            'payment_url'    => $snap->redirect_url,
+            'transaction_id' => $snap->token,
+            'amount'         => $payment->amount,
         ]);
     }
-
     // ─────────────────────────────────────────────────────────────
     // METHOD BARU — dipanggil client saat tekan "Pesanan Selesai"
-    // untuk release escrow → credit wallet freelancer
     // ─────────────────────────────────────────────────────────────
     public function completeOrder(Request $request, FeeService $feeService, WalletService $walletService)
     {
@@ -125,7 +135,7 @@ class PaymentController extends Controller
             $order->id_order
         );
 
-        // Update status order & escrow di payment
+        // Update status
         $order->status          = 'completed';
         $order->save();
 
@@ -138,5 +148,4 @@ class PaymentController extends Controller
             'platform_fee'       => $fee['platform_fee'],
         ]);
     }
-
 }

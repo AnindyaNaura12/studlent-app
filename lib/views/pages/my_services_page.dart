@@ -1,4 +1,5 @@
 // ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'add_service_page.dart';
 import 'edit_service_page.dart';
@@ -15,6 +16,25 @@ class MyServicesPage extends StatefulWidget {
 
 class _MyServicesPageState extends State<MyServicesPage> {
   final MyServicesController _controller = MyServicesController();
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadServices();
+  }
+
+  Future<void> _loadServices() async {
+    setState(() => _loading = true);
+    await _controller.fetchMyServices();
+    if (!mounted) return;
+    setState(() => _loading = false);
+  }
+
+  bool _isNetworkImage(String? path) {
+    if (path == null || path.trim().isEmpty) return false;
+    return path.startsWith('http://') || path.startsWith('https://');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,20 +51,20 @@ class _MyServicesPageState extends State<MyServicesPage> {
         child: SafeArea(
           child: Column(
             children: [
-              // ── TOP BAR ──
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    // Back button di kiri
                     Align(
                       alignment: Alignment.centerLeft,
                       child: CustomBackButton(
                         onTap: () => Navigator.pop(context),
                       ),
                     ),
-
                     const Text(
                       'My Services',
                       style: TextStyle(
@@ -55,7 +75,6 @@ class _MyServicesPageState extends State<MyServicesPage> {
                   ],
                 ),
               ),
-              // ── WHITE CARD CONTENT ──
               Expanded(
                 child: Container(
                   width: double.infinity,
@@ -72,7 +91,9 @@ class _MyServicesPageState extends State<MyServicesPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
-                        child: _controller.services.isEmpty
+                        child: _loading
+                            ? const Center(child: CircularProgressIndicator())
+                            : _controller.services.isEmpty
                             ? const Center(
                                 child: Text(
                                   'Belum ada service.\nTambahkan service pertamamu!',
@@ -83,19 +104,20 @@ class _MyServicesPageState extends State<MyServicesPage> {
                                   ),
                                 ),
                               )
-                            : ListView.separated(
-                                itemCount: _controller.services.length,
-                                separatorBuilder: (_, __) =>
-                                    const SizedBox(height: 14),
-                                itemBuilder: (context, index) {
-                                  return _buildServiceCard(
-                                    _controller.services[index],
-                                  );
-                                },
+                            : RefreshIndicator(
+                                onRefresh: _loadServices,
+                                child: ListView.separated(
+                                  itemCount: _controller.services.length,
+                                  separatorBuilder: (_, __) =>
+                                      const SizedBox(height: 14),
+                                  itemBuilder: (context, index) {
+                                    return _buildServiceCard(
+                                      _controller.services[index],
+                                    );
+                                  },
+                                ),
                               ),
                       ),
-
-                      // ── ADD BUTTON ──
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 20),
                         child: SizedBox(
@@ -108,7 +130,7 @@ class _MyServicesPageState extends State<MyServicesPage> {
                                 MaterialPageRoute(
                                   builder: (_) => AddServicePage(
                                     controller: _controller,
-                                    onServiceAdded: () => setState(() {}),
+                                    onServiceAdded: _loadServices,
                                   ),
                                 ),
                               );
@@ -142,9 +164,6 @@ class _MyServicesPageState extends State<MyServicesPage> {
     );
   }
 
-  // ─────────────────────────────────────────────
-  // SERVICE CARD
-  // ─────────────────────────────────────────────
   Widget _buildServiceCard(ServiceModel service) {
     return Container(
       padding: const EdgeInsets.all(14),
@@ -162,27 +181,38 @@ class _MyServicesPageState extends State<MyServicesPage> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── IMAGE (jika ada) ──
-          if (service.imagePath != null) ...[
+          if (service.imagePath != null &&
+              service.imagePath!.trim().isNotEmpty) ...[
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
-              child: Image.asset(
-                service.imagePath!,
-                width: 90,
-                height: 90,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  width: 90,
-                  height: 90,
-                  color: Colors.grey[200],
-                  child: const Icon(Icons.image, color: Colors.grey),
-                ),
-              ),
+              child: _isNetworkImage(service.imagePath)
+                  ? Image.network(
+                      service.imagePath!,
+                      width: 90,
+                      height: 90,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        width: 90,
+                        height: 90,
+                        color: Colors.grey[200],
+                        child: const Icon(Icons.image, color: Colors.grey),
+                      ),
+                    )
+                  : Image.asset(
+                      service.imagePath!,
+                      width: 90,
+                      height: 90,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        width: 90,
+                        height: 90,
+                        color: Colors.grey[200],
+                        child: const Icon(Icons.image, color: Colors.grey),
+                      ),
+                    ),
             ),
             const SizedBox(width: 14),
           ],
-
-          // ── TEKS ──
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -196,22 +226,53 @@ class _MyServicesPageState extends State<MyServicesPage> {
                   ),
                 ),
                 const SizedBox(height: 6),
+                if (service.category.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFA726).withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        service.category,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ),
+                  ),
                 Text(
                   service.description,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 13,
                     color: Colors.black54,
                     height: 1.4,
                   ),
                 ),
+                const SizedBox(height: 8),
+                Text(
+                  service.basicPackage.price,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFFCCAA44),
+                  ),
+                ),
               ],
             ),
           ),
-
-          // ── ACTIONS ──
+          const SizedBox(width: 12),
           Column(
             children: [
-              // Edit → ke EditServicePage
               GestureDetector(
                 onTap: () {
                   Navigator.push(
@@ -220,7 +281,7 @@ class _MyServicesPageState extends State<MyServicesPage> {
                       builder: (_) => EditServicePage(
                         service: service,
                         controller: _controller,
-                        onServiceUpdated: () => setState(() {}),
+                        onServiceUpdated: _loadServices,
                       ),
                     ),
                   );
@@ -232,7 +293,6 @@ class _MyServicesPageState extends State<MyServicesPage> {
                 ),
               ),
               const SizedBox(height: 8),
-              // Delete
               GestureDetector(
                 onTap: () => _showDeleteConfirmDialog(context, service),
                 child: const Icon(
@@ -248,9 +308,6 @@ class _MyServicesPageState extends State<MyServicesPage> {
     );
   }
 
-  // ─────────────────────────────────────────────
-  // DIALOG DELETE CONFIRM
-  // ─────────────────────────────────────────────
   void _showDeleteConfirmDialog(BuildContext context, ServiceModel service) {
     showDialog(
       context: context,
@@ -273,9 +330,31 @@ class _MyServicesPageState extends State<MyServicesPage> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            onPressed: () {
-              _controller.deleteService(service.id, () => setState(() {}));
+            onPressed: () async {
+              final success = await _controller.deleteService(
+                int.parse(service.id),
+              );
+
+              if (!mounted) return;
+
               Navigator.pop(ctx);
+
+              if (success) {
+                await _loadServices();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Service berhasil dihapus'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Gagal menghapus service'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
             },
             child: const Text('Hapus', style: TextStyle(color: Colors.white)),
           ),

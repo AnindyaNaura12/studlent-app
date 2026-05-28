@@ -14,14 +14,29 @@ class AllServicesPage extends StatefulWidget {
 
 class _AllServicesPageState extends State<AllServicesPage> {
   final _servicesController = MyServicesController();
-  late List<ServiceModel> _allRandomServices;
+  List<ServiceModel> _allRandomServices = [];
+  bool _loading = true;
 
   @override
   void initState() {
     super.initState();
+    _loadAllServices();
+  }
 
-    _allRandomServices = List<ServiceModel>.from(_servicesController.services);
-    _allRandomServices.shuffle(Random());
+  Future<void> _loadAllServices() async {
+    setState(() => _loading = true);
+
+    await _servicesController.fetchServices();
+
+    final services = List<ServiceModel>.from(_servicesController.services);
+    services.shuffle(Random());
+
+    if (!mounted) return;
+
+    setState(() {
+      _allRandomServices = services;
+      _loading = false;
+    });
   }
 
   @override
@@ -42,7 +57,9 @@ class _AllServicesPageState extends State<AllServicesPage> {
           style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
         ),
       ),
-      body: _allRandomServices.isEmpty
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _allRandomServices.isEmpty
           ? const Center(
               child: Text(
                 'Belum ada service tersedia',

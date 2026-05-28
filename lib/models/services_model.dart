@@ -1,9 +1,9 @@
 class PackageModel {
-  final int? id; // ← TAMBAH: id_package dari DB
+  final int? id;
   String price;
   String deliveryTime;
   String shortDescription;
-  String name; // ← TAMBAH: 'basic' / 'standard' / 'premium'
+  String name;
 
   PackageModel({
     this.id,
@@ -13,42 +13,46 @@ class PackageModel {
     this.name = 'basic',
   });
 
-  // ── fromJson dari tabel service_packages ──────────────────
   factory PackageModel.fromJson(Map<String, dynamic> json) {
     return PackageModel(
       id: json['id_package'] as int?,
-      name: json['nama'] ?? 'basic',
+      name: json['nama']?.toString() ?? 'basic',
       price: 'Rp ${_formatPrice((json['harga'] ?? 0).toDouble())}',
       deliveryTime: '${json['delivery_time'] ?? 3} days',
-      shortDescription: json['deskripsi'] ?? '',
+      shortDescription: json['deskripsi']?.toString() ?? '',
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'id_package': id,
-        'nama': name,
-        'harga': double.tryParse(
-              price
-                  .replaceAll('Rp', '')
-                  .replaceAll('.', '')
-                  .replaceAll(' ', '')
-                  .trim(),
-            ) ??
-            0,
-        'delivery_time':
-            int.tryParse(deliveryTime.replaceAll(RegExp(r'[^0-9]'), '')) ?? 3,
-        'deskripsi': shortDescription,
-      };
+    'id_package': id,
+    'nama': name,
+    'harga':
+        double.tryParse(
+          price
+              .replaceAll('Rp', '')
+              .replaceAll('.', '')
+              .replaceAll(' ', '')
+              .trim(),
+        ) ??
+        0,
+    'delivery_time':
+        int.tryParse(deliveryTime.replaceAll(RegExp(r'[^0-9]'), '')) ?? 3,
+    'deskripsi': shortDescription,
+  };
 
   static String _formatPrice(double price) {
     final formatted = price.toInt().toString();
     final result = StringBuffer();
     int count = 0;
+
     for (int i = formatted.length - 1; i >= 0; i--) {
-      if (count > 0 && count % 3 == 0) result.write('.');
+      if (count > 0 && count % 3 == 0) {
+        result.write('.');
+      }
       result.write(formatted[i]);
       count++;
     }
+
     return result.toString().split('').reversed.join();
   }
 }
@@ -60,7 +64,10 @@ class ServiceModel {
   String description;
   String? imagePath;
   List<String> serviceImages;
+
   PackageModel basicPackage;
+  PackageModel? standardPackage;
+  PackageModel? premiumPackage;
 
   final String name;
   final String university;
@@ -69,7 +76,6 @@ class ServiceModel {
   final int totalReviews;
   final String? freelancerName;
 
-  // ── TAMBAH: field untuk koneksi ke DB ─────────────────────
   final int? freelancerId;
   int? packageId;
 
@@ -81,6 +87,8 @@ class ServiceModel {
     this.imagePath,
     this.serviceImages = const [],
     PackageModel? basicPackage,
+    this.standardPackage,
+    this.premiumPackage,
     this.name = '',
     this.university = '',
     this.skills = '',
@@ -90,11 +98,9 @@ class ServiceModel {
     this.freelancerName,
   }) : basicPackage = basicPackage ?? PackageModel();
 
-  // ── FIX TAMBAHAN (TIDAK MERUBAH STRUKTUR, HANYA AMANIN IMAGE) ──
   static String? _cleanImage(String? url) {
     if (url == null || url.isEmpty) return null;
 
-    // FIX kasus "assets/https://..."
     if (url.startsWith('assets/http')) {
       return url.replaceFirst('assets/', '');
     }
@@ -102,40 +108,74 @@ class ServiceModel {
     return url;
   }
 
-  // ── fromJson dari tabel service_detail di Supabase ────────
-  factory ServiceModel.fromJson(Map<String, dynamic> json) {
-    return ServiceModel(
-      id: json['id_service']?.toString() ?? '',
-      title: json['title'] ?? '',
-      category: json['category'] ?? '',
-      description: json['description'] ?? '',
+  static PackageModel? _buildOptionalPackage({
+    required String name,
+    required dynamic id,
+    required dynamic price,
+    required dynamic deliveryTime,
+    required dynamic shortDescription,
+  }) {
+    final hasAnyValue =
+        id != null ||
+        price != null ||
+        deliveryTime != null ||
+        (shortDescription?.toString().isNotEmpty ?? false);
 
-      // ✅ FIX DI SINI (WAJIB)
-      imagePath: _cleanImage(json['image_path']),
+    if (!hasAnyValue) return null;
 
-      serviceImages: json['service_images'] != null
-          ? List<String>.from(json['service_images'])
-              .map((e) => _cleanImage(e) ?? '')
-              .where((e) => e.isNotEmpty)
-              .toList()
-          : [],
-
-      basicPackage: PackageModel(
-        id: json['basic_package_id'] as int?,
-        price: 'Rp ${PackageModel._formatPrice((json['basic_price'] ?? 0).toDouble())}',
-        deliveryTime: '${json['basic_delivery_time'] ?? 3} days',
-        shortDescription: json['basic_description'] ?? '',
-      ),
-
-      name: json['freelancer_name'] ?? '',
-      university: json['university'] ?? '',
-      skills: json['skills'] ?? '',
-      rating: (json['rating_avg'] as num?)?.toDouble() ?? 0.0,
-      totalReviews: json['total_reviews'] as int? ?? 0,
-      freelancerId: json['id_freelancer'] as int?,
+    return PackageModel(
+      id: id as int?,
+      name: name,
+      price: 'Rp ${PackageModel._formatPrice((price ?? 0).toDouble())}',
+      deliveryTime: '${deliveryTime ?? 3} days',
+      shortDescription: shortDescription?.toString() ?? '',
     );
   }
 
-  // PERBAIKAN: Mengakses price melalui basicPackage
-  bool get isValid => basicPackage.price.isNotEmpty && rating > 0;
+  factory ServiceModel.fromJson(Map<String, dynamic> json) {
+    return ServiceModel(
+      id: json['id_service']?.toString() ?? '',
+      title: json['title']?.toString() ?? '',
+      category: json['category']?.toString() ?? '',
+      description: json['description']?.toString() ?? '',
+      imagePath: _cleanImage(json['image_path']?.toString()),
+      serviceImages: json['service_images'] != null
+          ? List<String>.from(json['service_images'])
+                .map((e) => _cleanImage(e.toString()) ?? '')
+                .where((e) => e.isNotEmpty)
+                .toList()
+          : [],
+      basicPackage: PackageModel(
+        id: json['basic_package_id'] as int?,
+        name: 'basic',
+        price:
+            'Rp ${PackageModel._formatPrice((json['basic_price'] ?? 0).toDouble())}',
+        deliveryTime: '${json['basic_delivery_time'] ?? 3} days',
+        shortDescription: json['basic_description']?.toString() ?? '',
+      ),
+      standardPackage: _buildOptionalPackage(
+        name: 'standard',
+        id: json['standard_package_id'],
+        price: json['standard_price'],
+        deliveryTime: json['standard_delivery_time'],
+        shortDescription: json['standard_description'],
+      ),
+      premiumPackage: _buildOptionalPackage(
+        name: 'premium',
+        id: json['premium_package_id'],
+        price: json['premium_price'],
+        deliveryTime: json['premium_delivery_time'],
+        shortDescription: json['premium_description'],
+      ),
+      name: json['freelancer_name']?.toString() ?? '',
+      university: json['university']?.toString() ?? '',
+      skills: json['skills']?.toString() ?? '',
+      rating: (json['rating_avg'] as num?)?.toDouble() ?? 0.0,
+      totalReviews: json['total_reviews'] as int? ?? 0,
+      freelancerId: json['id_freelancer'] as int?,
+      freelancerName: json['freelancer_name']?.toString(),
+    );
+  }
+
+  bool get isValid => basicPackage.price.isNotEmpty && rating >= 0;
 }

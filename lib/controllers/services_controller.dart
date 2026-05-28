@@ -71,8 +71,9 @@ class ServicesController {
 
       final data = await query.order('rating_avg', ascending: false);
 
-      List<ServiceModel> results =
-          (data as List).map((e) => ServiceModel.fromJson(e)).toList();
+      List<ServiceModel> results = (data as List)
+          .map((e) => ServiceModel.fromJson(e))
+          .toList();
 
       if (searchQuery.isNotEmpty) {
         final q = searchQuery.toLowerCase();
@@ -124,28 +125,40 @@ class ServicesController {
   // ── Package helpers ───────────────────────────────────────
   String getPackageTitle(int selectedTab) {
     switch (selectedTab) {
-      case 0: return 'Basic Package';
-      case 1: return 'Standard Package';
-      case 2: return 'Premium Package';
-      default: return '';
+      case 0:
+        return 'Basic Package';
+      case 1:
+        return 'Standard Package';
+      case 2:
+        return 'Premium Package';
+      default:
+        return '';
     }
   }
 
   String getPackageDescription(int selectedTab, ServiceModel service) {
     switch (selectedTab) {
-      case 0: return service.basicPackage.shortDescription;
-      case 1: return '2 Concepts + Vector Files + Favicon';
-      case 2: return '3 Concepts + All Files + Source + Priority';
-      default: return '';
+      case 0:
+        return service.basicPackage.shortDescription;
+      case 1:
+        return '2 Concepts + Vector Files + Favicon';
+      case 2:
+        return '3 Concepts + All Files + Source + Priority';
+      default:
+        return '';
     }
   }
 
   String getPackagePrice(int selectedTab, ServiceModel service) {
     switch (selectedTab) {
-      case 0: return service.basicPackage.price;
-      case 1: return service.basicPackage.price;
-      case 2: return 'Rp 500.000';
-      default: return '';
+      case 0:
+        return service.basicPackage.price;
+      case 1:
+        return service.basicPackage.price;
+      case 2:
+        return 'Rp 500.000';
+      default:
+        return '';
     }
   }
 
@@ -162,9 +175,7 @@ class ServicesController {
     } else {
       Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (_) => DetailOrderPage(service: service),
-        ),
+        MaterialPageRoute(builder: (_) => DetailOrderPage(service: service)),
       );
     }
   }
@@ -181,9 +192,7 @@ class ServicesController {
   void goToServiceDetail(BuildContext context, ServiceModel service) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => ServiceDetailPage(service: service),
-      ),
+      MaterialPageRoute(builder: (_) => ServiceDetailPage(service: service)),
     );
   }
 }
