@@ -18,6 +18,7 @@ dependencies:
   url_launcher: ^6.3.0
   flutter_native_splash: ^2.3.10  # ← TAMBAH
   cupertino_icons: ^1.0.8
+  file_picker: ^8.0.0+1
   
   webview_flutter: ^4.8.0
   
