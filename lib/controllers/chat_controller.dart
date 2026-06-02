@@ -53,7 +53,14 @@ class ChatController {
           latestMessages[otherId] = {
             'lastMessage': msg['text'],
             'created_at': msg['created_at'],
+            'unread': 0,
           };
+        }
+
+        // hanya hitung pesan yang masuk ke saya DAN belum dibaca
+        if (receiverId == myUserId && msg['is_read'] == false) {
+          latestMessages[otherId]!['unread'] =
+              (latestMessages[otherId]!['unread'] ?? 0) + 1;
         }
       }
 
@@ -91,18 +98,21 @@ class ChatController {
           image = user['foto'];
         }
 
-        chatList.add(ChatModel(
-          freelancerId: userId,
-          name: user['nama'] ?? 'Unknown',
-          role: role,
-          lastMessage: latestMessages[userId]?['lastMessage'] ?? '',
-          time: latestMessages[userId]?['created_at'] != null 
-              ? DateTime.parse(latestMessages[userId]!['created_at']) 
-              : DateTime.now(),
-          imagePath: (user['foto'] != null && user['foto'].toString().isNotEmpty)
-              ? user['foto']
-              : 'assets/images/freelancers/freelancer_1.png', 
-        ));
+        chatList.add(
+          ChatModel(
+            freelancerId: userId,
+            name: user['nama'] ?? 'Unknown',
+            role: role,
+            lastMessage: latestMessages[userId]?['lastMessage'] ?? '',
+            time: latestMessages[userId]?['created_at'] != null 
+                ? DateTime.parse(latestMessages[userId]!['created_at']) 
+                : DateTime.now(),
+            imagePath: (user['foto'] != null && user['foto'].toString().isNotEmpty)
+                ? user['foto']
+                : 'assets/images/freelancers/freelancer_1.png', 
+            unreadCount: latestMessages[userId]?['unread'] ?? 0,
+          )
+        );
       }
 
       chatList.sort((a, b) {
@@ -151,9 +161,25 @@ class ChatController {
         'text': text,
         'sender_id': myUserId,
         'receiver_id': targetFreelancerId,
+        'is_read': false,
       });
     } catch (e) {
       print("Gagal kirim pesan: $e");
+    }
+  }
+  Future<void> markMessagesAsRead(int otherUserId) async {
+    final myUserId = await getMyUserId();
+    if (myUserId == null) return;
+
+    try {
+      await supabase
+          .from('messages')
+          .update({'is_read': true})
+          .eq('sender_id', otherUserId)
+          .eq('receiver_id', myUserId)
+          .eq('is_read', false);
+    } catch (e) {
+      print("Error marking messages as read: $e");
     }
   }
 }

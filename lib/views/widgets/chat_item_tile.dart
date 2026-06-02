@@ -111,7 +111,7 @@ class ChatItemTile extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      chat.time != null 
+                      chat.time != null
                           ? "${chat.time!.hour.toString().padLeft(2, '0')}:${chat.time!.minute.toString().padLeft(2, '0')}"
                           : "",
                       style: TextStyle(
@@ -119,17 +119,37 @@ class ChatItemTile extends StatelessWidget {
                         color: Colors.grey[500],
                       ),
                     ),
+
                     SizedBox(height: scale(6)),
-                    Container(
-                      width: scale(8),
-                      height: scale(8),
-                      decoration: const BoxDecoration(
-                        color: Colors.green,
-                        shape: BoxShape.circle,
+
+                    if (chat.unreadCount > 0)
+                      Container(
+                        constraints: BoxConstraints(
+                          minWidth: scale(20),
+                          minHeight: scale(20),
+                        ),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: scale(6),
+                          vertical: scale(3),
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(scale(20)),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          chat.unreadCount > 99
+                              ? '99+'
+                              : chat.unreadCount.toString(),
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: scale(10),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
-                    ),
                   ],
-                ),
+                )
               ],
             ),
           ),
