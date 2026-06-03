@@ -40,9 +40,7 @@ class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
     final userId = await _chatController.getMyUserId();
 
     if (userId != null) {
-      await _chatController.markMessagesAsRead(
-        widget.freelancerId,
-      );
+      await _chatController.markMessagesAsRead(widget.freelancerId);
     }
 
     if (mounted) {

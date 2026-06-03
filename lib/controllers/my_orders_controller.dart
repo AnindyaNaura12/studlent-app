@@ -3,7 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/order_model.dart';
 
 class MyOrdersController {
-  final SupabaseClient _supabase = Supabase.instance.client;
+  final _supabase = Supabase.instance.client;
 
   Future<List<OrderModel>> fetchUserOrders() async {
     try {
@@ -31,12 +31,10 @@ class MyOrdersController {
   List<OrderModel> getOrdersByTab(List<OrderModel> allOrders, String tabName) {
     if (tabName == 'All') {
       return allOrders;
-    } 
-    else if (tabName == 'Active') {
+    } else if (tabName == 'Active') {
       const activeStatuses = ['paid', 'diproses', 'hasil_dikirim', 'revisi'];
       return allOrders.where((o) => activeStatuses.contains(o.status)).toList();
-    } 
-    else if (tabName == 'Done') {
+    } else if (tabName == 'Done') {
       return allOrders.where((o) => o.status == 'selesai').toList();
     }
     return [];
@@ -63,9 +61,12 @@ class MyOrdersController {
 
   String formatDisplayStatus(String status) {
     if (status.isEmpty) return '';
-    return status.split('_').map((word) {
-      if (word.isEmpty) return '';
-      return word[0].toUpperCase() + word.substring(1);
-    }).join(' ');
+    return status
+        .split('_')
+        .map((word) {
+          if (word.isEmpty) return '';
+          return word[0].toUpperCase() + word.substring(1);
+        })
+        .join(' ');
   }
 }

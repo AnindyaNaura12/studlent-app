@@ -6,12 +6,23 @@ use Illuminate\Database\Eloquent\Model;
 
 class Deal extends Model
 {
-    protected $primaryKey = 'id_deal';
+    protected $primaryKey = 'id_deal';   // ← wajib, bukan default 'id'
 
     protected $fillable = [
         'id_client',
         'id_freelancer',
         'price',
-        'status'
+        'status',
+        'catatan',
     ];
+
+    public function client()
+    {
+        return $this->belongsTo(User::class, 'id_client', 'id_user');
+    }
+
+    public function freelancer()
+    {
+        return $this->belongsTo(User::class, 'id_freelancer', 'id_user');
+    }
 }

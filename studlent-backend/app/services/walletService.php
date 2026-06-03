@@ -14,15 +14,15 @@ class WalletService
             ['balance' => 0]
         );
 
-        $wallet->balance += $amount;
+        $wallet->balance += (int) $amount;
         $wallet->save();
 
         WalletLedger::create([
-            'id_user' => $userId,
-            'type' => 'credit',
-            'amount' => $amount,
-            'source' => $source,
-            'reference_id' => $refId
+            'id_user'      => $userId,
+            'type'         => 'credit',
+            'amount'       => (int) $amount,
+            'source'       => $source,
+            'reference_id' => $refId,
         ]);
 
         return $wallet;
@@ -30,21 +30,26 @@ class WalletService
 
     public function debit($userId, $amount, $source, $refId)
     {
+        // Kalau wallet tidak ada, lempar error yang jelas
         $wallet = Wallet::where('id_user', $userId)->first();
 
-        if ($wallet->balance < $amount) {
-            throw new \Exception("Saldo tidak cukup");
+        if (!$wallet) {
+            throw new \Exception("Wallet user #{$userId} tidak ditemukan");
         }
 
-        $wallet->balance -= $amount;
+        if ($wallet->balance < $amount) {
+            throw new \Exception("Saldo tidak cukup. Balance: {$wallet->balance}, dibutuhkan: {$amount}");
+        }
+
+        $wallet->balance -= (int) $amount;
         $wallet->save();
 
         WalletLedger::create([
-            'id_user' => $userId,
-            'type' => 'debit',
-            'amount' => $amount,
-            'source' => $source,
-            'reference_id' => $refId
+            'id_user'      => $userId,
+            'type'         => 'debit',
+            'amount'       => (int) $amount,
+            'source'       => $source,
+            'reference_id' => $refId,
         ]);
 
         return $wallet;
