@@ -30,8 +30,9 @@ class Order extends Model
         return $this->belongsTo(User::class, 'id_freelancer', 'id_user');
     }
 
+    // app/Models/Order.php — tambah relasi ini kalau belum ada
     public function payment()
     {
-        return $this->hasOne(Payment::class, 'id_order');
+        return $this->hasOne(\App\Models\Payment::class, 'id_order', 'id_order');
     }
 }

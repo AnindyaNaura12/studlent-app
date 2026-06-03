@@ -38,15 +38,21 @@ class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
   // Mempersiapkan data secara aman melalui Controller sebelum menampilkan chat
   Future<void> _loadChatContext() async {
     final userId = await _chatController.getMyUserId();
+
+    if (userId != null) {
+      await _chatController.markMessagesAsRead(widget.freelancerId);
+    }
+
     if (mounted) {
       setState(() {
         _myUserId = userId;
+
         if (userId != null) {
-          // Menghubungkan Stream yang disediakan oleh Controller
           _messagesStream = _chatController.getMessagesStream(
             widget.freelancerId,
           );
         }
+
         _isLoading = false;
       });
     }

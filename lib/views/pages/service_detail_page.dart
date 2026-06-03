@@ -6,6 +6,10 @@ import '../../models/services_model.dart';
 import 'detail_profile_freelancer.dart';
 import '../../controllers/services_controller.dart';
 import 'contact_freelancer_page.dart';
+import 'detail_order_page.dart';
+import 'freelance_profile_page.dart';
+import 'chat_list_page.dart';
+import 'home_pages.dart';
 
 class ServiceDetailPage extends StatefulWidget {
   final ServiceModel service;
@@ -409,7 +413,23 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                   ),
                   const Spacer(),
                   OutlinedButton(
-                    onPressed: () {
+                    onPressed: () async {
+                      var user = _supabase.auth.currentUser;
+
+                      if (user == null) {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const HomePage(initialIndex: 2),
+                          ),
+                        );
+
+                        user = _supabase.auth.currentUser;
+                        if (user == null) return;
+                      }
+
+                      if (!mounted) return;
+
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -425,14 +445,38 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                   ),
                   SizedBox(width: s(10)),
                   ElevatedButton(
-                    onPressed: () => controller.goToOrderNow(context, service),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFFA726),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(s(30)),
-                      ),
-                      elevation: 0,
-                    ),
+                    onPressed: () async {
+                      var user = _supabase.auth.currentUser;
+
+                      if (user == null) {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const HomePage(initialIndex: 4),
+                          ),
+                        );
+
+                        user = _supabase.auth.currentUser;
+                        if (user == null) return;
+                      }
+
+                      final PackageModel? selected =
+                          _packages.isNotEmpty && selectedTab < _packages.length
+                          ? _packages[selectedTab]
+                          : null;
+
+                      if (!mounted) return;
+
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => DetailOrderPage(
+                            service: service,
+                            selectedPackage: selected,
+                          ),
+                        ),
+                      );
+                    },
                     child: const Text(
                       "Order Now",
                       style: TextStyle(

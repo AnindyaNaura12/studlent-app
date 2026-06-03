@@ -16,7 +16,7 @@ use App\Http\Controllers\MidtransWebhookController;
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login',    [AuthController::class, 'login']);
 
-// Webhook Midtrans — tanpa auth, yang hit server Midtrans bukan user
+// Webhook Midtrans — TANPA auth, yang hit adalah server Midtrans
 Route::post('/midtrans/callback', [MidtransWebhookController::class, 'callback']);
 
 // ─────────────────────────────────────────────────────────────
@@ -29,35 +29,27 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me',      [AuthController::class, 'me']);
 
     // ── Deal ──────────────────────────────────────────────────
-    Route::post('/deals',            [DealController::class, 'create']);
-    Route::post('/deals/{id}/accept',[DealController::class, 'accept']);
+    Route::post('/deals',             [DealController::class, 'create']);
+    Route::post('/deals/{id}/accept', [DealController::class, 'accept']);
 
     // ── Order ─────────────────────────────────────────────────
     Route::post('/orders/from-deal/{dealId}', [OrderController::class, 'createFromDeal']);
 
-    // Polling status — dicek Flutter tiap 4 detik setelah buka WebView
-    Route::get('/orders/{id}/status', function ($id) {
-        $order = \App\Models\Order::with('payment')->findOrFail($id);
-        return response()->json([
-            'status'         => $order->status,
-            'payment_status' => $order->payment?->status,
-        ]);
-    });
+    // Polling status — dicek Flutter tiap 4 detik di PaymentWebViewPage
+    Route::get('/orders/{id}/status', [OrderController::class, 'getStatus']);
 
     // ── Payment ───────────────────────────────────────────────
-
-    // Method lama — tetap ada
     Route::post('/payments/{orderId}/pay', [PaymentController::class, 'pay']);
 
-    // Method baru — Flutter hit ini untuk dapat payment_url Midtrans
-    Route::post('/payment/initiate', [PaymentController::class, 'initiatePayment']);
+    // Flutter hit ini untuk dapat payment_url dari Midtrans
+    Route::post('/payment/initiate',  [PaymentController::class, 'initiatePayment']);
 
-    // Method baru — Flutter hit ini saat client tekan "Pesanan Selesai"
-    Route::post('/payment/complete', [PaymentController::class, 'completeOrder']);
+    // Flutter hit ini saat client tekan "Pesanan Selesai"
+    Route::post('/payment/complete',  [PaymentController::class, 'completeOrder']);
 
     // ── Escrow ────────────────────────────────────────────────
     Route::post('/escrow/{paymentId}/release', [EscrowController::class, 'release'])
-        ->middleware('ensure.payment.paid'); // pastikan payment sudah lunas
+        ->middleware('ensure.payment.paid');
 
     // ── Revision ──────────────────────────────────────────────
     Route::post('/revisions', [RevisionController::class, 'request']);
