@@ -9,7 +9,7 @@ import '/models/services_model.dart';
 import '../widgets/filter_button.dart';
 import '../widgets/freelancer_card_horizontal.dart';
 import '../widgets/service_card.dart';
-import '../pages/service_detail_page.dart';
+import '../pages/service_detail_page.dart' as service_page;
 import '../pages/filter_page.dart';
 import '../pages/all_services_page.dart';
 import '../pages/popular_services_page.dart';
@@ -57,10 +57,6 @@ class _ServicesPageState extends State<ServicesPage> {
     {'label': 'Rp 401.000 - 450.000', 'min': 401000.0, 'max': 450000.0},
   ];
 
-  // ─────────────────────────────────────────────────────────
-  // Lifecycle
-  // ─────────────────────────────────────────────────────────
-
   @override
   void initState() {
     super.initState();
@@ -96,10 +92,6 @@ class _ServicesPageState extends State<ServicesPage> {
     super.dispose();
   }
 
-  // ─────────────────────────────────────────────────────────
-  // Data
-  // ─────────────────────────────────────────────────────────
-
   Future<void> _fetchServicesFromDB() async {
     setState(() => _loadingServices = true);
     try {
@@ -112,7 +104,9 @@ class _ServicesPageState extends State<ServicesPage> {
         _applyAllFilters();
       }
     } catch (_) {
-      if (mounted) setState(() => _loadingServices = false);
+      if (mounted) {
+        setState(() => _loadingServices = false);
+      }
     }
   }
 
@@ -123,15 +117,19 @@ class _ServicesPageState extends State<ServicesPage> {
       globalUsername.value = '';
       return;
     }
+
     setState(() => _isLoggedIn = true);
+
     try {
       final email = _supabase.auth.currentUser?.email;
       if (email == null) return;
+
       final data = await _supabase
           .from('users')
           .select('username')
           .eq('email', email)
           .maybeSingle();
+
       if (data != null && mounted) {
         globalUsername.value = data['username'] as String? ?? 'Student';
       }
@@ -139,10 +137,6 @@ class _ServicesPageState extends State<ServicesPage> {
       globalUsername.value = '';
     }
   }
-
-  // ─────────────────────────────────────────────────────────
-  // Filter & Search
-  // ─────────────────────────────────────────────────────────
 
   double _parsePrice(String raw) {
     return double.tryParse(
@@ -169,7 +163,6 @@ class _ServicesPageState extends State<ServicesPage> {
     final query = _searchQuery.trim().toLowerCase();
 
     final filtered = all.where((service) {
-      // Category
       bool matchCategory = true;
       if (widget.initialCategory != null) {
         final cat = widget.initialCategory!.toLowerCase();
@@ -184,7 +177,6 @@ class _ServicesPageState extends State<ServicesPage> {
             service.title.toLowerCase().contains(cat);
       }
 
-      // Price
       bool matchPrice = true;
       if (_activePriceIndex != null &&
           _activePriceIndex! < _priceRanges.length) {
@@ -194,8 +186,7 @@ class _ServicesPageState extends State<ServicesPage> {
         matchPrice = rawPrice >= min && rawPrice <= max;
       }
 
-      // Search
-      bool matchSearch = query.isEmpty || _matchesSearch(service, query);
+      final matchSearch = query.isEmpty || _matchesSearch(service, query);
 
       return matchCategory && matchPrice && matchSearch;
     }).toList();
@@ -258,12 +249,9 @@ class _ServicesPageState extends State<ServicesPage> {
     _applyAllFilters();
   }
 
-  // ─────────────────────────────────────────────────────────
-  // Helpers
-  // ─────────────────────────────────────────────────────────
-
   String? _activeCategoryLabel() {
     if (widget.initialCategory != null) return widget.initialCategory;
+
     if (_activeCategoryIndex != null) {
       final cats = _homeController.getCategories();
       if (_activeCategoryIndex! < cats.length) {
@@ -277,10 +265,6 @@ class _ServicesPageState extends State<ServicesPage> {
       _activePriceIndex != null ||
       (widget.initialCategory == null && _activeCategoryIndex != null) ||
       _searchQuery.trim().isNotEmpty;
-
-  // ─────────────────────────────────────────────────────────
-  // Build
-  // ─────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -309,7 +293,6 @@ class _ServicesPageState extends State<ServicesPage> {
                   children: [
                     SizedBox(height: s(20)),
 
-                    // ── HEADER ──
                     ValueListenableBuilder<String>(
                       valueListenable: globalUsername,
                       builder: (context, username, _) {
@@ -330,7 +313,6 @@ class _ServicesPageState extends State<ServicesPage> {
 
                     SizedBox(height: s(20)),
 
-                    // ── SEARCH + FILTER ──
                     Row(
                       children: [
                         Expanded(
@@ -379,7 +361,6 @@ class _ServicesPageState extends State<ServicesPage> {
                       ],
                     ),
 
-                    // ── ACTIVE FILTER CHIPS ──
                     if ((activeCategoryLabel != null &&
                             widget.initialCategory == null) ||
                         _activePriceIndex != null)
@@ -410,7 +391,6 @@ class _ServicesPageState extends State<ServicesPage> {
 
                     SizedBox(height: s(24)),
 
-                    // ── SUGGESTION SECTION ──
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -477,16 +457,16 @@ class _ServicesPageState extends State<ServicesPage> {
                                 onTap: () => Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) => ServiceDetailPage(
-                                      service: displayedServices[index],
-                                    ),
+                                    builder: (_) =>
+                                        service_page.ServiceDetailPage(
+                                          service: displayedServices[index],
+                                        ),
                                   ),
                                 ),
                               );
                             },
                           ),
 
-                    // ── POPULAR SECTION ──
                     if (!_isFilterActive && widget.initialCategory == null) ...[
                       SizedBox(height: s(16)),
                       if (_popularPreviewServices.isNotEmpty) ...[
@@ -532,9 +512,11 @@ class _ServicesPageState extends State<ServicesPage> {
                                 onTap: () => Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) => ServiceDetailPage(
-                                      service: _popularPreviewServices[index],
-                                    ),
+                                    builder: (_) =>
+                                        service_page.ServiceDetailPage(
+                                          service:
+                                              _popularPreviewServices[index],
+                                        ),
                                   ),
                                 ),
                               );
@@ -551,10 +533,6 @@ class _ServicesPageState extends State<ServicesPage> {
       ),
     );
   }
-
-  // ─────────────────────────────────────────────────────────
-  // Widgets
-  // ─────────────────────────────────────────────────────────
 
   Widget _buildFilterChip({
     required String label,

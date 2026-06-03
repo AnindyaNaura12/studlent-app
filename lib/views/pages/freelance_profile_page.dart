@@ -88,22 +88,21 @@ class _ProfilePageState extends State<ProfilePage> {
 
     if (!mounted) return;
 
-   if (data != null) {
-    setState(() {
-      _userData = data;
-      _controller.isLoggedIn = true;
+    if (data != null) {
+      setState(() {
+        _userData = data;
+        _controller.isLoggedIn = true;
 
-      // SELALU buka profile client saat pertama masuk
-      _controller.isFreelancer = false;
+        // SELALU buka profile client saat pertama masuk
+        _controller.isFreelancer = false;
 
-      _nameController.text = data['nama'] ?? '';
-      _usernameController.text = data['username'] ?? '';
-      _emailController.text = data['email'] ?? '';
+        _nameController.text = data['nama'] ?? '';
+        _usernameController.text = data['username'] ?? '';
+        _emailController.text = data['email'] ?? '';
 
-      _loading = false;
-      globalUsername.value = data['username'] ?? '';
-      }
-    );
+        _loading = false;
+        globalUsername.value = data['username'] ?? '';
+      });
 
       // Load freelancer stats kalau memang freelancer
       if (data['is_freelancer'] == true) {
@@ -159,6 +158,8 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _buildGuestProfile() {
     return Scaffold(
       backgroundColor: Colors.white,
+
+      // ── Body dengan gradient ──
       body: Container(
         width: double.infinity,
         decoration: const BoxDecoration(
@@ -173,6 +174,7 @@ class _ProfilePageState extends State<ProfilePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // ── Header ──
               const Padding(
                 padding: EdgeInsets.fromLTRB(20, 20, 20, 0),
                 child: Text(
@@ -185,6 +187,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
               const SizedBox(height: 36),
+
+              // ── Avatar ──
               Center(
                 child: Container(
                   width: 72,
@@ -197,6 +201,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
               const SizedBox(height: 18),
+
+              // ── Welcome Text ──
               const Center(
                 child: Text(
                   'Welcome to Studlent!',
@@ -220,6 +226,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
               const SizedBox(height: 30),
+
+              // ── Card Login / Register ──
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Container(
@@ -261,6 +269,8 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ),
                       const SizedBox(height: 24),
+
+                      // Tombol Login
                       SizedBox(
                         width: double.infinity,
                         height: 52,
@@ -271,7 +281,7 @@ class _ProfilePageState extends State<ProfilePage> {
                               MaterialPageRoute(
                                 builder: (_) => const LoginPage(),
                               ),
-                            );
+                            ).then((_) => setState(() {}));
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFFFB74D),
@@ -291,6 +301,8 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ),
                       const SizedBox(height: 14),
+
+                      // Tombol Register
                       SizedBox(
                         width: double.infinity,
                         height: 52,
@@ -738,19 +750,24 @@ class _ProfilePageState extends State<ProfilePage> {
                   );
                 }
 
-                return _menuItem(title, hasTag: hasTag, onTap: () {
-                  if (title == 'Chat') {
-                    // Berpindah ke ChatListPage
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const ChatListPage(isFreelancerMode: true),
-                      ),
-                    );
-                  } else {
-                    _controller.onMenuTap(title, context);
-                  }
-                });
+                return _menuItem(
+                  title,
+                  hasTag: hasTag,
+                  onTap: () {
+                    if (title == 'Chat') {
+                      // Berpindah ke ChatListPage
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              const ChatListPage(isFreelancerMode: true),
+                        ),
+                      );
+                    } else {
+                      _controller.onMenuTap(title, context);
+                    }
+                  },
+                );
               }).toList(),
             ),
           ),
@@ -942,7 +959,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _menuItem(String title, {bool hasTag = false, VoidCallback? onTap}) {
     return InkWell(
       borderRadius: BorderRadius.circular(16),
-      onTap: onTap ?? () => _controller.onMenuTap(title, context), 
+      onTap: onTap ?? () => _controller.onMenuTap(title, context),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
