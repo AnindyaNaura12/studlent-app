@@ -5,13 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 
 class Wallet extends Model
-{   
+{
     protected $table      = 'freelancer_wallet';
     protected $primaryKey = 'id_wallet';
 
     protected $fillable = [
         'id_user',
-        'balance'
+        'balance',
     ];
 
     public function user()

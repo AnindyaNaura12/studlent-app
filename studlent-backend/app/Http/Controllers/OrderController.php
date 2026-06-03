@@ -2,18 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Order;
 use App\Models\Deal;
+use App\Models\Order;
 use App\Models\Payment;
 use Illuminate\Http\Request;
 
 class OrderController extends Controller
 {
-    /**
-     * Buat Order + Payment (pending) dari Deal yang sudah accepted.
-     * Flutter hit ini setelah client klik "Confirm & Pay".
-     * Response: order_id + payment_id → Flutter lanjut hit /payment/initiate
-     */
     public function createFromDeal(Request $request, $dealId)
     {
         $request->validate([
@@ -23,16 +18,12 @@ class OrderController extends Controller
 
         $deal = Deal::findOrFail($dealId);
 
-        // Deal harus sudah accepted sebelum bisa order
         if ($deal->status !== 'accepted') {
-            return response()->json([
-                'message' => 'Deal belum disetujui freelancer',
-            ], 400);
+            return response()->json(['message' => 'Deal belum disetujui freelancer'], 400);
         }
 
-        // Cek apakah sudah ada order aktif untuk deal ini
         $existing = Order::where('id_deal', $dealId)
-            ->whereNotIn('status', ['cancelled', 'failed'])
+            ->whereNotIn('status', ['dibatalkan'])
             ->first();
 
         if ($existing) {
@@ -45,21 +36,19 @@ class OrderController extends Controller
         $adminFee = 2500;
         $total    = $deal->price + $adminFee;
 
-        // 1. Buat Order
         $order = Order::create([
             'id_client'      => $deal->id_client,
-            'id_freelancer'  => $deal->id_freelancer,   // ← wajib dari Deal
+            'id_freelancer'  => $deal->id_freelancer,
             'id_service'     => null,
             'id_package'     => null,
             'id_deal'        => $deal->id_deal,
-            'detail_pesanan' => $deal->deskripsi ?? 'Project dari deal',
+            'detail_pesanan' => $deal->catatan ?? 'Project dari deal',
             'catatan'        => $request->catatan,
             'deadline'       => $request->deadline,
             'status'         => 'menunggu_pembayaran',
             'progress'       => 0,
         ]);
 
-        // 2. Buat Payment (pending) — WAJIB sebelum hit /payment/initiate
         $payment = Payment::create([
             'id_order'      => $order->id_order,
             'amount'        => $total,
@@ -81,10 +70,7 @@ class OrderController extends Controller
         ], 201);
     }
 
-    /**
-     * Polling status — Flutter hit ini tiap 4 detik
-     * setelah client selesai bayar di WebView.
-     */
+    // Dipanggil Flutter tiap 4 detik — public route
     public function getStatus($id)
     {
         $order = Order::with('payment')
@@ -95,7 +81,6 @@ class OrderController extends Controller
             'order_id'       => $order->id_order,
             'status'         => $order->status,
             'payment_status' => $order->payment?->status ?? 'pending',
-            // Flutter pakai ini untuk tahu kapan harus stop polling
             'is_paid'        => $order->payment?->status === 'paid',
         ]);
     }
