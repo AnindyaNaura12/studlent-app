@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../views/pages/detail_profile_freelancer.dart';
 import '../models/services_model.dart';
-import '../views/pages/service_detail_page.dart';
+import '../views/pages/service_detail_page.dart' as service_page;
 import '../views/pages/login_page.dart';
 import '../views/pages/detail_order_page.dart';
 
