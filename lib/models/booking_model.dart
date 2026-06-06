@@ -11,6 +11,9 @@ class Booking {
   final String note;
 
   Booking({
+    required this.id,
+    required this.idClient,
+    required this.idFreelancer,
     required this.freelancerId,
     required this.orderId,
     required this.serviceName,

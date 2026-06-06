@@ -387,7 +387,7 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
                 children: [
                   _buildFreelancerCard(s),
                   SizedBox(height: s(20)),
-                  _buildViewOrderSection(s),
+                  // _buildViewOrderSection(s),
                   SizedBox(height: s(20)),
                   _buildRevisionInputSection(s),
                 ],
