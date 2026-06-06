@@ -1,9 +1,11 @@
 <?php
+// app/Services/MidtransService.php
 
 namespace App\Services;
 
 use Midtrans\Config;
 use Midtrans\Snap;
+use Illuminate\Support\Facades\Log;
 
 class MidtransService
 {
@@ -14,15 +16,14 @@ class MidtransService
         Config::$isSanitized  = true;
         Config::$is3ds        = true;
 
-        // ← FIX: bypass SSL untuk sandbox/local dev, hindari curl timeout
         if (!config('midtrans.is_production')) {
             Config::$curlOptions = [CURLOPT_SSL_VERIFYPEER => false];
         }
     }
 
-    public function createTransaction($order, int $amount): array
+    public function createTransaction($order, int $amount, ?string $paymentMethod = null): array
     {
-        $midtransOrderId = 'ORDER-' . $order->id_order . '-' . time();
+        $midtransOrderId = 'STD-' . uniqid() . '-' . $order->id_order;
 
         $params = [
             'transaction_details' => [
@@ -32,17 +33,16 @@ class MidtransService
             'customer_details' => [
                 'first_name' => $order->client->nama  ?? 'Client',
                 'email'      => $order->client->email ?? 'client@studlent.com',
-                'phone'      => $order->client->no_hp ?? '',
+                'phone'      => $order->client->no_hp  ?? '',
             ],
             'item_details' => [
                 [
-                    'id'       => 'ORDER-' . $order->id_order,
+                    'id'       => 'SVC-' . $order->id_order,
                     'price'    => $amount,
                     'quantity' => 1,
                     'name'     => substr($order->detail_pesanan ?? 'Studlent Service', 0, 50),
                 ],
             ],
-            // ← FIX: WAJIB ADA — URL ini yang diintercept WebView Flutter
             'callbacks' => [
                 'finish'  => 'https://studlent.app/payment/finish',
                 'error'   => 'https://studlent.app/payment/error',
@@ -50,10 +50,23 @@ class MidtransService
             ],
         ];
 
-        try {
-            $snap = Snap::createTransaction($params);
-        } catch (\Throwable $e) {
-            dd($e->getMessage(), $e->getFile(), $e->getLine());
+        if ($paymentMethod) {
+            $enabledPayments = $this->_resolveEnabledPayments($paymentMethod);
+            if (!empty($enabledPayments)) {
+                $params['enabled_payments'] = $enabledPayments;
+            }
+        }
+
+        // @ untuk suppress warning dari library Midtrans (array key 10023)
+        // Warning ini tidak mempengaruhi hasil transaksi
+        $snap = @Snap::createTransaction($params);
+
+        if (!$snap || !isset($snap->token)) {
+            Log::error('Midtrans snap null atau tidak ada token', [
+                'midtrans_order_id' => $midtransOrderId,
+                'amount'            => $amount,
+            ]);
+            throw new \Exception('Gagal mendapatkan token dari Midtrans');
         }
 
         return [
@@ -61,5 +74,23 @@ class MidtransService
             'redirect_url'      => $snap->redirect_url,
             'midtrans_order_id' => $midtransOrderId,
         ];
+    }
+
+    private function _resolveEnabledPayments(string $method): array
+    {
+        $map = [
+            'gopay'       => ['gopay'],
+            'shopeepay'   => ['shopeepay'],
+            'dana'        => ['other_qris'],
+            'ovo'         => ['other_qris'],
+            'qris'        => ['other_qris'],
+            'bri_va'      => ['bri_va'],
+            'bca_va'      => ['bca_va'],
+            'bni_va'      => ['bni_va'],
+            'echannel'    => ['echannel'],
+            'credit_card' => ['credit_card'],
+        ];
+
+        return $map[$method] ?? [];
     }
 }

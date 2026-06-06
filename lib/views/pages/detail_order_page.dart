@@ -1,3 +1,4 @@
+// lib/views/pages/detail_order_page.dart
 // ignore_for_file: deprecated_member_use
 import 'dart:convert';
 import 'dart:typed_data';
@@ -5,14 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:file_picker/file_picker.dart';
+import '../../config.dart';
 import '../../models/services_model.dart';
 import 'payment_webview_page.dart';
-
-// ── Ganti sesuai environment ──────────────────────────────────
-// Emulator Android  : http://10.0.2.2:8000/api
-// Device fisik      : http://192.168.0.109:8000/api (cek via ipconfig)
-// untu browser      : http://127.0.0.1:8000/api
-const String _laravelBaseUrl = 'http://localhost:8000/api';
 
 class DetailOrderPage extends StatefulWidget {
   final ServiceModel service;
@@ -37,18 +33,20 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
 
   final List<_UploadedFile> _uploadedFiles = [];
 
+  // ── Payment Methods ────────────────────────────────────────
+  // 'value' = kode Midtrans, 'label' = tampilan ke user
   final List<Map<String, dynamic>> _eWalletMethods = [
-    {'name': 'Shopeepay', 'balance': 'Rp200.000', 'activated': true},
-    {'name': 'Gopay', 'balance': 'Rp20.000', 'activated': true},
-    {'name': 'DANA', 'balance': null, 'activated': false},
-    {'name': 'OVO', 'balance': null, 'activated': false},
+    {'label': 'Shopeepay', 'value': 'shopeepay', 'activated': true},
+    {'label': 'Gopay', 'value': 'gopay', 'activated': true},
+    {'label': 'DANA', 'value': 'dana', 'activated': false},
+    {'label': 'OVO', 'value': 'ovo', 'activated': false},
   ];
 
   final List<Map<String, dynamic>> _bankMethods = [
-    {'name': 'BRI', 'balance': null, 'activated': true},
-    {'name': 'BCA', 'balance': null, 'activated': true},
-    {'name': 'BNI', 'balance': null, 'activated': true},
-    {'name': 'Mandiri', 'balance': null, 'activated': true},
+    {'label': 'BRI', 'value': 'bri_va', 'activated': true},
+    {'label': 'BCA', 'value': 'bca_va', 'activated': true},
+    {'label': 'BNI', 'value': 'bni_va', 'activated': true},
+    {'label': 'Mandiri', 'value': 'echannel', 'activated': true},
   ];
 
   @override
@@ -57,9 +55,25 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
     super.dispose();
   }
 
-  // ── Package helpers ───────────────────────────────────────
+  void _showSnack(String message, {bool isError = false}) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red : Colors.green,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  // ── Package helpers ────────────────────────────────────────
+  PackageModel get _activePackage =>
+      widget.selectedPackage ?? widget.service.basicPackage;
+
   double get _packagePrice {
-    final raw = (widget.selectedPackage ?? widget.service.basicPackage).price
+    final raw = _activePackage.price
         .replaceAll('Rp', '')
         .replaceAll('.', '')
         .replaceAll(' ', '')
@@ -68,18 +82,16 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
   }
 
   String get _packageLabel {
-    final n = (widget.selectedPackage?.name ?? 'basic').toString();
+    final n = _activePackage.name.toString();
     if (n.isEmpty) return 'Basic';
     return '${n[0].toUpperCase()}${n.substring(1)}';
   }
 
-  String get _deliveryTime =>
-      (widget.selectedPackage ?? widget.service.basicPackage).deliveryTime ??
-      '3 days';
+  String get _deliveryTime => _activePackage.deliveryTime;
 
   int? get _packageId => widget.selectedPackage?.id ?? widget.service.packageId;
 
-  // ── Upload file ───────────────────────────────────────────
+  // ── File Upload ────────────────────────────────────────────
   Future<void> _pickAndUploadFile() async {
     FilePickerResult? result;
     try {
@@ -92,7 +104,6 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
       _showSnack('Gagal membuka file picker: $e', isError: true);
       return;
     }
-
     if (result == null || result.files.isEmpty) return;
 
     const allowed = [
@@ -143,7 +154,6 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
       _showSnack('Gagal membuka galeri: $e', isError: true);
       return;
     }
-
     if (result == null || result.files.isEmpty) return;
 
     setState(() => _isUploading = true);
@@ -206,7 +216,14 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
     if (mounted) setState(() => _uploadedFiles.removeAt(index));
   }
 
-  // ── Confirm & Pay ─────────────────────────────────────────
+  // ── Confirm & Pay ──────────────────────────────────────────
+  // FLOW BARU:
+  // 1. Ambil data user dari Supabase
+  // 2. Kirim semua data ke Laravel → Laravel yang insert order + payment + hit Midtrans
+  // 3. Laravel return payment_url + order_id
+  // 4. Flutter upload file referensi ke Supabase (pakai order_id dari Laravel)
+  // 5. Buka WebView
+  // Order TIDAK diinsert dari Flutter — hanya dari Laravel
   Future<void> _handleConfirmPay(
     double packagePrice,
     double adminFee,
@@ -216,29 +233,26 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
       _showSnack('Pilih metode pembayaran terlebih dahulu', isError: false);
       return;
     }
+    if (_isProcessing || _isUploading) return;
 
     setState(() => _isProcessing = true);
 
     try {
-      // 1. Ambil data user dari Supabase
       final currentUser = _supabase.auth.currentUser;
-      if (currentUser == null)
+      if (currentUser == null) {
         throw Exception('Sesi login tidak ditemukan. Silakan login ulang.');
+      }
 
       final userData = await _supabase
           .from('users')
           .select('id_user, nama, email, no_hp')
           .eq('email', currentUser.email!)
           .maybeSingle();
-
       if (userData == null) throw Exception('Data pengguna tidak ditemukan.');
 
       final int clientId = userData['id_user'] as int;
       final int serviceId = int.tryParse(widget.service.id) ?? 0;
-      final int? packageId = _packageId;
-      final String serviceName = widget.service.title;
 
-      // 2. Ambil freelancerId
       int freelancerId;
       if (widget.service.freelancerId != null &&
           widget.service.freelancerId! > 0) {
@@ -255,7 +269,6 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
         freelancerId = sd['id_freelancer'] as int;
       }
 
-      // 3. Hitung deadline
       final deliveryDays =
           int.tryParse(_deliveryTime.replaceAll(RegExp(r'[^0-9]'), '')) ?? 3;
       final deadline = DateTime.now()
@@ -263,58 +276,49 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
           .toIso8601String()
           .split('T')[0];
 
-      // 4. Insert order ke Supabase
-      final orderRow = await _supabase
-          .from('orders')
-          .insert({
-            'id_client': clientId,
-            'id_freelancer': freelancerId,
-            'id_service': serviceId,
-            'id_package': packageId,
-            'detail_pesanan': serviceName,
-            'catatan': _noteController.text.trim(),
-            'deadline': deadline,
-            'status': 'menunggu_pembayaran',
-            'progress': 0,
-          })
-          .select()
-          .single();
+      // Kirim semua data ke Laravel
+      // Laravel yang insert order + payment + escrow + hit Midtrans
+      final apiResponse = await http
+          .post(
+            Uri.parse('${Config.laravelBaseUrl}/payment/initiate'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode({
+              'client_id': clientId,
+              'freelancer_id': freelancerId,
+              'service_id': serviceId,
+              'package_id': _packageId,
+              'service_name': widget.service.title,
+              'package_name': _packageLabel,
+              'catatan': _noteController.text.trim(),
+              'deadline': deadline,
+              'amount': total.toInt(),
+              'admin_fee': adminFee.toInt(),
+              'package_price': packagePrice.toInt(),
+              'payment_method': _selectedPayment,
+              'customer': {
+                'name': userData['nama'] ?? 'Client',
+                'email': userData['email'] ?? '',
+                'phone': userData['no_hp'] ?? '',
+              },
+            }),
+          )
+          .timeout(const Duration(seconds: 30));
 
-      final int orderId = orderRow['id_order'] as int;
+      if (apiResponse.statusCode != 200) {
+        final err = jsonDecode(apiResponse.body);
+        throw Exception(err['message'] ?? 'Gagal membuat transaksi');
+      }
 
-      // 5. Insert payment ke Supabase
-      const double feePercent = 10.0;
-      final double platformFee = packagePrice * (feePercent / 100);
-      final double freelancerGet = packagePrice - platformFee;
+      final apiData = jsonDecode(apiResponse.body);
+      final paymentUrl = apiData['payment_url']?.toString() ?? '';
+      final int orderId = apiData['order_id'] as int;
 
-      final paymentRow = await _supabase
-          .from('payments')
-          .insert({
-            'id_order': orderId,
-            'metode': _selectedPayment,
-            'amount': total,
-            'admin_fee': adminFee,
-            'status': 'pending',
-            'escrow_status': 'hold',
-            'fee_percent': feePercent,
-            'platform_fee': platformFee,
-            'freelancer_receive': freelancerGet,
-          })
-          .select()
-          .single();
+      if (paymentUrl.isEmpty) throw Exception('Payment URL tidak ditemukan.');
 
-      final int paymentId = paymentRow['id_payment'] as int;
-
-      // 6. Insert escrow
-      await _supabase.from('escrow').insert({
-        'id_payment': paymentId,
-        'amount': total,
-        'platform_fee': platformFee,
-        'freelancer_amount': freelancerGet,
-        'status': 'hold',
-      });
-
-      // 7. Simpan file ke deliverables
+      // Upload file referensi ke Supabase pakai order_id dari Laravel
       if (_uploadedFiles.isNotEmpty) {
         await _supabase
             .from('deliverables')
@@ -333,54 +337,8 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
             );
       }
 
-      // 8. Hit Laravel → dapat payment_url Midtrans
-      final apiResponse = await http
-          .post(
-            Uri.parse('$_laravelBaseUrl/payment/initiate'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-            },
-            body: jsonEncode({
-              'order_id': orderId,
-              'payment_id': paymentId,
-              'amount': total.toInt(),
-              'customer': {
-                'name': userData['nama'] ?? 'Client',
-                'email': userData['email'] ?? '',
-                'phone': userData['no_hp'] ?? '',
-              },
-              'item': {
-                'name': '$serviceName - $_packageLabel Package',
-                'price': total.toInt(),
-                'qty': 1,
-              },
-            }),
-          )
-          .timeout(const Duration(seconds: 30));
-
-      if (apiResponse.statusCode != 200) {
-        final err = jsonDecode(apiResponse.body);
-        throw Exception(err['message'] ?? 'Gagal membuat transaksi Midtrans');
-      }
-
-      final apiData = jsonDecode(apiResponse.body);
-      final paymentUrl = apiData['payment_url']?.toString() ?? '';
-
-      if (paymentUrl.isEmpty) throw Exception('Payment URL tidak ditemukan.');
-
-      // 9. Update payment_url di Supabase
-      await _supabase
-          .from('payments')
-          .update({
-            'payment_url': paymentUrl,
-            'gateway_trx_id': apiData['transaction_id'] ?? '',
-          })
-          .eq('id_payment', paymentId);
-
       if (!mounted) return;
 
-      // 10. Buka WebView
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -398,23 +356,10 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
     }
   }
 
-  void _showSnack(String msg, {required bool isError}) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: isError ? Colors.red : Colors.orange,
-        duration: const Duration(seconds: 4),
-      ),
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────
-  // BUILD
-  // ─────────────────────────────────────────────────────────
+  // ── BUILD ──────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    const double adminFee = 2500; // konsisten dengan Laravel
+    const double adminFee = 2500;
     final double total = _packagePrice + adminFee;
 
     return Scaffold(
@@ -426,7 +371,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
               child: SingleChildScrollView(
                 child: Column(
                   children: [
-                    // ── TOP BAR ──
+                    // TOP BAR
                     Padding(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
@@ -465,7 +410,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Column(
                         children: [
-                          // ── SERVICE INFO ──
+                          // SERVICE INFO
                           _buildCard(
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -576,7 +521,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                           ),
                           const SizedBox(height: 12),
 
-                          // ── PRICE SUMMARY ──
+                          // PRICE SUMMARY
                           _buildCard(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -609,7 +554,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                           ),
                           const SizedBox(height: 12),
 
-                          // ── FILE REQUIREMENT ──
+                          // FILE REQUIREMENT
                           _buildCard(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -709,7 +654,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                           ),
                           const SizedBox(height: 12),
 
-                          // ── NOTE ──
+                          // NOTE
                           _buildCard(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -742,7 +687,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                           ),
                           const SizedBox(height: 12),
 
-                          // ── PAYMENT METHODS ──
+                          // PAYMENT METHODS
                           _buildCard(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -806,7 +751,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
               ),
             ),
 
-            // ── BOTTOM BUTTON ──
+            // BOTTOM BUTTON
             Container(
               color: Colors.white,
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -866,7 +811,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
     );
   }
 
-  // ── Helpers ───────────────────────────────────────────────
+  // ── Widget Helpers ─────────────────────────────────────────
   Widget _imgPlaceholder() => Container(
     width: 110,
     height: 100,
@@ -1073,8 +1018,9 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
 
   Widget _paymentItem(Map<String, dynamic> method) {
     final bool activated = method['activated'] as bool? ?? false;
-    final String name = method['name']?.toString() ?? '';
-    final bool isSelected = _selectedPayment == name;
+    final String label = method['label']?.toString() ?? '';
+    final String value = method['value']?.toString() ?? '';
+    final bool isSelected = _selectedPayment == value;
 
     return Padding(
       padding: const EdgeInsets.only(left: 30, bottom: 10),
@@ -1086,7 +1032,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                 style: const TextStyle(fontSize: 13, color: Colors.black),
                 children: [
                   TextSpan(
-                    text: name,
+                    text: label,
                     style: const TextStyle(fontWeight: FontWeight.w500),
                   ),
                   if (method['balance'] != null)
@@ -1103,7 +1049,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
           ),
           if (activated)
             GestureDetector(
-              onTap: () => setState(() => _selectedPayment = name),
+              onTap: () => setState(() => _selectedPayment = value),
               child: Container(
                 width: 22,
                 height: 22,

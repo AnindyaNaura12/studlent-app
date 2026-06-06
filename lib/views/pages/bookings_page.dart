@@ -11,13 +11,24 @@ class BookingsPage extends StatefulWidget {
 }
 
 class _BookingsPageState extends State<BookingsPage> {
-  final controller = BookingController();
+  final _controller = BookingController();
+  late Future<List<Booking>> _bookingsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  void _refresh() {
+    setState(() {
+      _bookingsFuture = _controller.fetchBookings();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-
-    // Scale dengan clamp agar tidak overflow di layar kecil/besar
     double s(double size) =>
         (size * (screenWidth / 375)).clamp(size * 0.75, size * 1.3);
 
@@ -26,7 +37,7 @@ class _BookingsPageState extends State<BookingsPage> {
       body: SafeArea(
         child: Column(
           children: [
-            // ================= HEADER =================
+            // HEADER
             Padding(
               padding: EdgeInsets.fromLTRB(s(20), s(16), s(20), s(4)),
               child: Text(
@@ -40,31 +51,99 @@ class _BookingsPageState extends State<BookingsPage> {
               ),
             ),
 
-            // ================= FILTER =================
+            // FILTER
             Padding(
               padding: EdgeInsets.symmetric(horizontal: s(16), vertical: s(6)),
               child: Row(
                 children: [
-                  _filter("All", s),
+                  _filterBtn("All", s),
                   SizedBox(width: s(8)),
-                  _filter("Active", s),
+                  _filterBtn("Active", s),
                   SizedBox(width: s(8)),
-                  _filter("Done", s),
+                  _filterBtn("Done", s),
                 ],
               ),
             ),
-
             SizedBox(height: s(6)),
 
-            // ================= LIST =================
+            // LIST
             Expanded(
-              child: ListView.builder(
-                // Mencegah garis hitam / glow effect di Android
-                physics: const ClampingScrollPhysics(),
-                padding: EdgeInsets.fromLTRB(s(16), s(4), s(16), s(16)),
-                itemCount: controller.filteredBookings.length,
-                itemBuilder: (context, index) {
-                  return _bookingCard(controller.filteredBookings[index], s);
+              child: FutureBuilder<List<Booking>>(
+                future: _bookingsFuture,
+                builder: (context, snapshot) {
+                  // Loading
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFFFFA726),
+                      ),
+                    );
+                  }
+
+                  // Error
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.error_outline,
+                            color: Colors.red,
+                            size: 48,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            '${snapshot.error}',
+                            textAlign: TextAlign.center,
+                          ),
+                          TextButton(
+                            onPressed: _refresh,
+                            child: const Text('Coba Lagi'),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  final all = snapshot.data ?? [];
+                  final filtered = _controller.getFiltered(all);
+
+                  // Empty
+                  if (filtered.isEmpty) {
+                    return RefreshIndicator(
+                      onRefresh: () async => _refresh(),
+                      color: const Color(0xFFFFA726),
+                      child: ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: [
+                          SizedBox(height: s(100)),
+                          Icon(
+                            Icons.inbox,
+                            size: s(64),
+                            color: Colors.grey.shade300,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Belum ada order.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.grey.shade600),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return RefreshIndicator(
+                    onRefresh: () async => _refresh(),
+                    color: const Color(0xFFFFA726),
+                    child: ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: EdgeInsets.fromLTRB(s(16), s(4), s(16), s(16)),
+                      itemCount: filtered.length,
+                      itemBuilder: (context, index) =>
+                          _bookingCard(filtered[index], s),
+                    ),
+                  );
                 },
               ),
             ),
@@ -74,16 +153,13 @@ class _BookingsPageState extends State<BookingsPage> {
     );
   }
 
-  // ================= FILTER BUTTON =================
-  Widget _filter(String text, double Function(double) s) {
-    final isActive = controller.selectedFilter == text;
-
+  Widget _filterBtn(String text, double Function(double) s) {
+    final isActive = _controller.selectedFilter == text;
     return Expanded(
       child: GestureDetector(
         onTap: () {
-          setState(() {
-            controller.setFilter(text);
-          });
+          setState(() => _controller.setFilter(text));
+          _refresh();
         },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
@@ -112,8 +188,9 @@ class _BookingsPageState extends State<BookingsPage> {
     );
   }
 
-  // ================= BOOKING CARD =================
   Widget _bookingCard(Booking b, double Function(double) s) {
+    final isNetworkImage = b.image.startsWith('http');
+
     return Container(
       margin: EdgeInsets.only(bottom: s(12)),
       padding: EdgeInsets.all(s(12)),
@@ -131,37 +208,24 @@ class _BookingsPageState extends State<BookingsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ================= TOP ROW =================
+          // TOP ROW
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // IMAGE
-              ClipRRect(
-                borderRadius: BorderRadius.circular(s(10)),
-                child: Image.asset(
-                  b.image,
-                  width: s(60),
-                  height: s(60),
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    width: s(60),
-                    height: s(60),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[200],
-                      borderRadius: BorderRadius.circular(s(10)),
-                    ),
-                    child: Icon(
-                      Icons.image_not_supported,
-                      color: Colors.grey,
-                      size: s(24),
-                    ),
-                  ),
-                ),
+              // Avatar freelancer
+              CircleAvatar(
+                radius: s(28),
+                backgroundColor: Colors.grey.shade200,
+                backgroundImage: isNetworkImage
+                    ? NetworkImage(b.image) as ImageProvider
+                    : null,
+                child: !isNetworkImage
+                    ? Icon(Icons.person, color: Colors.grey, size: s(24))
+                    : null,
               ),
-
               SizedBox(width: s(10)),
 
-              // INFO
+              // Info
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -182,7 +246,7 @@ class _BookingsPageState extends State<BookingsPage> {
                     ),
                     SizedBox(height: s(4)),
                     Text(
-                      "Rp ${b.total}",
+                      'Rp ${b.total}',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: s(12),
@@ -192,40 +256,37 @@ class _BookingsPageState extends State<BookingsPage> {
                   ],
                 ),
               ),
-
               SizedBox(width: s(6)),
 
-              // STATUS
+              // Status badge
               Container(
                 padding: EdgeInsets.symmetric(horizontal: s(8), vertical: s(5)),
                 decoration: BoxDecoration(
-                  color: _statusColor(b.status),
+                  color: _controller.statusColor(b.status).withOpacity(0.15),
                   borderRadius: BorderRadius.circular(s(18)),
                 ),
                 child: Text(
-                  b.status,
+                  _controller.formatStatus(b.status),
                   style: TextStyle(
                     fontSize: s(10),
                     fontWeight: FontWeight.bold,
-                    color: _statusTextColor(b.status),
+                    color: _controller.statusColor(b.status),
                   ),
                 ),
               ),
             ],
           ),
-
           SizedBox(height: s(12)),
 
-          // ================= BOTTOM ROW =================
+          // BOTTOM ROW
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // ORDER DATE
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "Order Date",
+                    'Order Date',
                     style: TextStyle(fontSize: s(9), color: Colors.grey),
                   ),
                   Text(
@@ -234,13 +295,11 @@ class _BookingsPageState extends State<BookingsPage> {
                   ),
                 ],
               ),
-
-              // DEADLINE
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "Deadline",
+                    'Deadline',
                     style: TextStyle(fontSize: s(9), color: Colors.grey),
                   ),
                   Text(
@@ -249,8 +308,6 @@ class _BookingsPageState extends State<BookingsPage> {
                   ),
                 ],
               ),
-
-              // DETAILS BUTTON
               GestureDetector(
                 onTap: () {
                   Navigator.push(
@@ -270,7 +327,7 @@ class _BookingsPageState extends State<BookingsPage> {
                     borderRadius: BorderRadius.circular(s(18)),
                   ),
                   child: Text(
-                    "Details",
+                    'Details',
                     style: TextStyle(
                       fontSize: s(11),
                       fontWeight: FontWeight.bold,
@@ -294,7 +351,7 @@ class _BookingsPageState extends State<BookingsPage> {
       case "In Progress":
         return Colors.blue.withOpacity(0.15);
       case "Pending":
-        return const Color.fromARGB(255, 225, 250, 0).withOpacity(0.15);
+        return Colors.orange.withOpacity(0.15);
       default:
         return Colors.grey.withOpacity(0.15);
     }
@@ -308,7 +365,7 @@ class _BookingsPageState extends State<BookingsPage> {
       case "In Progress":
         return Colors.blue[700]!;
       case "Pending":
-        return const Color.fromARGB(255, 255, 247, 0)!;
+        return Colors.orange[800]!;
       default:
         return Colors.grey[700]!;
     }

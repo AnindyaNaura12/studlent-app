@@ -1,17 +1,16 @@
+// lib/views/pages/payment_webview_page.dart
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:webview_flutter/webview_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../config.dart';
 import 'payment_success_page.dart';
-
-const String _baseUrl = 'http://10.0.2.2:8000/api';
-// const String _baseUrl = 'http://192.168.0.109:8000/api'; // device fisik
 
 class PaymentWebViewPage extends StatefulWidget {
   final String paymentUrl;
-  final int    orderId;
+  final int orderId;
   final double amount;
 
   const PaymentWebViewPage({
@@ -26,16 +25,15 @@ class PaymentWebViewPage extends StatefulWidget {
 }
 
 class _PaymentWebViewPageState extends State<PaymentWebViewPage> {
-  late final WebViewController _wvc;
   final _supabase = Supabase.instance.client;
-  bool _isLoading   = true;
   bool _paymentDone = false;
+  bool _isChecking = false;
   Timer? _pollingTimer;
 
   @override
   void initState() {
     super.initState();
-    _initWebView();
+    _openPaymentUrl();
     _startPolling();
   }
 
@@ -45,69 +43,64 @@ class _PaymentWebViewPageState extends State<PaymentWebViewPage> {
     super.dispose();
   }
 
-  void _initWebView() {
-    _wvc = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(Colors.white)
-      ..setNavigationDelegate(NavigationDelegate(
-        // ← FIX: tambah mounted check
-        onPageStarted: (_) { if (mounted) setState(() => _isLoading = true);  },
-        onPageFinished: (_) { if (mounted) setState(() => _isLoading = false); },
-        onNavigationRequest: (req) => _intercept(req.url),
-        onWebResourceError: (e) => debugPrint('WebView error: ${e.description}'),
-      ))
-      ..loadRequest(Uri.parse(widget.paymentUrl));
+  // Buka Midtrans Snap di browser/tab baru
+  Future<void> _openPaymentUrl() async {
+    final uri = Uri.parse(widget.paymentUrl);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        _showSnack('Tidak bisa membuka halaman pembayaran');
+      }
+    }
   }
 
-  NavigationDecision _intercept(String url) {
-    debugPrint('WebView → $url');
-
-    // Intercept callback URL dari MidtransService
-    if (url.contains('studlent.app/payment/finish')) { _onSuccess(); return NavigationDecision.prevent; }
-    if (url.contains('studlent.app/payment/error'))  { _onFailed();  return NavigationDecision.prevent; }
-    if (url.contains('studlent.app/payment/pending')) { _onPending(); return NavigationDecision.prevent; }
-
-    // Fallback: cek query param transaction_status
-    final uri    = Uri.tryParse(url);
-    final status = uri?.queryParameters['transaction_status'];
-    if (status == 'settlement' || status == 'capture') { _onSuccess(); return NavigationDecision.prevent; }
-    if (status == 'pending')                           { _onPending(); return NavigationDecision.prevent; }
-    if (status == 'cancel' || status == 'deny' || status == 'expire') { _onFailed(); return NavigationDecision.prevent; }
-
-    return NavigationDecision.navigate;
-  }
-
-  // ── Polling backup tiap 4 detik ───────────────────────────
+  // Polling tiap 5 detik cek status order
   void _startPolling() {
-    _pollingTimer = Timer.periodic(const Duration(seconds: 4), (_) async {
+    _pollingTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
       if (_paymentDone || !mounted) return;
       await _checkStatus();
     });
   }
 
   Future<void> _checkStatus() async {
+    if (_isChecking) return;
+    setState(() => _isChecking = true);
+
     try {
       final res = await http.get(
-        Uri.parse('$_baseUrl/orders/${widget.orderId}/status'),
+        Uri.parse('${Config.laravelBaseUrl}/orders/${widget.orderId}/status'),
         headers: {'Accept': 'application/json'},
       ).timeout(const Duration(seconds: 10));
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        if (data['is_paid'] == true)              _onSuccess();
-        else if (data['payment_status'] == 'failed') _onFailed();
+        if (data['is_paid'] == true) {
+          _onSuccess();
+        } else if (data['payment_status'] == 'failed' ||
+            data['payment_status'] == 'expired') {
+          _onFailed();
+        }
       }
-    } catch (_) { /* retry di iterasi berikut */ }
+    } catch (e) {
+      debugPrint('Polling error: $e');
+    } finally {
+      if (mounted) setState(() => _isChecking = false);
+    }
   }
 
-  // ── FIX: update Supabase sebelum navigate ─────────────────
   Future<void> _updateSupabase(String paymentStatus, String orderStatus) async {
     try {
-      await _supabase.from('payments')
-          .update({'status': paymentStatus})
+      await _supabase
+          .from('payments')
+          .update({
+            'status': paymentStatus,
+            'tanggal_bayar': DateTime.now().toIso8601String(),
+          })
           .eq('id_order', widget.orderId);
 
-      await _supabase.from('orders')
+      await _supabase
+          .from('orders')
           .update({'status': orderStatus})
           .eq('id_order', widget.orderId);
     } catch (e) {
@@ -121,33 +114,18 @@ class _PaymentWebViewPageState extends State<PaymentWebViewPage> {
     _pollingTimer?.cancel();
     if (!mounted) return;
 
-    // ← FIX: update Supabase dulu, baru navigate ke PaymentSuccessPage
-    _updateSupabase('paid', 'paid').then((_) {
+    _updateSupabase('paid', 'diproses').then((_) {
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => PaymentSuccessPage(
-          idOrder: widget.orderId,
-          amount:  widget.amount,
-        )),
+        MaterialPageRoute(
+          builder: (_) => PaymentSuccessPage(
+            idOrder: widget.orderId,
+            amount: widget.amount,
+          ),
+        ),
         (route) => route.isFirst,
       );
     });
-  }
-
-  void _onPending() {
-    if (_paymentDone) return;
-    _paymentDone = true;
-    _pollingTimer?.cancel();
-    if (!mounted) return;
-
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => PaymentSuccessPage(
-        idOrder:   widget.orderId,
-        amount:    widget.amount,
-        isPending: true,
-      )),
-      (route) => route.isFirst,
-    );
   }
 
   void _onFailed() {
@@ -158,6 +136,7 @@ class _PaymentWebViewPageState extends State<PaymentWebViewPage> {
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(children: [
@@ -165,81 +144,108 @@ class _PaymentWebViewPageState extends State<PaymentWebViewPage> {
           SizedBox(width: 8),
           Text('Pembayaran Gagal'),
         ]),
-        content: const Text('Transaksi dibatalkan atau kadaluarsa. Silakan coba lagi.'),
+        content: const Text(
+            'Transaksi dibatalkan atau kadaluarsa.\nSilakan coba lagi.'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Tutup'),
-          ),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context); // tutup dialog
-              Navigator.pop(context); // kembali ke detail order
+              Navigator.pop(context);
+              Navigator.pop(context);
             },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFFA726)),
-            child: const Text('Coba Lagi', style: TextStyle(color: Colors.white)),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFFA726)),
+            child: const Text('Kembali',
+                style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
   }
 
-  void _showExitConfirmation() {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Batalkan Pembayaran?'),
-        content: const Text('Pembayaran belum selesai. Yakin ingin keluar?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Lanjut Bayar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context); // tutup dialog
-              Navigator.pop(context); // kembali ke detail order
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Keluar', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+  void _showSnack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg)),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false, // ← FIX: cegah hardware back langsung keluar tanpa konfirmasi
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _showExitConfirmation();
-      },
-      child: Scaffold(
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
         backgroundColor: Colors.white,
-        appBar: AppBar(
-          backgroundColor: Colors.white,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.close, color: Colors.black),
-            onPressed: _showExitConfirmation,
-          ),
-          title: const Text('Pembayaran',
-              style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)),
-          centerTitle: true,
-          actions: const [
-            Padding(
-              padding: EdgeInsets.only(right: 16),
-              child: Icon(Icons.lock, color: Color(0xFF4CAF50), size: 20),
-            ),
-          ],
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
         ),
-        body: Stack(children: [
-          WebViewWidget(controller: _wvc),
-          if (_isLoading)
-            const Center(child: CircularProgressIndicator(color: Color(0xFFFFA726))),
-        ]),
+        title: const Text('Menunggu Pembayaran',
+            style: TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.bold,
+                fontSize: 16)),
+        centerTitle: true,
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Animasi loading
+              const CircularProgressIndicator(color: Color(0xFFFFA726)),
+              const SizedBox(height: 32),
+              const Text(
+                'Halaman pembayaran sudah dibuka',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Selesaikan pembayaran di tab/halaman Midtrans yang terbuka. Halaman ini akan otomatis update setelah pembayaran berhasil.',
+                style: TextStyle(fontSize: 13, color: Colors.black54),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+
+              // Tombol buka ulang kalau tab tertutup
+              OutlinedButton.icon(
+                onPressed: _openPaymentUrl,
+                icon: const Icon(Icons.open_in_new, color: Color(0xFFFFA726)),
+                label: const Text('Buka Ulang Halaman Bayar',
+                    style: TextStyle(color: Color(0xFFFFA726))),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Color(0xFFFFA726)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30)),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Tombol cek manual
+              ElevatedButton.icon(
+                onPressed: _isChecking ? null : _checkStatus,
+                icon: _isChecking
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.black))
+                    : const Icon(Icons.refresh, color: Colors.black),
+                label: Text(
+                    _isChecking ? 'Mengecek...' : 'Cek Status Pembayaran',
+                    style: const TextStyle(color: Colors.black)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFFA726),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30)),
+                  elevation: 0,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

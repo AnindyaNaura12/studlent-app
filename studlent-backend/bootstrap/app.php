@@ -14,7 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
 
         // ← Pakai custom middleware, dipasang global (bukan hanya api)
-        $middleware->prepend(\App\Http\Middleware\CorsMiddleware::class);
+        $middleware->prepend(\app\middleware\CorsMiddleware::class);
 
         $middleware->alias([
             'check.role'          => \App\Http\Middleware\CheckRole::class,
