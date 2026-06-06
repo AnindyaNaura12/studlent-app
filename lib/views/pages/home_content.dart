@@ -1,7 +1,7 @@
 // ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../pages/service_detail_page.dart';
+import '../pages/service_detail_page.dart' as service_page;
 import '../widgets/feature_item.dart';
 import '../widgets/category_card.dart';
 import '../widgets/freelancer_card.dart';
@@ -30,7 +30,7 @@ class _HomeContentState extends State<HomeContent> {
   final HomeController _controller = HomeController();
   final AuthController _controllerAuth = AuthController();
   final MyServicesController _servicesController = MyServicesController();
-  final SupabaseClient _supabase = Supabase.instance.client;
+  final _supabase = Supabase.instance.client;
   final TextEditingController _searchController = TextEditingController();
 
   List<ServiceModel> _filteredServices = [];
@@ -308,7 +308,9 @@ class _HomeContentState extends State<HomeContent> {
       final service = item['service'] as ServiceModel;
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => ServiceDetailPage(service: service)),
+        MaterialPageRoute(
+          builder: (_) => service_page.ServiceDetailPage(service: service),
+        ),
       );
     }
 
@@ -725,7 +727,8 @@ class _HomeContentState extends State<HomeContent> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => ServiceDetailPage(service: svc),
+                              builder: (_) =>
+                                  service_page.ServiceDetailPage(service: svc),
                             ),
                           );
                         },
