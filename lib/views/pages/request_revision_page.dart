@@ -389,7 +389,7 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
                 children: [
                   _buildFreelancerCard(s),
                   SizedBox(height: s(20)),
-                  _buildViewOrderSection(s),
+                  // _buildViewOrderSection(s),
                   SizedBox(height: s(20)),
                   _buildRevisionInputSection(s),
                 ],
@@ -478,64 +478,64 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
   }
 
   // ── View Order / View File Section ────────────────────────
-  Widget _buildViewOrderSection(double Function(double) s) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          "View Order",
-          style: TextStyle(
-            fontSize: s(14),
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
-          ),
-        ),
-        SizedBox(height: s(10)),
-        GestureDetector(
-          onTap: _openCompletedFile,
-          child: CustomPaint(
-            painter: _DashedBorderPainter(
-              color: const Color(0xFFADB5FF),
-              borderRadius: 14,
-              dashWidth: 6,
-              dashSpace: 4,
-              strokeWidth: 1.5,
-            ),
-            child: Container(
-              width: double.infinity,
-              padding: EdgeInsets.symmetric(
-                vertical: s(20),
-                horizontal: s(16),
-              ),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEEF1FF),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.insert_drive_file_rounded,
-                    color: const Color(0xFF6B7AFF),
-                    size: s(22),
-                  ),
-                  SizedBox(width: s(8)),
-                  Text(
-                    "View File",
-                    style: TextStyle(
-                      fontSize: s(13),
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF6B7AFF),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+  // Widget _buildViewOrderSection(double Function(double) s) {
+  //   return Column(
+  //     crossAxisAlignment: CrossAxisAlignment.start,
+  //     children: [
+  //       Text(
+  //         "View Order",
+  //         style: TextStyle(
+  //           fontSize: s(14),
+  //           fontWeight: FontWeight.bold,
+  //           color: Colors.black,
+  //         ),
+  //       ),
+  //       SizedBox(height: s(10)),
+  //       GestureDetector(
+  //         onTap: _openCompletedFile,
+  //         child: CustomPaint(
+  //           painter: _DashedBorderPainter(
+  //             color: const Color(0xFFADB5FF),
+  //             borderRadius: 14,
+  //             dashWidth: 6,
+  //             dashSpace: 4,
+  //             strokeWidth: 1.5,
+  //           ),
+  //           child: Container(
+  //             width: double.infinity,
+  //             padding: EdgeInsets.symmetric(
+  //               vertical: s(20),
+  //               horizontal: s(16),
+  //             ),
+  //             decoration: BoxDecoration(
+  //               color: const Color(0xFFEEF1FF),
+  //               borderRadius: BorderRadius.circular(14),
+  //             ),
+  //             child: Row(
+  //               mainAxisAlignment: MainAxisAlignment.center,
+  //               children: [
+  //                 Icon(
+  //                   Icons.insert_drive_file_rounded,
+  //                   color: const Color(0xFF6B7AFF),
+  //                   size: s(22),
+  //                 ),
+  //                 SizedBox(width: s(8)),
+  //                 Text(
+  //                   "View File",
+  //                   style: TextStyle(
+  //                     fontSize: s(13),
+  //                     fontWeight: FontWeight.w600,
+  //                     color: const Color(0xFF6B7AFF),
+  //                   ),
+  //                 ),
+  //               ],
+  //             ),
+  //           ),
+  //         ),
+  //       ),
+  //     ],
+  //   );
+  // }
 
   // ── Revision Input + Attachment Section ───────────────────
   Widget _buildRevisionInputSection(double Function(double) s) {
