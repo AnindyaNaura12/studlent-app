@@ -20,7 +20,8 @@ class _ChatListPageState extends State<ChatListPage> {
   final ChatController _chatController = ChatController();
   final AuthController _authController = AuthController();
   
-  late Future<List<ChatModel>> _chatListFuture;
+  // 1. UBAH DARI Future MENJADI Stream
+  late Stream<List<ChatModel>> _chatListStream;
   bool _isLoggedIn = false;
 
   @override
@@ -33,7 +34,8 @@ class _ChatListPageState extends State<ChatListPage> {
     // Mengecek langsung dari Supabase apakah ada sesi yang aktif
     _isLoggedIn = _authController.supabase.auth.currentUser != null;
     if (_isLoggedIn) {
-      _chatListFuture = _chatController.getRealChatContacts();
+      // 2. GUNAKAN FUNGSI STREAM DARI CONTROLLER
+      _chatListStream = _chatController.getChatContactsStream();
     }
   }
 
@@ -280,10 +282,10 @@ class _ChatListPageState extends State<ChatListPage> {
             ),
             SizedBox(height: scale(6)),
             
-            // Mengambil Daftar Chat Nyata dari Database
+            // 3. UBAH FutureBuilder MENJADI StreamBuilder
             Expanded(
-              child: FutureBuilder<List<ChatModel>>(
-                future: _chatListFuture,
+              child: StreamBuilder<List<ChatModel>>(
+                stream: _chatListStream, // Menggunakan stream yang sudah didefinisikan
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
@@ -315,7 +317,7 @@ class _ChatListPageState extends State<ChatListPage> {
                                   image: chatList[index].imagePath,
                                 ),
                               ),
-                            ).then((_) => setState(() => _checkAuthAndLoad())); // Refresh isi pesan saat kembali
+                            ).then((_) => setState(() => _checkAuthAndLoad())); 
                           },
                         ),
                       );

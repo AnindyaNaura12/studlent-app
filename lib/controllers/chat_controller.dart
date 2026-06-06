@@ -28,7 +28,7 @@ class ChatController {
     }
   }
 
-  // 2. Mengambil Daftar Kontak Chat Terkini (Untuk halaman Chat List)
+  // 2. Mengambil Daftar Kontak Chat Terkini (Versi Future / Statis)
   Future<List<ChatModel>> getRealChatContacts() async {
     final myUserId = await getMyUserId();
     if (myUserId == null) return [];
@@ -57,7 +57,6 @@ class ChatController {
           };
         }
 
-        // hanya hitung pesan yang masuk ke saya DAN belum dibaca
         if (receiverId == myUserId && msg['is_read'] == false) {
           latestMessages[otherId]!['unread'] =
               (latestMessages[otherId]!['unread'] ?? 0) + 1;
@@ -128,6 +127,118 @@ class ChatController {
     }
   }
 
+  // =========================================================================
+  // FUNGSI BARU: Stream untuk Chat List agar real-time (TIDAK MERUSAK FUNGSI LAIN)
+  // =========================================================================
+  Stream<List<ChatModel>> getChatContactsStream() async* {
+    final myUserId = await getMyUserId();
+    if (myUserId == null) {
+      yield [];
+      return;
+    }
+
+    yield* supabase
+        .from('messages')
+        .stream(primaryKey: ['id'])
+        .asyncMap((messagesData) async {
+      
+      final relevantMessages = messagesData.where((msg) {
+        final senderId = int.tryParse(msg['sender_id'].toString());
+        final receiverId = int.tryParse(msg['receiver_id'].toString());
+        return senderId == myUserId || receiverId == myUserId;
+      }).toList();
+
+      relevantMessages.sort((a, b) {
+        DateTime timeA = DateTime.parse(a['created_at']);
+        DateTime timeB = DateTime.parse(b['created_at']);
+        return timeB.compareTo(timeA);
+      });
+
+      Map<int, Map<String, dynamic>> latestMessages = {};
+      for (var msg in relevantMessages) {
+        int senderId = int.tryParse(msg['sender_id'].toString()) ?? 0;
+        int receiverId = int.tryParse(msg['receiver_id'].toString()) ?? 0;
+        int otherId = (senderId == myUserId) ? receiverId : senderId;
+
+        if (!latestMessages.containsKey(otherId)) {
+          latestMessages[otherId] = {
+            'lastMessage': msg['text'],
+            'created_at': msg['created_at'],
+            'unread': 0,
+          };
+        }
+
+        if (receiverId == myUserId && msg['is_read'] == false) {
+          latestMessages[otherId]!['unread'] =
+              (latestMessages[otherId]!['unread'] ?? 0) + 1;
+        }
+      }
+
+      if (latestMessages.isEmpty) return <ChatModel>[];
+
+      final otherUserIds = latestMessages.keys.toList();
+      final usersResponse = await supabase
+          .from('users')
+          .select('''
+            id_user, 
+            nama, 
+            foto,
+            freelancer_profiles (
+              professional_status,
+              foto_freelancer
+            )
+          ''').inFilter('id_user', otherUserIds);
+
+      List<ChatModel> chatList = [];
+      for (var user in usersResponse) {
+        int userId = user['id_user'];
+        String role = 'Freelancer';
+        String image = 'assets/images/icons/profile.png';
+
+        final fp = user['freelancer_profiles'];
+        if (fp != null) {
+          if (fp is List && fp.isNotEmpty) {
+            role = fp[0]['professional_status'] ?? role;
+            if (fp[0]['foto_freelancer'] != null) image = fp[0]['foto_freelancer'];
+          } else if (fp is Map) {
+            role = fp['professional_status'] ?? role;
+            if (fp['foto_freelancer'] != null) image = fp['foto_freelancer'];
+          }
+        }
+
+        if (image == 'assets/images/icons/profile.png' && user['foto'] != null) {
+          image = user['foto'];
+        }
+
+        chatList.add(
+          ChatModel(
+            freelancerId: userId,
+            name: user['nama'] ?? 'Unknown',
+            role: role,
+            lastMessage: latestMessages[userId]?['lastMessage'] ?? '',
+            
+            time: latestMessages[userId]?['created_at'] != null 
+                ? DateTime.parse(latestMessages[userId]!['created_at']).toLocal() 
+                : DateTime.now().toLocal(),
+            
+            imagePath: (user['foto'] != null && user['foto'].toString().isNotEmpty)
+                ? user['foto']
+                : 'assets/images/freelancers/freelancer_1.png', 
+            unreadCount: latestMessages[userId]?['unread'] ?? 0,
+          )
+        );
+      }
+
+      chatList.sort((a, b) {
+        DateTime timeA = a.time ?? DateTime.fromMillisecondsSinceEpoch(0);
+        DateTime timeB = b.time ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return timeB.compareTo(timeA);
+      });
+
+      return chatList;
+    });
+  }
+
   // 3. Stream Khusus Room Chat (Memfilter pesan hanya antara Saya dan Freelancer ini)
   Stream<List<Message>> getMessagesStream(int targetFreelancerId) async* {
     final myUserId = await getMyUserId();
@@ -147,6 +258,7 @@ class ChatController {
             return (sender == myUserId && receiver == targetFreelancerId) ||
                 (sender == targetFreelancerId && receiver == myUserId);
           }).toList();
+          
           return filteredData.map((json) => Message.fromJson(json)).toList();
         });
   }
@@ -167,6 +279,7 @@ class ChatController {
       print("Gagal kirim pesan: $e");
     }
   }
+  
   Future<void> markMessagesAsRead(int otherUserId) async {
     final myUserId = await getMyUserId();
     if (myUserId == null) return;
