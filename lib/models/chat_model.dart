@@ -5,6 +5,7 @@ class ChatModel {
   final String lastMessage;
   final String imagePath;
   final DateTime? time;
+  final int unreadCount;
 
   ChatModel({
     required this.freelancerId,
@@ -13,5 +14,6 @@ class ChatModel {
     required this.lastMessage,
     required this.imagePath,
     this.time,
+    this.unreadCount = 0,
   });
 }

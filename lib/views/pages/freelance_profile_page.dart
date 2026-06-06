@@ -92,8 +92,8 @@ class _ProfilePageState extends State<ProfilePage> {
         _userData = data;
         _controller.isLoggedIn = true;
 
-        // Selalu buka profile client saat pertama masuk
-        _controller.isFreelancer = false;
+      // SELALU buka profile client saat pertama masuk
+      _controller.isFreelancer = false;
 
         _nameController.text = data['nama'] ?? '';
         _usernameController.text = data['username'] ?? '';
@@ -156,6 +156,8 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _buildGuestProfile() {
     return Scaffold(
       backgroundColor: Colors.white,
+
+      // ── Body dengan gradient ──
       body: Container(
         width: double.infinity,
         decoration: const BoxDecoration(
@@ -170,6 +172,7 @@ class _ProfilePageState extends State<ProfilePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // ── Header ──
               const Padding(
                 padding: EdgeInsets.fromLTRB(20, 20, 20, 0),
                 child: Text(
@@ -182,6 +185,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
               const SizedBox(height: 36),
+
+              // ── Avatar ──
               Center(
                 child: Container(
                   width: 72,
@@ -195,6 +200,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
               const SizedBox(height: 18),
+
+              // ── Welcome Text ──
               const Center(
                 child: Text(
                   'Welcome to Studlent!',
@@ -218,6 +225,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
               const SizedBox(height: 30),
+
+              // ── Card Login / Register ──
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Container(
@@ -259,6 +268,8 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ),
                       const SizedBox(height: 24),
+
+                      // Tombol Login
                       SizedBox(
                         width: double.infinity,
                         height: 52,
@@ -267,7 +278,8 @@ class _ProfilePageState extends State<ProfilePage> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                  builder: (_) => const LoginPage()),
+                                builder: (_) => const LoginPage(),
+                              ),
                             );
                           },
                           style: ElevatedButton.styleFrom(
@@ -288,6 +300,8 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ),
                       const SizedBox(height: 14),
+
+                      // Tombol Register
                       SizedBox(
                         width: double.infinity,
                         height: 52,
@@ -741,11 +755,11 @@ class _ProfilePageState extends State<ProfilePage> {
 
                 return _menuItem(title, hasTag: hasTag, onTap: () {
                   if (title == 'Chat') {
+                    // Berpindah ke ChatListPage
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const ChatListPage(
-                            isFreelancerMode: true),
+                        builder: (_) => const ChatListPage(isFreelancerMode: true),
                       ),
                     );
                   } else {

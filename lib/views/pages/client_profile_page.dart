@@ -33,7 +33,9 @@ class _ClientProfilePageState extends State<ClientProfilePage> {
   String _formatRupiah(double amount) {
     final n = amount.toInt();
     return n.toString().replaceAllMapped(
-        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (m) => '${m[1]}.',
+    );
   }
 
   @override
@@ -59,8 +61,9 @@ class _ClientProfilePageState extends State<ClientProfilePage> {
             GestureDetector(
               onTap: () async {
                 if (_userData == null) return;
-                final url = await _controller
-                    .uploadProfileImage(_userData!['id_user']);
+                final url = await _controller.uploadProfileImage(
+                  _userData!['id_user'],
+                );
                 if (url != null) {
                   setState(() => _userData!['foto'] = url);
                 }
@@ -110,10 +113,7 @@ class _ClientProfilePageState extends State<ClientProfilePage> {
             // ── Email ─────────────────────────────────────
             Text(
               _userData?['email'] ?? 'email@example.com',
-              style: TextStyle(
-                color: Colors.grey,
-                fontSize: scale(13),
-              ),
+              style: TextStyle(color: Colors.grey, fontSize: scale(13)),
             ),
 
             SizedBox(height: scale(20)),
@@ -142,13 +142,22 @@ class _ClientProfilePageState extends State<ClientProfilePage> {
                       value: '${_userData?['my_orders'] ?? 0}',
                       scale: scale,
                     ),
-                    Container(width: 1, height: scale(40), color: Colors.black12),
+                    Container(
+                      width: 1,
+                      height: scale(40),
+                      color: Colors.black12,
+                    ),
                     _buildStatItem(
                       title: 'Total Spent',
-                      value: 'Rp ${_formatRupiah((_userData?['total_spent'] ?? 0).toDouble())}',
+                      value:
+                          'Rp ${_formatRupiah((_userData?['total_spent'] ?? 0).toDouble())}',
                       scale: scale,
                     ),
-                    Container(width: 1, height: scale(40), color: Colors.black12),
+                    Container(
+                      width: 1,
+                      height: scale(40),
+                      color: Colors.black12,
+                    ),
                     _buildStatItem(
                       title: 'Completed',
                       value: '${_userData?['completed_orders'] ?? 0}',
@@ -199,32 +208,44 @@ class _ClientProfilePageState extends State<ClientProfilePage> {
             // ── Banner Upgrade Freelancer ─────────────────
             Container(
               margin: EdgeInsets.symmetric(
-                  horizontal: scale(20), vertical: scale(10)),
+                horizontal: scale(20),
+                vertical: scale(10),
+              ),
               padding: EdgeInsets.all(scale(16)),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                    colors: [Colors.blue.shade50, Colors.blue.shade100]),
+                  colors: [Colors.blue.shade50, Colors.blue.shade100],
+                ),
                 borderRadius: BorderRadius.circular(scale(12)),
                 border: Border.all(color: Colors.blue.shade200),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.work_outline_rounded,
-                      color: Colors.blue, size: scale(30)),
+                  Icon(
+                    Icons.work_outline_rounded,
+                    color: Colors.blue,
+                    size: scale(30),
+                  ),
                   SizedBox(width: scale(12)),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Punya Keahlian?',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: scale(14))),
+                        Text(
+                          'Punya Keahlian?',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: scale(14),
+                          ),
+                        ),
                         SizedBox(height: scale(4)),
                         Text(
-                            'Daftar jadi freelancer dan mulai hasilkan uang!',
-                            style: TextStyle(
-                                fontSize: scale(11), color: Colors.black54)),
+                          'Daftar jadi freelancer dan mulai hasilkan uang!',
+                          style: TextStyle(
+                            fontSize: scale(11),
+                            color: Colors.black54,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -234,13 +255,20 @@ class _ClientProfilePageState extends State<ClientProfilePage> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blue,
                       padding: EdgeInsets.symmetric(
-                          horizontal: scale(14), vertical: scale(8)),
+                        horizontal: scale(14),
+                        vertical: scale(8),
+                      ),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(scale(8))),
+                        borderRadius: BorderRadius.circular(scale(8)),
+                      ),
                     ),
-                    child: Text('Daftar',
-                        style: TextStyle(
-                            color: Colors.white, fontSize: scale(12))),
+                    child: Text(
+                      'Daftar',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: scale(12),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -278,23 +306,26 @@ class _ClientProfilePageState extends State<ClientProfilePage> {
 
             // ── Logout ────────────────────────────────────
             ListTile(
-              contentPadding:
-                  EdgeInsets.symmetric(horizontal: scale(20)),
+              contentPadding: EdgeInsets.symmetric(horizontal: scale(20)),
               leading: Container(
                 padding: EdgeInsets.all(scale(8)),
                 decoration: BoxDecoration(
                   color: Colors.red.shade50,
                   borderRadius: BorderRadius.circular(scale(8)),
                 ),
-                child: Icon(Icons.logout_rounded,
-                    color: Colors.red, size: scale(20)),
+                child: Icon(
+                  Icons.logout_rounded,
+                  color: Colors.red,
+                  size: scale(20),
+                ),
               ),
               title: Text(
                 'Keluar',
                 style: TextStyle(
-                    color: Colors.red,
-                    fontWeight: FontWeight.bold,
-                    fontSize: scale(14)),
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                  fontSize: scale(14),
+                ),
               ),
               onTap: () => _controller.logout(context),
             ),
@@ -313,12 +344,15 @@ class _ClientProfilePageState extends State<ClientProfilePage> {
   }) {
     return Column(
       children: [
-        Text(value,
-            style: TextStyle(
-                fontWeight: FontWeight.bold, fontSize: scale(16))),
+        Text(
+          value,
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: scale(16)),
+        ),
         SizedBox(height: scale(4)),
-        Text(title,
-            style: TextStyle(color: Colors.grey, fontSize: scale(11))),
+        Text(
+          title,
+          style: TextStyle(color: Colors.grey, fontSize: scale(11)),
+        ),
       ],
     );
   }
@@ -333,7 +367,9 @@ class _ClientProfilePageState extends State<ClientProfilePage> {
       children: [
         ListTile(
           contentPadding: EdgeInsets.symmetric(
-              horizontal: scale(20), vertical: scale(2)),
+            horizontal: scale(20),
+            vertical: scale(2),
+          ),
           leading: Container(
             padding: EdgeInsets.all(scale(8)),
             decoration: BoxDecoration(
@@ -342,18 +378,23 @@ class _ClientProfilePageState extends State<ClientProfilePage> {
             ),
             child: Icon(icon, size: scale(20), color: Colors.black87),
           ),
-          title: Text(title,
-              style: TextStyle(
-                  fontWeight: FontWeight.w500, fontSize: scale(14))),
-          trailing: Icon(Icons.arrow_forward_ios_rounded,
-              size: scale(14), color: Colors.grey),
+          title: Text(
+            title,
+            style: TextStyle(fontWeight: FontWeight.w500, fontSize: scale(14)),
+          ),
+          trailing: Icon(
+            Icons.arrow_forward_ios_rounded,
+            size: scale(14),
+            color: Colors.grey,
+          ),
           onTap: onTap,
         ),
         Divider(
-            height: 1,
-            indent: scale(70),
-            endIndent: scale(20),
-            color: Colors.black12),
+          height: 1,
+          indent: scale(70),
+          endIndent: scale(20),
+          color: Colors.black12,
+        ),
       ],
     );
   }

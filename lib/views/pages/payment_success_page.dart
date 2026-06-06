@@ -1,14 +1,15 @@
 // ignore_for_file: deprecated_member_use
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../../config.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'home_pages.dart';
 import 'my_orders_page.dart';
 
 class PaymentSuccessPage extends StatefulWidget {
-  // ← FIX: constructor diubah — hanya butuh idOrder & amount
-  // sisanya di-fetch dari Supabase
   final int    idOrder;
-  final double amount;    // ← FIX: was String, sekarang double
+  final double amount;
   final bool   isPending;
 
   const PaymentSuccessPage({
@@ -40,44 +41,49 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
 
   Future<void> _fetchData() async {
     try {
-      // Ambil data payment
-      final payment = await _supabase
-          .from('payments')
-          .select('metode, amount, admin_fee, status, created_at')
-          .eq('id_order', widget.idOrder)
-          .maybeSingle();
+      final response = await http.get(
+        Uri.parse('${Config.laravelBaseUrl}/orders/${widget.idOrder}/status'),
+        headers: {'Accept': 'application/json'},
+      );
 
-      // Ambil nama service dari order
-      final order = await _supabase
-          .from('orders')
-          .select('detail_pesanan, services!id_service(judul)')
-          .eq('id_order', widget.idOrder)
-          .maybeSingle();
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
 
-      if (mounted) {
-        setState(() {
-          _metode   = payment?['metode']?.toString() ?? '-';
-          _adminFee = (payment?['admin_fee'] as num?)?.toDouble() ?? 2500;
-
-          final createdAt = payment?['created_at']?.toString();
-          _date = createdAt != null ? _formatDate(createdAt) : _formattedToday();
-
-          final status = payment?['status']?.toString();
-          _isPaid = status == 'paid';
-
-          // Ambil judul service dari join
-          final svc = order?['services'];
-          _serviceName = (svc is Map)
-              ? svc['judul']?.toString() ?? '-'
-              : order?['detail_pesanan']?.toString() ?? '-';
-
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _metode      = _formatMetode(data['payment_method']?.toString() ?? '-');
+            _serviceName = data['service_name']?.toString() ?? '-';
+            _adminFee    = (data['admin_fee'] as num?)?.toDouble() ?? 2500;
+            _isPaid      = data['payment_status'] == 'paid';
+            _date        = data['created_at'] != null
+                ? _formatDate(data['created_at'].toString())
+                : _formattedToday();
+            _isLoading   = false;
+          });
+        }
+      } else {
+        throw Exception('Gagal mengambil data order');
       }
     } catch (e) {
       debugPrint('Error fetching payment data: $e');
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  String _formatMetode(String metode) {
+    const map = {
+      'bca_va'      : 'BCA Virtual Account',
+      'bni_va'      : 'BNI Virtual Account',
+      'bri_va'      : 'BRI Virtual Account',
+      'echannel'    : 'Mandiri Virtual Account',
+      'gopay'       : 'GoPay',
+      'shopeepay'   : 'ShopeePay',
+      'dana'        : 'DANA',
+      'ovo'         : 'OVO',
+      'bank_transfer': 'Bank Transfer',
+      'credit_card' : 'Kartu Kredit',
+    };
+    return map[metode] ?? metode;
   }
 
   @override
@@ -99,7 +105,8 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
         backgroundColor: bgColor,
         body: SafeArea(
           child: _isLoading
-              ? const Center(child: CircularProgressIndicator(color: primaryColor))
+              ? const Center(
+                  child: CircularProgressIndicator(color: primaryColor))
               : Column(children: [
                   Expanded(
                     child: SingleChildScrollView(
@@ -111,31 +118,45 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
                           children: [
                             const SizedBox(height: 48),
 
-                            // ── Icon ──
+                            // Icon
                             Center(
                               child: Stack(
                                 alignment: Alignment.center,
                                 children: [
                                   Container(
-                                    width: 110, height: 110,
+                                    width: 110,
+                                    height: 110,
                                     decoration: BoxDecoration(
-                                      color: (isPending ? Colors.blue : primaryColor).withOpacity(0.15),
+                                      color: (isPending
+                                              ? Colors.blue
+                                              : primaryColor)
+                                          .withOpacity(0.15),
                                       shape: BoxShape.circle,
                                     ),
                                   ),
                                   Container(
-                                    width: 82, height: 82,
+                                    width: 82,
+                                    height: 82,
                                     decoration: BoxDecoration(
                                       gradient: RadialGradient(
                                         colors: isPending
-                                            ? [const Color(0xFF42A5F5), const Color(0xFF1E88E5)]
-                                            : [const Color(0xFFFFD54F), const Color(0xFFFFA726)],
+                                            ? [
+                                                const Color(0xFF42A5F5),
+                                                const Color(0xFF1E88E5)
+                                              ]
+                                            : [
+                                                const Color(0xFFFFD54F),
+                                                const Color(0xFFFFA726)
+                                              ],
                                       ),
                                       shape: BoxShape.circle,
                                     ),
                                     child: Icon(
-                                      isPending ? Icons.hourglass_top_rounded : Icons.check,
-                                      color: Colors.white, size: 38,
+                                      isPending
+                                          ? Icons.hourglass_top_rounded
+                                          : Icons.check,
+                                      color: Colors.white,
+                                      size: 38,
                                     ),
                                   ),
                                 ],
@@ -143,12 +164,16 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
                             ),
                             const SizedBox(height: 24),
 
-                            // ── Title ──
+                            // Title
                             Text(
-                              isPending ? 'Menunggu Pembayaran' : 'Payment Successful',
+                              isPending
+                                  ? 'Menunggu Pembayaran'
+                                  : 'Payment Successful',
                               style: const TextStyle(
-                                fontSize: 22, fontWeight: FontWeight.w800,
-                                color: darkColor, letterSpacing: -0.3,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                                color: darkColor,
+                                letterSpacing: -0.3,
                               ),
                             ),
                             const SizedBox(height: 6),
@@ -158,45 +183,69 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
                                   : 'Berhasil membayar Rp${_fmt(widget.amount)}',
                               textAlign: TextAlign.center,
                               style: const TextStyle(
-                                fontSize: 14, color: greyColor, fontWeight: FontWeight.w400,
+                                fontSize: 14,
+                                color: greyColor,
+                                fontWeight: FontWeight.w400,
                               ),
                             ),
                             const SizedBox(height: 32),
 
-                            // ── Receipt Card ──
+                            // Receipt Card
                             Container(
                               width: double.infinity,
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(20),
                                 boxShadow: [
-                                  BoxShadow(color: Colors.black.withOpacity(0.05),
-                                      blurRadius: 20, offset: const Offset(0, 6)),
+                                  BoxShadow(
+                                      color:
+                                          Colors.black.withOpacity(0.05),
+                                      blurRadius: 20,
+                                      offset: const Offset(0, 6)),
                                 ],
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const Padding(
-                                    padding: EdgeInsets.fromLTRB(20, 20, 20, 16),
+                                    padding: EdgeInsets.fromLTRB(
+                                        20, 20, 20, 16),
                                     child: Text('Detail Pembayaran',
-                                        style: TextStyle(fontSize: 15,
-                                            fontWeight: FontWeight.w700, color: darkColor)),
+                                        style: TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w700,
+                                            color: darkColor)),
                                   ),
-                                  const Divider(height: 1, thickness: 1, color: Color(0xFFF0F0F0)),
+                                  const Divider(
+                                      height: 1,
+                                      thickness: 1,
+                                      color: Color(0xFFF0F0F0)),
                                   Padding(
-                                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                                    padding: const EdgeInsets.fromLTRB(
+                                        20, 16, 20, 20),
                                     child: Column(children: [
-                                      _buildRow('Transaction ID', '#${widget.idOrder}'),
-                                      _buildRow('Tanggal', _date.isNotEmpty ? _date : _formattedToday()),
+                                      _buildRow('Transaction ID',
+                                          '#${widget.idOrder}'),
+                                      _buildRow(
+                                          'Tanggal',
+                                          _date.isNotEmpty
+                                              ? _date
+                                              : _formattedToday()),
                                       _buildRow('Metode Bayar', _metode),
                                       _buildRow('Jasa', _serviceName),
-                                      _buildRow('Harga Paket', 'Rp${_fmt(packagePrice)}'),
-                                      _buildRow('Biaya Admin', 'Rp${_fmt(_adminFee)}'),
-                                      _buildRow('Total', 'Rp${_fmt(widget.amount)}', valueBold: true),
-                                      _buildRow('Status',
+                                      _buildRow('Harga Paket',
+                                          'Rp${_fmt(packagePrice)}'),
+                                      _buildRow('Biaya Admin',
+                                          'Rp${_fmt(_adminFee)}'),
+                                      _buildRow('Total',
+                                          'Rp${_fmt(widget.amount)}',
+                                          valueBold: true),
+                                      _buildRow(
+                                          'Status',
                                           isPending ? 'Menunggu' : 'Sukses',
-                                          valueColor: isPending ? Colors.orange : primaryColor,
+                                          valueColor: isPending
+                                              ? Colors.orange
+                                              : primaryColor,
                                           valueBold: true),
                                     ]),
                                   ),
@@ -210,7 +259,7 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
                     ),
                   ),
 
-                  // ── Tombol ──
+                  // Tombol
                   Padding(
                     padding: const EdgeInsets.fromLTRB(24, 0, 24, 28),
                     child: Column(children: [
@@ -220,11 +269,14 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
                           backgroundColor: primaryColor,
                           foregroundColor: Colors.white,
                           minimumSize: const Size(double.infinity, 54),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30)),
                           elevation: 0,
                         ),
                         child: const Text('Back Home',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold)),
                       ),
                       const SizedBox(height: 12),
                       OutlinedButton(
@@ -232,10 +284,13 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(color: primaryColor),
                           minimumSize: const Size(double.infinity, 54),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30)),
                         ),
                         child: const Text('Lihat Order Saya',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold,
+                            style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
                                 color: primaryColor)),
                       ),
                     ]),
@@ -266,41 +321,56 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
     const Color darkColor = Color(0xFF1A1A2E);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        Text(label, style: const TextStyle(fontSize: 13, color: greyColor)),
-        Flexible(
-          child: Text(value, textAlign: TextAlign.right,
-            style: TextStyle(fontSize: 13,
-                fontWeight: valueBold ? FontWeight.w700 : FontWeight.w600,
-                color: valueColor ?? darkColor)),
-        ),
-      ]),
+      child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label,
+                style:
+                    const TextStyle(fontSize: 13, color: greyColor)),
+            Flexible(
+              child: Text(value,
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: valueBold
+                          ? FontWeight.w700
+                          : FontWeight.w600,
+                      color: valueColor ?? darkColor)),
+            ),
+          ]),
     );
   }
 
   String _formattedToday() {
     final now = DateTime.now();
-    const m = ['Januari','Februari','Maret','April','Mei','Juni',
-        'Juli','Agustus','September','Oktober','November','Desember'];
+    const m = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
     return '${now.day} ${m[now.month - 1]} ${now.year}';
   }
 
   String _formatDate(String s) {
     try {
       final d = DateTime.parse(s);
-      const m = ['Januari','Februari','Maret','April','Mei','Juni',
-          'Juli','Agustus','September','Oktober','November','Desember'];
+      const m = [
+        'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+      ];
       return '${d.day} ${m[d.month - 1]} ${d.year}';
-    } catch (_) { return s; }
+    } catch (_) {
+      return s;
+    }
   }
 
   String _fmt(double price) {
     final s = price.toInt().toString();
     final b = StringBuffer();
-    int c   = 0;
+    int c = 0;
     for (int i = s.length - 1; i >= 0; i--) {
       if (c > 0 && c % 3 == 0) b.write('.');
-      b.write(s[i]); c++;
+      b.write(s[i]);
+      c++;
     }
     return b.toString().split('').reversed.join();
   }

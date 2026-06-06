@@ -7,6 +7,9 @@ import 'detail_profile_freelancer.dart';
 import '../../controllers/services_controller.dart';
 import 'contact_freelancer_page.dart';
 import 'detail_order_page.dart';
+import 'freelance_profile_page.dart';
+import 'chat_list_page.dart';
+import 'home_pages.dart';
 
 class ServiceDetailPage extends StatefulWidget {
   final ServiceModel service;
@@ -410,7 +413,23 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                   ),
                   const Spacer(),
                   OutlinedButton(
-                    onPressed: () {
+                    onPressed: () async {
+                      var user = _supabase.auth.currentUser;
+
+                      if (user == null) {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const HomePage(initialIndex: 2),
+                          ),
+                        );
+
+                        user = _supabase.auth.currentUser;
+                        if (user == null) return;
+                      }
+
+                      if (!mounted) return;
+
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -426,11 +445,28 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                   ),
                   SizedBox(width: s(10)),
                   ElevatedButton(
-                    onPressed: () {
+                    onPressed: () async {
+                      var user = _supabase.auth.currentUser;
+
+                      if (user == null) {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const HomePage(initialIndex: 4),
+                          ),
+                        );
+
+                        user = _supabase.auth.currentUser;
+                        if (user == null) return;
+                      }
+
                       final PackageModel? selected =
                           _packages.isNotEmpty && selectedTab < _packages.length
                           ? _packages[selectedTab]
                           : null;
+
+                      if (!mounted) return;
+
                       Navigator.push(
                         context,
                         MaterialPageRoute(

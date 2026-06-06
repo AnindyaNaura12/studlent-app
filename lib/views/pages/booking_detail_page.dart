@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/booking_model.dart';
 import 'contact_freelancer_page.dart';
+import 'request_revision_page.dart'; // ← NEW IMPORT
 
 class BookingDetailPage extends StatelessWidget {
   final Booking booking;
@@ -121,7 +122,7 @@ class BookingDetailPage extends StatelessWidget {
 
             SizedBox(height: s(24)),
 
-            // ================= ACTION BUTTON =================
+            // ================= CONTACT FREELANCER BUTTON =================
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -144,6 +145,7 @@ class BookingDetailPage extends StatelessWidget {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(s(25)),
                   ),
+                  elevation: 0,
                 ),
                 child: Text(
                   "Contact Freelancer",
@@ -153,7 +155,47 @@ class BookingDetailPage extends StatelessWidget {
                   ),
                 ),
               ),
-            )
+            ),
+
+            // ================= REQUEST REVISI BUTTON (only if status == "Done") =================
+            if (booking.status == 'Done') ...[
+              SizedBox(height: s(12)),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => RequestRevisionPage(booking: booking),
+                      ),
+                    );
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFFFA726),
+                    side: const BorderSide(
+                      color: Color(0xFFFFA726),
+                      width: 1.5,
+                    ),
+                    padding: EdgeInsets.symmetric(vertical: s(14)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(s(25)),
+                    ),
+                    backgroundColor: Colors.white,
+                  ),
+                  child: Text(
+                    "Request Revisi",
+                    style: TextStyle(
+                      fontSize: s(13),
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFFFFA726),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+
+            SizedBox(height: s(16)),
           ],
         ),
       ),
@@ -196,32 +238,32 @@ class BookingDetailPage extends StatelessWidget {
     );
   }
 
-
   Widget _columnNote(String title, String value, double Function(double) s) {
-  return Padding(
-    padding: EdgeInsets.symmetric(vertical: s(6)),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: s(12),
-            color: Colors.grey,
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: s(6)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: s(12),
+              color: Colors.grey,
+            ),
           ),
-        ),
-        SizedBox(height: s(4)),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: s(12),
-            fontWeight: FontWeight.w500,
+          SizedBox(height: s(4)),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: s(12),
+              fontWeight: FontWeight.w500,
+            ),
           ),
-        ),
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
+  }
+
   // ================= STATUS BADGE =================
   Widget _statusBadge(String status, double Function(double) s) {
     Color bg;
