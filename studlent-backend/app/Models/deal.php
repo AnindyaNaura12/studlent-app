@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Deal extends Model
 {
-    protected $primaryKey = 'id_deal';   // ← wajib, bukan default 'id'
+    protected $primaryKey = 'id_deal';
 
     protected $fillable = [
         'id_client',

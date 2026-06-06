@@ -85,7 +85,6 @@ class ProfileController {
           .eq('id_freelancer', idUser)
           .eq('status', 'active');
 
-
       // Hitung rating rata-rata
       final reviews = await supabase
           .from('reviews')
@@ -138,11 +137,7 @@ class ProfileController {
     } catch (e) {
       debugPrint('getFreelancerStats error: $e');
 
-      return {
-        'services': 0,
-        'rating': 0.0,
-        'earned': 0.0,
-      };
+      return {'services': 0, 'rating': 0.0, 'earned': 0.0};
     }
   }
 
@@ -153,7 +148,7 @@ class ProfileController {
       if (authUser == null) {
         isLoggedIn = false;
         return null;
-      }  
+      }
 
       // Ambil data user
       final user = await supabase

@@ -5,7 +5,7 @@ import '../models/services_model.dart';
 import '../models/service_category_model.dart';
 
 class MyServicesController {
-  final SupabaseClient supabase = Supabase.instance.client;
+  final supabase = Supabase.instance.client;
 
   List<ServiceModel> services = [];
   List<ServiceCategory> categories = [];
@@ -110,6 +110,35 @@ class MyServicesController {
     } catch (e) {
       debugPrint('ERROR FETCH MY SERVICES: $e');
       services = [];
+    }
+  }
+  Future<List<Map<String, dynamic>>> fetchServicePackages(int idService) async {
+    try {
+      final data = await supabase
+          .from('service_packages')
+          .select()
+          .eq('id_service', idService)
+          .order('id_package', ascending: true);
+      return List<Map<String, dynamic>>.from(data);
+    } catch (e) {
+      debugPrint('ERROR FETCH PACKAGES: $e');
+      return [];
+    }
+  }
+
+  // DITAMBAH: fetch images untuk satu service
+  Future<List<String>> fetchServiceImages(int idService) async {
+    try {
+      final data = await supabase
+          .from('service_images')
+          .select('image_url')
+          .eq('id_service', idService);
+      return (data as List)
+          .map((e) => e['image_url'] as String)
+          .toList();
+    } catch (e) {
+      debugPrint('ERROR FETCH IMAGES: $e');
+      return [];
     }
   }
 

@@ -1,6 +1,5 @@
 <?php
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DealController;
@@ -11,46 +10,34 @@ use App\Http\Controllers\RevisionController;
 use App\Http\Controllers\MidtransWebhookController;
 
 // ─────────────────────────────────────────────────────────────
-// PUBLIC ROUTES — tanpa auth
+// PUBLIC
 // ─────────────────────────────────────────────────────────────
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login',    [AuthController::class, 'login']);
 
-// Webhook Midtrans — TANPA auth, yang hit adalah server Midtrans
+// Midtrans callback — dipanggil server Midtrans, bukan Flutter
 Route::post('/midtrans/callback', [MidtransWebhookController::class, 'callback']);
 
+// Flutter pakai Supabase Auth, bukan Sanctum → semua payment route PUBLIC
+Route::post('/payment/initiate',  [PaymentController::class, 'initiatePayment']);
+Route::get('/orders/{id}/status', [OrderController::class, 'getStatus']);
+
+// ← FIX: dipindah ke public — Flutter tidak punya Sanctum token
+Route::post('/payment/complete',  [PaymentController::class, 'completeOrder']);
+
 // ─────────────────────────────────────────────────────────────
-// PROTECTED ROUTES — wajib login (Sanctum)
+// PROTECTED — Sanctum (untuk fitur admin/panel)
 // ─────────────────────────────────────────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
-
-    // ── Auth ──────────────────────────────────────────────────
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me',      [AuthController::class, 'me']);
 
-    // ── Deal ──────────────────────────────────────────────────
     Route::post('/deals',             [DealController::class, 'create']);
     Route::post('/deals/{id}/accept', [DealController::class, 'accept']);
 
-    // ── Order ─────────────────────────────────────────────────
     Route::post('/orders/from-deal/{dealId}', [OrderController::class, 'createFromDeal']);
 
-    // Polling status — dicek Flutter tiap 4 detik di PaymentWebViewPage
-    Route::get('/orders/{id}/status', [OrderController::class, 'getStatus']);
-
-    // ── Payment ───────────────────────────────────────────────
-    Route::post('/payments/{orderId}/pay', [PaymentController::class, 'pay']);
-
-    // Flutter hit ini untuk dapat payment_url dari Midtrans
-    Route::post('/payment/initiate',  [PaymentController::class, 'initiatePayment']);
-
-    // Flutter hit ini saat client tekan "Pesanan Selesai"
-    Route::post('/payment/complete',  [PaymentController::class, 'completeOrder']);
-
-    // ── Escrow ────────────────────────────────────────────────
-    Route::post('/escrow/{paymentId}/release', [EscrowController::class, 'release'])
-        ->middleware('ensure.payment.paid');
-
-    // ── Revision ──────────────────────────────────────────────
-    Route::post('/revisions', [RevisionController::class, 'request']);
+    Route::post('/payments/{orderId}/pay',     [PaymentController::class, 'pay']);
+    Route::post('/escrow/{paymentId}/release', [EscrowController::class, 'release']);
+    Route::post('/revisions',                  [RevisionController::class, 'request']);
 });
