@@ -38,6 +38,7 @@ class _EditServicePageState extends State<EditServicePage> {
   bool _loadingCategories = false;
   bool _saving = false;
   bool _uploadingImage = false;
+  bool _loadingPackages = true; // DITAMBAH: loading state saat fetch packages & images
 
   List<ServiceCategory> _categories = [];
 
@@ -52,38 +53,46 @@ class _EditServicePageState extends State<EditServicePage> {
     _titleController = TextEditingController(text: widget.service.title);
     _descController = TextEditingController(text: widget.service.description);
 
+    // DIUBAH: inisialisasi kosong dulu, nanti diisi dari DB
     _basicPackageData = {
-      'price': widget.service.basicPackage.price,
-      'deliveryTime': widget.service.basicPackage.deliveryTime,
-      'shortDescription': widget.service.basicPackage.shortDescription,
+      'price': '',
+      'deliveryTime': '',
+      'shortDescription': '',
     };
-
     _standardPackageData = {
-      'price': widget.service.standardPackage?.price ?? '',
-      'deliveryTime': widget.service.standardPackage?.deliveryTime ?? '',
-      'shortDescription':
-          widget.service.standardPackage?.shortDescription ?? '',
+      'price': '',
+      'deliveryTime': '',
+      'shortDescription': '',
     };
-
     _premiumPackageData = {
-      'price': widget.service.premiumPackage?.price ?? '',
-      'deliveryTime': widget.service.premiumPackage?.deliveryTime ?? '',
-      'shortDescription': widget.service.premiumPackage?.shortDescription ?? '',
+      'price': '',
+      'deliveryTime': '',
+      'shortDescription': '',
     };
 
-    _priceController = TextEditingController(
-      text: _basicPackageData['price'] ?? '',
-    );
-    _deliveryController = TextEditingController(
-      text: _basicPackageData['deliveryTime'] ?? '',
-    );
-    _shortDescController = TextEditingController(
-      text: _basicPackageData['shortDescription'] ?? '',
-    );
+    _priceController = TextEditingController();
+    _deliveryController = TextEditingController();
+    _shortDescController = TextEditingController();
 
     _serviceImages = List<String>.from(widget.service.serviceImages);
 
-    _loadCategories();
+    // DIUBAH: load categories dan packages+images dari DB secara bersamaan
+    _loadInitialData();
+  }
+
+  // DITAMBAH: load semua data awal dari supabase
+  Future<void> _loadInitialData() async {
+    setState(() => _loadingPackages = true);
+
+    await Future.wait([
+      _loadCategories(),
+      _loadPackagesFromDB(),
+      _loadImagesFromDB(),
+    ]);
+
+    if (mounted) {
+      setState(() => _loadingPackages = false);
+    }
   }
 
   Future<void> _loadCategories() async {
@@ -107,16 +116,113 @@ class _EditServicePageState extends State<EditServicePage> {
       debugPrint('ERROR LOAD CATEGORIES: $e');
       _showSnackBar('Gagal memuat kategori', Colors.red);
     } finally {
-      if (mounted) {
-        setState(() => _loadingCategories = false);
+      if (mounted) setState(() => _loadingCategories = false);
+    }
+  }
+
+  // DITAMBAH: fetch packages dari supabase berdasarkan id_service
+  Future<void> _loadPackagesFromDB() async {
+    try {
+      final idService = int.tryParse(widget.service.id);
+      if (idService == null) return;
+
+      final data = await _supabase
+          .from('service_packages')
+          .select()
+          .eq('id_service', idService)
+          .order('id_package', ascending: true);
+
+      if (!mounted) return;
+
+      for (final pkg in data as List) {
+        final nama = pkg['nama'] as String? ?? '';
+        // Konversi harga double → string tanpa desimal jika bulat
+        final hargaRaw = pkg['harga'];
+        String hargaStr = '';
+        if (hargaRaw != null) {
+          final double hargaDouble = (hargaRaw as num).toDouble();
+          hargaStr = hargaDouble == hargaDouble.truncateToDouble()
+              ? hargaDouble.toInt().toString()
+              : hargaDouble.toString();
+        }
+
+        // Konversi delivery_time int → string + " days"
+        final deliveryRaw = pkg['delivery_time'];
+        final deliveryStr = deliveryRaw != null
+            ? '${deliveryRaw} days'
+            : '';
+
+        final desc = pkg['deskripsi'] as String? ?? '';
+
+        // DIUBAH: pakai switch case sesuai struktur kode existing
+        switch (nama) {
+          case 'basic':
+            _basicPackageData = {
+              'price': hargaStr,
+              'deliveryTime': deliveryStr,
+              'shortDescription': desc,
+            };
+            break;
+          case 'standard':
+            _standardPackageData = {
+              'price': hargaStr,
+              'deliveryTime': deliveryStr,
+              'shortDescription': desc,
+            };
+            break;
+          case 'premium':
+            _premiumPackageData = {
+              'price': hargaStr,
+              'deliveryTime': deliveryStr,
+              'shortDescription': desc,
+            };
+            break;
+        }
       }
+
+      // DITAMBAH: setelah data di-load, isi controller dengan data basic (tab aktif = 0)
+      if (mounted) {
+        _priceController.text = _basicPackageData['price'] ?? '';
+        _deliveryController.text = _basicPackageData['deliveryTime'] ?? '';
+        _shortDescController.text = _basicPackageData['shortDescription'] ?? '';
+      }
+    } catch (e) {
+      debugPrint('ERROR LOAD PACKAGES FROM DB: $e');
+    }
+  }
+
+  // DITAMBAH: fetch service images dari supabase
+  Future<void> _loadImagesFromDB() async {
+    try {
+      final idService = int.tryParse(widget.service.id);
+      if (idService == null) return;
+
+      final data = await _supabase
+          .from('service_images')
+          .select('image_url')
+          .eq('id_service', idService);
+
+      if (!mounted) return;
+
+      final dbImages = (data as List)
+          .map((e) => e['image_url'] as String)
+          .where((url) => url.isNotEmpty)
+          .toList();
+
+      // DITAMBAH: gunakan images dari DB jika ada,
+      // jika tidak fallback ke widget.service.serviceImages
+      if (dbImages.isNotEmpty) {
+        setState(() => _serviceImages = dbImages);
+      }
+    } catch (e) {
+      debugPrint('ERROR LOAD IMAGES FROM DB: $e');
     }
   }
 
   void _showSnackBar(String message, Color color) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: color),
+    );
   }
 
   void _saveCurrentPackageData() {
@@ -126,24 +232,34 @@ class _EditServicePageState extends State<EditServicePage> {
       'shortDescription': _shortDescController.text.trim(),
     };
 
-    if (_selectedPackageTab == 0) {
-      _basicPackageData = currentData;
-    } else if (_selectedPackageTab == 1) {
-      _standardPackageData = currentData;
-    } else {
-      _premiumPackageData = currentData;
+    // DIUBAH: pakai switch case sesuai struktur kode existing
+    switch (_selectedPackageTab) {
+      case 0:
+        _basicPackageData = currentData;
+        break;
+      case 1:
+        _standardPackageData = currentData;
+        break;
+      default:
+        _premiumPackageData = currentData;
+        break;
     }
   }
 
   void _loadPackageData(int tabIndex) {
     Map<String, String> selectedData;
 
-    if (tabIndex == 0) {
-      selectedData = _basicPackageData;
-    } else if (tabIndex == 1) {
-      selectedData = _standardPackageData;
-    } else {
-      selectedData = _premiumPackageData;
+    // DIUBAH: pakai switch case sesuai struktur kode existing
+    switch (tabIndex) {
+      case 0:
+        selectedData = _basicPackageData;
+        break;
+      case 1:
+        selectedData = _standardPackageData;
+        break;
+      default:
+        selectedData = _premiumPackageData;
+        break;
     }
 
     _priceController.text = selectedData['price'] ?? '';
@@ -153,9 +269,7 @@ class _EditServicePageState extends State<EditServicePage> {
 
   void _changePackageTab(int newTab) {
     _saveCurrentPackageData();
-    setState(() {
-      _selectedPackageTab = newTab;
-    });
+    setState(() => _selectedPackageTab = newTab);
     _loadPackageData(newTab);
   }
 
@@ -201,7 +315,6 @@ class _EditServicePageState extends State<EditServicePage> {
       _showSnackBar('Gambar berhasil diupload', Colors.green);
     } catch (e) {
       if (!mounted) return;
-
       setState(() => _uploadingImage = false);
       _showSnackBar('Gagal upload gambar: $e', Colors.red);
     }
@@ -263,7 +376,6 @@ class _EditServicePageState extends State<EditServicePage> {
       }
     } catch (e) {
       if (!mounted) return;
-
       setState(() => _saving = false);
       _showSnackBar('Error: $e', Colors.red);
     }
@@ -274,92 +386,98 @@ class _EditServicePageState extends State<EditServicePage> {
     return Scaffold(
       backgroundColor: const Color(0xFFFFF8EE),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 16),
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                child: Stack(
-                  alignment: Alignment.center,
+        // DITAMBAH: tampilkan loading penuh saat packages & images belum selesai di-load
+        child: _loadingPackages
+            ? const Center(child: CircularProgressIndicator())
+            : SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: CustomBackButton(
-                        onTap: () => Navigator.pop(context),
+                    const SizedBox(height: 16),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: CustomBackButton(
+                              onTap: () => Navigator.pop(context),
+                            ),
+                          ),
+                          const Text(
+                            'Edit Service',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
+                    _buildLabel('Title'),
+                    _buildEditableField(controller: _titleController),
+                    const SizedBox(height: 16),
+                    _buildLabel('Service Category'),
+                    _buildDropdown(),
+                    const SizedBox(height: 16),
+                    _buildLabel('Description'),
+                    _buildDescriptionField(),
+                    const SizedBox(height: 20),
                     const Text(
-                      'Edit Service',
+                      'Pricing & Packages',
                       style: TextStyle(
-                        fontSize: 20,
+                        fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black,
                       ),
                     ),
+                    const SizedBox(height: 10),
+                    _buildPackageTabs(),
+                    const SizedBox(height: 12),
+                    _buildPricingSection(),
+                    const SizedBox(height: 24),
+                    _buildLabel('Service Images'),
+                    _buildServiceImagesSection(),
+                    const SizedBox(height: 32),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 54,
+                      child: ElevatedButton(
+                        onPressed: (_saving || _uploadingImage)
+                            ? null
+                            : _onSavePressed,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF3B82F6),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                          elevation: 2,
+                        ),
+                        child: _saving
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'Save Changes',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 30),
                   ],
                 ),
               ),
-              _buildLabel('Title'),
-              _buildEditableField(controller: _titleController),
-              const SizedBox(height: 16),
-              _buildLabel('Service Category'),
-              _buildDropdown(),
-              const SizedBox(height: 16),
-              _buildLabel('Description'),
-              _buildDescriptionField(),
-              const SizedBox(height: 20),
-              const Text(
-                'Pricing & Packages',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 10),
-              _buildPackageTabs(),
-              const SizedBox(height: 12),
-              _buildPricingSection(),
-              const SizedBox(height: 24),
-              _buildLabel('Service Images'),
-              _buildServiceImagesSection(),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: ElevatedButton(
-                  onPressed: (_saving || _uploadingImage)
-                      ? null
-                      : _onSavePressed,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF3B82F6),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    elevation: 2,
-                  ),
-                  child: _saving
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text(
-                          'Save Changes',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                ),
-              ),
-              const SizedBox(height: 30),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -398,7 +516,11 @@ class _EditServicePageState extends State<EditServicePage> {
               style: const TextStyle(fontSize: 14),
             ),
           ),
-          const Icon(Icons.edit_outlined, size: 18, color: Color(0xFFCCAA44)),
+          const Icon(
+            Icons.edit_outlined,
+            size: 18,
+            color: Color(0xFFCCAA44),
+          ),
         ],
       ),
     );
@@ -432,7 +554,8 @@ class _EditServicePageState extends State<EditServicePage> {
                     child: Text(cat.name),
                   );
                 }).toList(),
-                onChanged: (val) => setState(() => _selectedCategoryId = val),
+                onChanged: (val) =>
+                    setState(() => _selectedCategoryId = val),
               ),
             ),
     );
@@ -493,7 +616,10 @@ class _EditServicePageState extends State<EditServicePage> {
                   borderRadius: BorderRadius.circular(8),
                   border: i < tabs.length - 1
                       ? const Border(
-                          right: BorderSide(color: Colors.black26, width: 0.5),
+                          right: BorderSide(
+                            color: Colors.black26,
+                            width: 0.5,
+                          ),
                         )
                       : null,
                 ),
@@ -502,7 +628,9 @@ class _EditServicePageState extends State<EditServicePage> {
                     tabs[i],
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: isSelected ? Colors.black : Colors.black54,
+                      color: isSelected
+                          ? Colors.black
+                          : Colors.black54,
                     ),
                   ),
                 ),
@@ -541,7 +669,8 @@ class _EditServicePageState extends State<EditServicePage> {
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(vertical: 12),
+                          contentPadding:
+                              EdgeInsets.symmetric(vertical: 12),
                         ),
                       ),
                     ),
@@ -570,7 +699,8 @@ class _EditServicePageState extends State<EditServicePage> {
                         controller: _deliveryController,
                         decoration: const InputDecoration(
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(vertical: 12),
+                          contentPadding:
+                              EdgeInsets.symmetric(vertical: 12),
                         ),
                       ),
                     ),

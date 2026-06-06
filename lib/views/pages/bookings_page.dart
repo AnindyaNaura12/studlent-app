@@ -254,11 +254,11 @@ class _BookingsPageState extends State<BookingsPage> {
               GestureDetector(
                 onTap: () {
                   Navigator.push(
-                    context, 
+                    context,
                     MaterialPageRoute(
-                      builder: (_) => BookingDetailPage(booking: b)
-                      ),
-                    );
+                      builder: (_) => BookingDetailPage(booking: b),
+                    ),
+                  );
                 },
                 child: Container(
                   padding: EdgeInsets.symmetric(
@@ -294,7 +294,7 @@ class _BookingsPageState extends State<BookingsPage> {
       case "In Progress":
         return Colors.blue.withOpacity(0.15);
       case "Pending":
-        return Colors.orange.withOpacity(0.15);
+        return const Color.fromARGB(255, 225, 250, 0).withOpacity(0.15);
       default:
         return Colors.grey.withOpacity(0.15);
     }
@@ -308,7 +308,7 @@ class _BookingsPageState extends State<BookingsPage> {
       case "In Progress":
         return Colors.blue[700]!;
       case "Pending":
-        return Colors.orange[800]!;
+        return const Color.fromARGB(255, 255, 247, 0)!;
       default:
         return Colors.grey[700]!;
     }

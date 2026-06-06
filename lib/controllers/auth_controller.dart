@@ -121,6 +121,11 @@ class AuthController {
       return e.toString();
     }
   }
+  
+   // ── Logout ────────────────────────────────────────────────
+  Future<void> logout() async {
+    await supabase.auth.signOut();
+  }
 
   // ── Dispose ───────────────────────────────────────────────
   void dispose() {

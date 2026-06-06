@@ -1,14 +1,17 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:webview_flutter/webview_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'my_orders_page.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+import 'payment_success_page.dart';
+
+const String _baseUrl = 'http://10.0.2.2:8000/api';
+// const String _baseUrl = 'http://192.168.0.109:8000/api'; // device fisik
 
 class PaymentWebViewPage extends StatefulWidget {
   final String paymentUrl;
-  final int orderId;
+  final int    orderId;
   final double amount;
 
   const PaymentWebViewPage({
@@ -23,13 +26,11 @@ class PaymentWebViewPage extends StatefulWidget {
 }
 
 class _PaymentWebViewPageState extends State<PaymentWebViewPage> {
-  late final WebViewController _webViewController;
-  bool _isLoading = true;
+  late final WebViewController _wvc;
+  final _supabase = Supabase.instance.client;
+  bool _isLoading   = true;
   bool _paymentDone = false;
   Timer? _pollingTimer;
-
-  // Ganti dengan URL Laravel kamu
-  static const String _baseUrl = 'http://192.168.1.x:8000/api';
 
   @override
   void initState() {
@@ -44,105 +45,112 @@ class _PaymentWebViewPageState extends State<PaymentWebViewPage> {
     super.dispose();
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // INIT WEBVIEW
-  // ─────────────────────────────────────────────────────────────
   void _initWebView() {
-    _webViewController = WebViewController()
+    _wvc = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(Colors.white)
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onPageStarted: (_) => setState(() => _isLoading = true),
-          onPageFinished: (_) => setState(() => _isLoading = false),
-          onNavigationRequest: (request) {
-            final url = request.url;
-
-            // Midtrans redirect ke URL ini saat transaksi selesai
-            if (url.contains('transaction_status=settlement') ||
-                url.contains('transaction_status=capture')) {
-              _onPaymentSuccess();
-              return NavigationDecision.prevent;
-            }
-
-            if (url.contains('transaction_status=cancel') ||
-                url.contains('transaction_status=deny') ||
-                url.contains('transaction_status=expire')) {
-              _onPaymentFailed();
-              return NavigationDecision.prevent;
-            }
-
-            return NavigationDecision.navigate;
-          },
-        ),
-      )
+      ..setNavigationDelegate(NavigationDelegate(
+        // ← FIX: tambah mounted check
+        onPageStarted: (_) { if (mounted) setState(() => _isLoading = true);  },
+        onPageFinished: (_) { if (mounted) setState(() => _isLoading = false); },
+        onNavigationRequest: (req) => _intercept(req.url),
+        onWebResourceError: (e) => debugPrint('WebView error: ${e.description}'),
+      ))
       ..loadRequest(Uri.parse(widget.paymentUrl));
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // POLLING — cek status ke Laravel tiap 4 detik
-  // backup kalau redirect URL tidak tertangkap WebView
-  // ─────────────────────────────────────────────────────────────
+  NavigationDecision _intercept(String url) {
+    debugPrint('WebView → $url');
+
+    // Intercept callback URL dari MidtransService
+    if (url.contains('studlent.app/payment/finish')) { _onSuccess(); return NavigationDecision.prevent; }
+    if (url.contains('studlent.app/payment/error'))  { _onFailed();  return NavigationDecision.prevent; }
+    if (url.contains('studlent.app/payment/pending')) { _onPending(); return NavigationDecision.prevent; }
+
+    // Fallback: cek query param transaction_status
+    final uri    = Uri.tryParse(url);
+    final status = uri?.queryParameters['transaction_status'];
+    if (status == 'settlement' || status == 'capture') { _onSuccess(); return NavigationDecision.prevent; }
+    if (status == 'pending')                           { _onPending(); return NavigationDecision.prevent; }
+    if (status == 'cancel' || status == 'deny' || status == 'expire') { _onFailed(); return NavigationDecision.prevent; }
+
+    return NavigationDecision.navigate;
+  }
+
+  // ── Polling backup tiap 4 detik ───────────────────────────
   void _startPolling() {
     _pollingTimer = Timer.periodic(const Duration(seconds: 4), (_) async {
-      if (_paymentDone) return;
-      await _checkPaymentStatus();
+      if (_paymentDone || !mounted) return;
+      await _checkStatus();
     });
   }
 
-  Future<void> _checkPaymentStatus() async {
+  Future<void> _checkStatus() async {
     try {
-      final session = Supabase.instance.client.auth.currentSession;
-      final token   = session?.accessToken ?? '';
-
-      final response = await http.get(
+      final res = await http.get(
         Uri.parse('$_baseUrl/orders/${widget.orderId}/status'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Accept'       : 'application/json',
-        },
-      );
+        headers: {'Accept': 'application/json'},
+      ).timeout(const Duration(seconds: 10));
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['payment_status'] == 'paid') {
-          _onPaymentSuccess();
-        } else if (data['payment_status'] == 'failed') {
-          _onPaymentFailed();
-        }
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        if (data['is_paid'] == true)              _onSuccess();
+        else if (data['payment_status'] == 'failed') _onFailed();
       }
-    } catch (_) {
-      // Abaikan error polling, coba lagi di iterasi berikut
+    } catch (_) { /* retry di iterasi berikut */ }
+  }
+
+  // ── FIX: update Supabase sebelum navigate ─────────────────
+  Future<void> _updateSupabase(String paymentStatus, String orderStatus) async {
+    try {
+      await _supabase.from('payments')
+          .update({'status': paymentStatus})
+          .eq('id_order', widget.orderId);
+
+      await _supabase.from('orders')
+          .update({'status': orderStatus})
+          .eq('id_order', widget.orderId);
+    } catch (e) {
+      debugPrint('Supabase update error: $e');
     }
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // HANDLER SUKSES & GAGAL
-  // ─────────────────────────────────────────────────────────────
-  void _onPaymentSuccess() {
+  void _onSuccess() {
     if (_paymentDone) return;
     _paymentDone = true;
     _pollingTimer?.cancel();
     if (!mounted) return;
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => _PaymentSuccessDialog(
-        amount: widget.amount,
-        onClose: () {
-          Navigator.of(context).pop(); // tutup dialog
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (_) => const MyOrdersPage()),
-            (route) => route.isFirst,
-          );
-        },
-      ),
+    // ← FIX: update Supabase dulu, baru navigate ke PaymentSuccessPage
+    _updateSupabase('paid', 'paid').then((_) {
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => PaymentSuccessPage(
+          idOrder: widget.orderId,
+          amount:  widget.amount,
+        )),
+        (route) => route.isFirst,
+      );
+    });
+  }
+
+  void _onPending() {
+    if (_paymentDone) return;
+    _paymentDone = true;
+    _pollingTimer?.cancel();
+    if (!mounted) return;
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => PaymentSuccessPage(
+        idOrder:   widget.orderId,
+        amount:    widget.amount,
+        isPending: true,
+      )),
+      (route) => route.isFirst,
     );
   }
 
-  void _onPaymentFailed() {
+  void _onFailed() {
     if (_paymentDone) return;
     _paymentDone = true;
     _pollingTimer?.cancel();
@@ -152,16 +160,12 @@ class _PaymentWebViewPageState extends State<PaymentWebViewPage> {
       context: context,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.error_outline, color: Colors.red, size: 28),
-            SizedBox(width: 8),
-            Text('Pembayaran Gagal'),
-          ],
-        ),
-        content: const Text(
-          'Transaksi dibatalkan atau kadaluarsa. Silakan coba lagi.',
-        ),
+        title: const Row(children: [
+          Icon(Icons.error_outline, color: Colors.red, size: 28),
+          SizedBox(width: 8),
+          Text('Pembayaran Gagal'),
+        ]),
+        content: const Text('Transaksi dibatalkan atau kadaluarsa. Silakan coba lagi.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -172,74 +176,21 @@ class _PaymentWebViewPageState extends State<PaymentWebViewPage> {
               Navigator.pop(context); // tutup dialog
               Navigator.pop(context); // kembali ke detail order
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFFA726),
-            ),
-            child: const Text(
-              'Coba Lagi',
-              style: TextStyle(color: Colors.white),
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFFA726)),
+            child: const Text('Coba Lagi', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // BUILD
-  // ─────────────────────────────────────────────────────────────
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.black),
-          onPressed: _showExitConfirmation,
-        ),
-        title: const Text(
-          'Pembayaran',
-          style: TextStyle(
-            color      : Colors.black,
-            fontWeight : FontWeight.bold,
-            fontSize   : 16,
-          ),
-        ),
-        centerTitle: true,
-        actions: const [
-          // Ikon gembok → sinyal aman ke user
-          Padding(
-            padding: EdgeInsets.only(right: 16),
-            child: Icon(Icons.lock, color: Color(0xFF4CAF50), size: 20),
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          WebViewWidget(controller: _webViewController),
-          if (_isLoading)
-            const Center(
-              child: CircularProgressIndicator(color: Color(0xFFFFA726)),
-            ),
-        ],
-      ),
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────────
-  // KONFIRMASI KELUAR
-  // ─────────────────────────────────────────────────────────────
   void _showExitConfirmation() {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Batalkan Pembayaran?'),
-        content: const Text(
-          'Pembayaran belum selesai. Apakah kamu yakin ingin keluar?',
-        ),
+        content: const Text('Pembayaran belum selesai. Yakin ingin keluar?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -248,155 +199,47 @@ class _PaymentWebViewPageState extends State<PaymentWebViewPage> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context); // tutup dialog
-              Navigator.pop(context); // keluar dari webview
+              Navigator.pop(context); // kembali ke detail order
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text(
-              'Keluar',
-              style: TextStyle(color: Colors.white),
-            ),
+            child: const Text('Keluar', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
   }
-}
-
-// ─────────────────────────────────────────────────────────────
-// DIALOG SUKSES PAYMENT
-// ─────────────────────────────────────────────────────────────
-class _PaymentSuccessDialog extends StatelessWidget {
-  final double amount;
-  final VoidCallback onClose;
-
-  const _PaymentSuccessDialog({
-    required this.amount,
-    required this.onClose,
-  });
-
-  String _formatPrice(double price) {
-    final s   = price.toInt().toString();
-    final buf = StringBuffer();
-    int count = 0;
-    for (int i = s.length - 1; i >= 0; i--) {
-      if (count > 0 && count % 3 == 0) buf.write('.');
-      buf.write(s[i]);
-      count++;
-    }
-    return buf.toString().split('').reversed.join();
-  }
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // ── Ikon centang ──
-            Container(
-              width  : 80,
-              height : 80,
-              decoration: const BoxDecoration(
-                color : Color(0xFFE8F5E9),
-                shape : BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.check_circle,
-                color : Color(0xFF4CAF50),
-                size  : 48,
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            const Text(
-              'Pembayaran Berhasil!',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-
-            Text(
-              'Rp ${_formatPrice(amount)}',
-              style: const TextStyle(
-                fontSize   : 24,
-                fontWeight : FontWeight.bold,
-                color      : Color(0xFFFFA726),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // ── Info box ──
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color        : Colors.grey.shade50,
-                borderRadius : BorderRadius.circular(12),
-                border       : Border.all(color: Colors.grey.shade200),
-              ),
-              child: const Column(
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(Icons.receipt_long,
-                          size: 16, color: Colors.black54),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Bukti pembayaran dikirim ke email kamu',
-                          style: TextStyle(
-                              fontSize: 12, color: Colors.black54),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 10),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(Icons.notifications,
-                          size: 16, color: Colors.black54),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Freelancer akan segera diberitahu & mulai mengerjakan',
-                          style: TextStyle(
-                              fontSize: 12, color: Colors.black54),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // ── Tombol ──
-            SizedBox(
-              width  : double.infinity,
-              height : 50,
-              child  : ElevatedButton(
-                onPressed: onClose,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFFA726),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                ),
-                child: const Text(
-                  'Lihat Order Saya',
-                  style: TextStyle(
-                    color      : Colors.white,
-                    fontWeight : FontWeight.bold,
-                    fontSize   : 16,
-                  ),
-                ),
-              ),
+    return PopScope(
+      canPop: false, // ← FIX: cegah hardware back langsung keluar tanpa konfirmasi
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _showExitConfirmation();
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.close, color: Colors.black),
+            onPressed: _showExitConfirmation,
+          ),
+          title: const Text('Pembayaran',
+              style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)),
+          centerTitle: true,
+          actions: const [
+            Padding(
+              padding: EdgeInsets.only(right: 16),
+              child: Icon(Icons.lock, color: Color(0xFF4CAF50), size: 20),
             ),
           ],
         ),
+        body: Stack(children: [
+          WebViewWidget(controller: _wvc),
+          if (_isLoading)
+            const Center(child: CircularProgressIndicator(color: Color(0xFFFFA726))),
+        ]),
       ),
     );
   }

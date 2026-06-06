@@ -1,4 +1,5 @@
 // ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'home_content.dart';
 import 'freelance_profile_page.dart';
@@ -66,39 +67,46 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       backgroundColor: const Color(0xFFFFF8EE),
       body: IndexedStack(index: _selectedIndex, children: pages),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(
-            top: BorderSide(color: Colors.grey.withOpacity(0.2), width: 1),
-          ),
+      bottomNavigationBar: Theme(
+        data: Theme.of(context).copyWith(
+          splashColor: const Color(0xFFFFA726).withOpacity(0.20),
+          highlightColor: const Color(0xFFFFA726).withOpacity(0.10),
+          splashFactory: InkRipple.splashFactory,
         ),
-        child: BottomNavigationBar(
-          currentIndex: _selectedIndex,
-          onTap: (index) {
-            setState(() {
-              _selectedIndex = index;
-              if (index != 1) _initialCategory = null;
-            });
-          },
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.white,
-          selectedItemColor: Colors.black,
-          unselectedItemColor: Colors.grey,
-          showSelectedLabels: true,
-          showUnselectedLabels: true,
-          selectedLabelStyle: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border(
+              top: BorderSide(color: Colors.grey.withOpacity(0.2), width: 1),
+            ),
           ),
-          unselectedLabelStyle: const TextStyle(fontSize: 12),
-          items: [
-            _buildNavItem("assets/images/icons/home.png", "Home"),
-            _buildNavItem("assets/images/icons/services.png", "Services"),
-            _buildNavItem("assets/images/icons/chat.png", "Chat"),
-            _buildNavItem("assets/images/icons/bookings.png", "My Orders"),
-            _buildNavItem("assets/images/icons/profile.png", "Profile"),
-          ],
+          child: BottomNavigationBar(
+            currentIndex: _selectedIndex,
+            onTap: (index) {
+              setState(() {
+                _selectedIndex = index;
+                if (index != 1) _initialCategory = null;
+              });
+            },
+            type: BottomNavigationBarType.fixed,
+            backgroundColor: Colors.white,
+            selectedItemColor: Colors.black,
+            unselectedItemColor: Colors.grey,
+            showSelectedLabels: true,
+            showUnselectedLabels: true,
+            selectedLabelStyle: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+            unselectedLabelStyle: const TextStyle(fontSize: 12),
+            items: [
+              _buildNavItem("assets/images/icons/home.png", "Home"),
+              _buildNavItem("assets/images/icons/services.png", "Services"),
+              _buildNavItem("assets/images/icons/chat.png", "Chat"),
+              _buildNavItem("assets/images/icons/bookings.png", "My Orders"),
+              _buildNavItem("assets/images/icons/profile.png", "Profile"),
+            ],
+          ),
         ),
       ),
     );

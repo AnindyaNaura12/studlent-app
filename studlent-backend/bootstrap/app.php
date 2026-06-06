@@ -12,6 +12,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+
+        // ← Pakai custom middleware, dipasang global (bukan hanya api)
+        $middleware->prepend(\App\Http\Middleware\CorsMiddleware::class);
+
         $middleware->alias([
             'check.role'          => \App\Http\Middleware\CheckRole::class,
             'ensure.payment.paid' => \App\Http\Middleware\EnsurePaymentPaid::class,
