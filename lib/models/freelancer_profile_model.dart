@@ -3,7 +3,7 @@ class FreelancerProfileModel {
   String professionalStatus;
   String aboutMe;
   List<String> skills;
-  List<String> certificates; // ← ganti dari portfolioImages
+  List<String> certificates; // URL dari supabase (DIUBAH: dulu local path, sekarang URL)
   String avatarPath;
 
   FreelancerProfileModel({

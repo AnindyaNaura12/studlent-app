@@ -104,7 +104,6 @@ class _ProfilePageState extends State<ProfilePage> {
         globalUsername.value = data['username'] ?? '';
       });
 
-      // Load freelancer stats kalau memang freelancer
       if (data['is_freelancer'] == true) {
         final stats = await _controller.getFreelancerStats(
           data['id_user'],
@@ -281,7 +280,7 @@ class _ProfilePageState extends State<ProfilePage> {
                               MaterialPageRoute(
                                 builder: (_) => const LoginPage(),
                               ),
-                            ).then((_) => setState(() {}));
+                            );
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFFFB74D),
@@ -698,18 +697,25 @@ class _ProfilePageState extends State<ProfilePage> {
                 final title = item['title'] as String;
                 final hasTag = item['hasTag'] as bool;
 
+                // DIUBAH: My Profile sekarang refresh data dan
+                // pastikan kembali ke freelancer view setelah pop
                 if (title == 'My Profile') {
                   return InkWell(
                     borderRadius: BorderRadius.circular(16),
                     onTap: () async {
-                      await Navigator.push(
+                      final result = await Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => const EditProfileFreelancerPage(),
                         ),
                       );
                       if (!mounted) return;
+                      // DITAMBAH: refresh data user terbaru
                       _fetchUserData();
+                      // DITAMBAH: paksa tetap di freelancer view
+                      // setelah kembali dari edit profile,
+                      // apapun result yang dikembalikan
+                      setState(() => _controller.isFreelancer = true);
                     },
                     child: Container(
                       margin: const EdgeInsets.only(bottom: 12),
@@ -801,17 +807,13 @@ class _ProfilePageState extends State<ProfilePage> {
     return GestureDetector(
       onTap: () async {
         if (text == "Freelance") {
-          // Cek apakah sudah daftar freelancer
           final isRegistered = _userData?['is_freelancer'] == true;
           if (!isRegistered) {
-            // Belum daftar → arahkan ke RegisterFreelancerPage
             _showJoinFreelanceDialog(context);
             return;
           }
-          // Sudah daftar → switch ke tampilan freelancer
           setState(() => _controller.isFreelancer = true);
         } else {
-          // Switch ke tampilan client — tidak ubah DB sama sekali
           setState(() => _controller.isFreelancer = false);
         }
       },
@@ -1093,8 +1095,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 noHp: _userData!['no_hp'] ?? '',
               );
               if (!mounted) return;
-              globalUsername.value = _usernameController.text
-                  .trim(); // ← TAMBAH
+              globalUsername.value = _usernameController.text.trim();
               setState(() {});
             },
             child: const Text("Save", style: TextStyle(color: Colors.black)),

@@ -12,15 +12,22 @@ class AuthController extends Controller
     {
         $request->validate([
             'nama'             => 'required|string|max:255',
-            'email'            => 'required|email|unique:users,email',
-            'no_hp'            => 'required|string',
+            'no_hp'            => 'required|string|unique:users,no_hp',
             'password'         => 'required|string|min:6',
             'product_interest' => 'required|string',
         ]);
 
+        // Auto-generate email dari no_hp
+        $noHpClean = preg_replace('/[^0-9]/', '', $request->no_hp);
+        $email     = $noHpClean . '@studlent.com';
+
+        if (User::where('email', $email)->exists()) {
+            $email = $noHpClean . '_' . time() . '@studlent.com';
+        }
+
         $user = User::create([
-            'nama'             => $request->nama,   // ← fix: bukan $request->username
-            'email'            => $request->email,
+            'nama'             => $request->nama,
+            'email'            => $email,
             'no_hp'            => $request->no_hp,
             'password'         => Hash::make($request->password),
             'product_interest' => $request->product_interest,
@@ -30,8 +37,6 @@ class AuthController extends Controller
 
         $token = $user->createToken('auth')->plainTextToken;
 
-        // Langsung return token setelah register,
-        // supaya Flutter tidak perlu login lagi setelah daftar
         return response()->json([
             'user'  => $user,
             'token' => $token,
@@ -41,19 +46,17 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $request->validate([
-            'email'    => 'required|email',
-            'password' => 'required',
+            'no_hp'    => 'required|string',
+            'password' => 'required|string',
         ]);
 
-        $user = User::where('email', $request->email)->first();
+        $user = User::where('no_hp', $request->no_hp)->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
-            return response()->json(['message' => 'Email atau password salah'], 401);
+            return response()->json(['message' => 'Nomor HP atau password salah'], 401);
         }
 
-        // Hapus token lama supaya tidak numpuk
         $user->tokens()->delete();
-
         $token = $user->createToken('auth')->plainTextToken;
 
         return response()->json([

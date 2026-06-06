@@ -175,13 +175,10 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
       final List<_AttachmentItem> newItems = [];
       for (final PlatformFile pf in toAdd) {
         final String? path = pf.path;
-        if (path == null || path.isEmpty) continue; // path null hanya di web, aman di-skip
+        if (path == null || path.isEmpty)
+          continue; // path null hanya di web, aman di-skip
         newItems.add(
-          _AttachmentItem(
-            file: File(path),
-            name: pf.name,
-            isImage: false,
-          ),
+          _AttachmentItem(file: File(path), name: pf.name, isImage: false),
         );
       }
 
@@ -316,8 +313,9 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
                       height: s(22),
                       child: const CircularProgressIndicator(
                         strokeWidth: 2.5,
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(Colors.black54),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Colors.black54,
+                        ),
                       ),
                     )
                   : Text(
@@ -378,7 +376,7 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
                 SizedBox(width: s(22)),
               ],
             ),
-),
+          ),
 
           // ── Page content ───────────────────────────────
           SliverToBoxAdapter(
@@ -462,10 +460,7 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
                 SizedBox(height: s(3)),
                 Text(
                   widget.booking.serviceName,
-                  style: TextStyle(
-                    fontSize: s(12),
-                    color: Colors.grey[500],
-                  ),
+                  style: TextStyle(fontSize: s(12), color: Colors.grey[500]),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -478,64 +473,61 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
   }
 
   // ── View Order / View File Section ────────────────────────
-  // Widget _buildViewOrderSection(double Function(double) s) {
-  //   return Column(
-  //     crossAxisAlignment: CrossAxisAlignment.start,
-  //     children: [
-  //       Text(
-  //         "View Order",
-  //         style: TextStyle(
-  //           fontSize: s(14),
-  //           fontWeight: FontWeight.bold,
-  //           color: Colors.black,
-  //         ),
-  //       ),
-  //       SizedBox(height: s(10)),
-  //       GestureDetector(
-  //         onTap: _openCompletedFile,
-  //         child: CustomPaint(
-  //           painter: _DashedBorderPainter(
-  //             color: const Color(0xFFADB5FF),
-  //             borderRadius: 14,
-  //             dashWidth: 6,
-  //             dashSpace: 4,
-  //             strokeWidth: 1.5,
-  //           ),
-  //           child: Container(
-  //             width: double.infinity,
-  //             padding: EdgeInsets.symmetric(
-  //               vertical: s(20),
-  //               horizontal: s(16),
-  //             ),
-  //             decoration: BoxDecoration(
-  //               color: const Color(0xFFEEF1FF),
-  //               borderRadius: BorderRadius.circular(14),
-  //             ),
-  //             child: Row(
-  //               mainAxisAlignment: MainAxisAlignment.center,
-  //               children: [
-  //                 Icon(
-  //                   Icons.insert_drive_file_rounded,
-  //                   color: const Color(0xFF6B7AFF),
-  //                   size: s(22),
-  //                 ),
-  //                 SizedBox(width: s(8)),
-  //                 Text(
-  //                   "View File",
-  //                   style: TextStyle(
-  //                     fontSize: s(13),
-  //                     fontWeight: FontWeight.w600,
-  //                     color: const Color(0xFF6B7AFF),
-  //                   ),
-  //                 ),
-  //               ],
-  //             ),
-  //           ),
-  //         ),
-  //       ),
-  //     ],
-  //   );
-  // }
+  Widget _buildViewOrderSection(double Function(double) s) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          "View Order",
+          style: TextStyle(
+            fontSize: s(14),
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
+        ),
+        SizedBox(height: s(10)),
+        GestureDetector(
+          onTap: _openCompletedFile,
+          child: CustomPaint(
+            painter: _DashedBorderPainter(
+              color: const Color(0xFFADB5FF),
+              borderRadius: 14,
+              dashWidth: 6,
+              dashSpace: 4,
+              strokeWidth: 1.5,
+            ),
+            child: Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(vertical: s(20), horizontal: s(16)),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEEF1FF),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.insert_drive_file_rounded,
+                    color: const Color(0xFF6B7AFF),
+                    size: s(22),
+                  ),
+                  SizedBox(width: s(8)),
+                  Text(
+                    "View File",
+                    style: TextStyle(
+                      fontSize: s(13),
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF6B7AFF),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
   // ── Revision Input + Attachment Section ───────────────────
   Widget _buildRevisionInputSection(double Function(double) s) {
@@ -577,10 +569,7 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
                 child: TextField(
                   controller: _revisionController,
                   maxLines: 6,
-                  style: TextStyle(
-                    fontSize: s(13),
-                    color: Colors.black87,
-                  ),
+                  style: TextStyle(fontSize: s(13), color: Colors.black87),
                   decoration: InputDecoration(
                     hintText: "Type here...",
                     hintStyle: TextStyle(
@@ -658,14 +647,9 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
           width: s(70),
           height: s(70),
           decoration: BoxDecoration(
-            color: item.isImage
-                ? Colors.transparent
-                : const Color(0xFFF5F5F5),
+            color: item.isImage ? Colors.transparent : const Color(0xFFF5F5F5),
             borderRadius: BorderRadius.circular(s(10)),
-            border: Border.all(
-              color: Colors.grey.withOpacity(0.2),
-              width: 1,
-            ),
+            border: Border.all(color: Colors.grey.withOpacity(0.2), width: 1),
           ),
           child: item.isImage
               ? ClipRRect(
@@ -693,11 +677,7 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
                 color: Color(0xFF2D2D2D),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                Icons.close,
-                size: s(11),
-                color: Colors.white,
-              ),
+              child: Icon(Icons.close, size: s(11), color: Colors.white),
             ),
           ),
         ),
@@ -714,8 +694,11 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
         color: const Color(0xFFF5F5F5),
         borderRadius: BorderRadius.circular(s(10)),
       ),
-      child: Icon(Icons.broken_image_outlined,
-          size: s(28), color: Colors.grey[400]),
+      child: Icon(
+        Icons.broken_image_outlined,
+        size: s(28),
+        color: Colors.grey[400],
+      ),
     );
   }
 
@@ -726,8 +709,11 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.insert_drive_file_rounded,
-              color: const Color(0xFF6B7AFF), size: s(24)),
+          Icon(
+            Icons.insert_drive_file_rounded,
+            color: const Color(0xFF6B7AFF),
+            size: s(24),
+          ),
           SizedBox(height: s(3)),
           Text(
             name,
@@ -758,11 +744,7 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
             color: Colors.grey.withOpacity(0.08),
             borderRadius: BorderRadius.circular(s(8)),
           ),
-          child: Icon(
-            icon,
-            size: s(18),
-            color: const Color(0xFF2D2D2D),
-          ),
+          child: Icon(icon, size: s(18), color: const Color(0xFF2D2D2D)),
         ),
       ),
     );
@@ -805,8 +787,7 @@ class _DashedBorderPainter extends CustomPainter {
     for (final PathMetric metric in metrics) {
       double distance = 0.0;
       while (distance < metric.length) {
-        final double end =
-            (distance + dashWidth).clamp(0.0, metric.length);
+        final double end = (distance + dashWidth).clamp(0.0, metric.length);
         canvas.drawPath(metric.extractPath(distance, end), paint);
         distance += dashWidth + dashSpace;
       }

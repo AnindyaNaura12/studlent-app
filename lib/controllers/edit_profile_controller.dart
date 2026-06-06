@@ -12,7 +12,9 @@ class EditProfileController {
   late TextEditingController skillInputController;
 
   List<String> skills = [];
-  List<String> certificates = [];
+  List<String> certificates = []; // DIUBAH: sekarang menyimpan URL dari supabase
+  // DITAMBAH: menyimpan data sertifikat lengkap {id, url, name}
+  List<Map<String, dynamic>> certificateData = [];
 
   EditProfileController({FreelancerProfileModel? initialModel})
       : model = initialModel ?? FreelancerProfileModel() {
@@ -25,13 +27,11 @@ class EditProfileController {
     certificates = List<String>.from(model.certificates);
   }
 
-  // ── Load dari Supabase ────────────────────────────────────
   Future<void> loadFromSupabase() async {
     try {
       final authUser = supabase.auth.currentUser;
       if (authUser == null) return;
 
-      // Ambil data user
       final user = await supabase
           .from('users')
           .select('id_user, nama')
@@ -39,11 +39,8 @@ class EditProfileController {
           .single();
 
       final idUser = user['id_user'] as int;
-
-      // Set nama
       nameController.text = user['nama'] ?? '';
 
-      // Ambil freelancer_profile
       final profiles = await supabase
           .from('freelancer_profiles')
           .select()
@@ -56,7 +53,6 @@ class EditProfileController {
         aboutMeController.text = profile['bio'] ?? '';
       }
 
-      // Ambil skills
       final skillsResult = await supabase
           .from('freelancer_skills')
           .select('skill_name')
@@ -65,12 +61,23 @@ class EditProfileController {
       skills = (skillsResult as List)
           .map((s) => s['skill_name'] as String)
           .toList();
+
+      // DITAMBAH: load sertifikat dari supabase
+      final certsResult = await supabase
+          .from('freelancer_certificates')
+          .select()
+          .eq('id_user', idUser)
+          .order('created_at', ascending: false);
+
+      certificateData = List<Map<String, dynamic>>.from(certsResult);
+      certificates = certificateData
+          .map((c) => c['file_url'] as String)
+          .toList();
     } catch (e) {
       debugPrint('loadFromSupabase error: $e');
     }
   }
 
-  // ── Save ke Supabase ──────────────────────────────────────
   Future<bool> saveToSupabase() async {
     try {
       final authUser = supabase.auth.currentUser;
@@ -84,14 +91,12 @@ class EditProfileController {
 
       final idUser = user['id_user'] as int;
 
-      // 1. Update nama & professional_status di tabel users
       await supabase.from('users').update({
         'nama': nameController.text.trim(),
         'professional_status': professionalStatusController.text.trim(),
         'updated_at': DateTime.now().toIso8601String(),
       }).eq('id_user', idUser);
 
-      // 2. Upsert freelancer_profiles
       await supabase.from('freelancer_profiles').upsert({
         'id_user': idUser,
         'professional_status': professionalStatusController.text.trim(),
@@ -99,7 +104,6 @@ class EditProfileController {
         'updated_at': DateTime.now().toIso8601String(),
       });
 
-      // 3. Hapus skills lama, insert yang baru
       await supabase
           .from('freelancer_skills')
           .delete()
@@ -112,6 +116,9 @@ class EditProfileController {
           'created_at': DateTime.now().toIso8601String(),
         });
       }
+
+      // NOTE: sertifikat di-handle langsung di page via PortfolioController
+      // tidak perlu save ulang di sini karena sudah langsung insert/delete
 
       return true;
     } catch (e) {
@@ -134,6 +141,23 @@ class EditProfileController {
     refresh();
   }
 
+  // DIUBAH: addCertificate sekarang menerima data lengkap
+  void addCertificateData(Map<String, dynamic> certData, VoidCallback refresh) {
+    certificateData.add(certData);
+    certificates.add(certData['file_url'] as String);
+    refresh();
+  }
+
+  // DIUBAH: removeCertificate menggunakan index dari certificateData
+  void removeCertificateData(int index, VoidCallback refresh) {
+    if (index < certificateData.length) {
+      certificateData.removeAt(index);
+      certificates.removeAt(index);
+    }
+    refresh();
+  }
+
+  // Keep backward compat
   void addCertificate(String path, VoidCallback refresh) {
     certificates.add(path);
     refresh();

@@ -30,7 +30,6 @@ class WalletService
 
     public function debit($userId, $amount, $source, $refId)
     {
-        // Kalau wallet tidak ada, lempar error yang jelas
         $wallet = Wallet::where('id_user', $userId)->first();
 
         if (!$wallet) {
