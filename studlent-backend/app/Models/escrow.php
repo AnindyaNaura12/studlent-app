@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Escrow extends Model
 {
     protected $primaryKey = 'id_escrow';
-
+    protected $table = 'escrow';
     protected $fillable = [
         'id_payment',
         'amount',
