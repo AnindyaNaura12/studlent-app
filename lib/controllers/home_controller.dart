@@ -1,8 +1,13 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/services_model.dart';
 import '../models/category_model.dart';
 
 class HomeController {
-  /// Daftar kategori layanan
+  final SupabaseClient _supabase = Supabase.instance.client;
+
+  /// =========================
+  /// KATEGORI 
+  /// =========================
   List<CategoryModel> getCategories() {
     return [
       CategoryModel(
@@ -32,52 +37,62 @@ class HomeController {
     ];
   }
 
-  /// Daftar freelancer populer
-  List<ServiceModel> getPopularServices() {
-    return [
-      ServiceModel(
-        id: '1',
-        title: 'Java Developer Service',
-        name: 'Carla',
-        rating: 4.9,
-        totalReviews: 200,
-        skills: 'Java, CSS',
-        university: 'Universitas Brawijaya',
-        imagePath: 'assets/images/freelancers/freelancer_1.png',
-        // Masukkan data harga ke dalam basicPackage
-        basicPackage: PackageModel(
-          price: 'Rp. 200.000',
-          deliveryTime: '3 days',
-        ),
-      ),
-      ServiceModel(
-        id: '2',
-        title: 'UI/UX Design',
-        name: 'Carla',
-        rating: 4.9,
-        totalReviews: 200,
-        skills: 'Java, CSS',
-        university: 'Politeknik Negeri Malang',
-        imagePath: 'assets/images/freelancers/freelancer_2.png',
-        basicPackage: PackageModel(
-          price: 'Rp. 250.000',
-          deliveryTime: '3 days',
-        ),
-      ),
-      ServiceModel(
-        id: '3',
-        title: 'Python UI/UX',
-        name: 'Reza',
-        rating: 4.8,
-        totalReviews: 150,
-        skills: 'Python, UI/UX',
-        university: 'Universitas Negeri Malang',
-        imagePath: 'assets/images/freelancers/freelancer_3.png',
-        basicPackage: PackageModel(
-          price: 'Rp. 175.000',
-          deliveryTime: '3 days',
-        ),
-      ),
-    ];
+  /// =========================
+  /// POPULAR SERVICES 
+  /// =========================
+  Future<List<ServiceModel>> getPopularServices() async {
+    try {
+      final response = await _supabase
+          .from('services')
+          .select()
+          .order('rating_avg', ascending: false)
+          .order('total_order', ascending: false)
+          .limit(10);
+
+      return (response as List)
+          .map((e) => ServiceModel.fromJson(e))
+          .toList();
+    } catch (e) {
+      print('getPopularServices error: $e');
+      return [];
+    }
+  }
+
+  /// =========================
+  /// ALL SERVICES 
+  /// =========================
+  Future<List<ServiceModel>> getAllServices() async {
+    try {
+      final response = await _supabase
+          .from('services')
+          .select()
+          .order('created_at', ascending: false);
+
+      return (response as List)
+          .map((e) => ServiceModel.fromJson(e))
+          .toList();
+    } catch (e) {
+      print('getAllServices error: $e');
+      return [];
+    }
+  }
+
+  /// =========================
+  /// SEARCH SERVICES 
+  /// =========================
+  Future<List<ServiceModel>> searchServices(String query) async {
+    try {
+      final response = await _supabase
+          .from('services')
+          .select()
+          .ilike('title', '%$query%');
+
+      return (response as List)
+          .map((e) => ServiceModel.fromJson(e))
+          .toList();
+    } catch (e) {
+      print('searchServices error: $e');
+      return [];
+    }
   }
 }

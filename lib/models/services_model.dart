@@ -73,7 +73,7 @@ class ServiceModel {
   final String university;
   final String skills;
   final double rating;
-  final int totalReviews;
+  final int totalOrder;
   final String? freelancerName;
 
   final int? freelancerId;
@@ -93,7 +93,7 @@ class ServiceModel {
     this.university = '',
     this.skills = '',
     this.rating = 0.0,
-    this.totalReviews = 0,
+    this.totalOrder = 0,
     this.freelancerId,
     this.freelancerName,
   }) : basicPackage = basicPackage ?? PackageModel();
@@ -171,7 +171,7 @@ class ServiceModel {
       university: json['university']?.toString() ?? '',
       skills: json['skills']?.toString() ?? '',
       rating: (json['rating_avg'] as num?)?.toDouble() ?? 0.0,
-      totalReviews: json['total_reviews'] as int? ?? 0,
+      totalOrder: json['total_order'] as int? ?? 0,
       freelancerId: json['id_freelancer'] as int?,
       freelancerName: json['freelancer_name']?.toString(),
     );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class RatingReviewPage extends StatefulWidget {
   final int idOrder;
@@ -47,6 +48,7 @@ class _RatingReviewPageState extends State<RatingReviewPage> {
       _showSnackBar("Pilih rating bintang terlebih dahulu.");
       return;
     }
+
     if (_commentController.text.trim().isEmpty) {
       _showSnackBar("Komentar tidak boleh kosong.");
       return;
@@ -54,15 +56,44 @@ class _RatingReviewPageState extends State<RatingReviewPage> {
 
     setState(() => _isLoading = true);
 
-    await Future.delayed(const Duration(seconds: 1));
+    try {
+      final existing = await Supabase.instance.client
+          .from('reviews')
+          .select()
+          .eq('id_order', widget.idOrder)
+          .maybeSingle();
 
-    if (!mounted) return;
-    _showSnackBar("Review submitted successfully!", color: Colors.green[600]);
+      if (existing != null) {
+        _showSnackBar("Order ini sudah pernah direview.");
+        return;
+      }
+      
+      await Supabase.instance.client
+          .from('reviews')
+          .insert({
+            'id_order': widget.idOrder,
+            'id_client': widget.idClient,
+            'id_freelancer': widget.idFreelancer,
+            'rating': _rating,
+            'komentar': _commentController.text.trim(),
+          });
 
-    await Future.delayed(const Duration(milliseconds: 800));
-    
-    if (mounted) {
-      Navigator.of(context).popUntil((route) => route.isFirst);
+      _showSnackBar(
+        "Review submitted successfully!",
+        color: Colors.green,
+      );
+
+      await Future.delayed(
+        const Duration(milliseconds: 800),
+      );
+
+      if (mounted) {
+        Navigator.of(context).popUntil(
+          (route) => route.isFirst,
+        );
+      }
+    } catch (e) {
+      _showSnackBar("Failed to submit review: $e");
     }
 
     if (mounted) {

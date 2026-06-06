@@ -119,7 +119,7 @@ class FreelancerCardHorizontal extends StatelessWidget {
                         children: [
                           Icon(Icons.star, color: Colors.amber, size: scale(12)),
                           Text(
-                            " ${service.rating} (${service.totalReviews})",
+                            " ${service.rating} (${service.totalOrder})",
                             style: TextStyle(fontSize: scale(10)),
                           ),
                         ],

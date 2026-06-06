@@ -19,6 +19,8 @@ class ChatListPage extends StatefulWidget {
 class _ChatListPageState extends State<ChatListPage> {
   final ChatController _chatController = ChatController();
   final AuthController _authController = AuthController();
+
+  final TextEditingController _searchController = TextEditingController();
   
   // 1. UBAH DARI Future MENJADI Stream
   late Stream<List<ChatModel>> _chatListStream;
