@@ -70,27 +70,41 @@ class OrderController extends Controller
         ], 201);
     }
 
-    // Dipanggil Flutter tiap 4 detik — public route
     public function getStatus($id)
     {
         $order = Order::with('payment')
             ->where('id_order', $id)
             ->firstOrFail();
 
+        $paymentStatus = strtolower((string) ($order->payment?->status ?? 'pending'));
+
+        $isPaid = in_array($paymentStatus, [
+            'paid',
+            'settlement',
+            'capture',
+            'success'
+        ]);
+
         return response()->json([
+            'id_order'       => $order->id_order,
             'order_id'       => $order->id_order,
             'status'         => $order->status,
-            'payment_status' => $order->payment?->status ?? 'pending',
-            'is_paid'        => $order->payment?->status === 'paid',
-            
-            'payment' => [
-                'amount' => $order->payment?->amount,
-                'admin_fee' => $order->payment?->admin_fee,
-                'method' => $order->payment?->metode,
-                'created_at' => $order->payment?->created_at,
-            ],
+            'payment_status' => $paymentStatus,
+            'is_paid'        => $isPaid,
 
-            'service_name' => $order->detail_pesanan,
+            'payment_method' => $order->payment?->metode ?? null,
+            'service_name'   => $order->detail_pesanan ?? '-',
+            'admin_fee'      => (float) ($order->payment?->admin_fee ?? 2500),
+            'amount'         => (float) ($order->payment?->amount ?? 0),
+            'created_at'     => optional($order->payment?->created_at)?->toIso8601String(),
+
+            'payment' => [
+                'amount'     => (float) ($order->payment?->amount ?? 0),
+                'admin_fee'  => (float) ($order->payment?->admin_fee ?? 2500),
+                'method'     => $order->payment?->metode ?? null,
+                'created_at' => optional($order->payment?->created_at)?->toIso8601String(),
+                'status'     => $paymentStatus,
+            ],
         ]);
     }
 }

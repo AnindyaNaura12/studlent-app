@@ -7,37 +7,34 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\EscrowController;
 use App\Http\Controllers\RevisionController;
-use App\Http\Controllers\MidtransWebhookController;
 
 // ─────────────────────────────────────────────────────────────
 // PUBLIC
 // ─────────────────────────────────────────────────────────────
 Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login',    [AuthController::class, 'login']);
+Route::post('/login', [AuthController::class, 'login']);
 
-// Midtrans callback — dipanggil server Midtrans, bukan Flutter
-Route::post('/midtrans/callback', [MidtransWebhookController::class, 'callback']);
+// Midtrans webhook / notification — dipanggil server Midtrans, bukan Flutter
+Route::post('/payment/notification', [PaymentController::class, 'handleNotification']);
 
-// Flutter pakai Supabase Auth, bukan Sanctum → semua payment route PUBLIC
-Route::post('/payment/initiate',  [PaymentController::class, 'initiatePayment']);
-Route::get('/orders/{id}/status', [OrderController::class, 'getStatus']);
-
-// ← FIX: dipindah ke public — Flutter tidak punya Sanctum token
-Route::post('/payment/complete',  [PaymentController::class, 'completeOrder']);
+// Payment flow Flutter — public karena Flutter kamu tidak pakai Sanctum
+Route::post('/payment/initiate', [PaymentController::class, 'initiatePayment']);
+Route::post('/payment/complete', [PaymentController::class, 'completeOrder']);
+Route::get('/orders/{id}/status', [PaymentController::class, 'getStatus']);
 
 // ─────────────────────────────────────────────────────────────
 // PROTECTED — Sanctum (untuk fitur admin/panel)
 // ─────────────────────────────────────────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
-    Route::get('/me',      [AuthController::class, 'me']);
+    Route::get('/me', [AuthController::class, 'me']);
 
-    Route::post('/deals',             [DealController::class, 'create']);
+    Route::post('/deals', [DealController::class, 'create']);
     Route::post('/deals/{id}/accept', [DealController::class, 'accept']);
 
     Route::post('/orders/from-deal/{dealId}', [OrderController::class, 'createFromDeal']);
 
-    Route::post('/payments/{orderId}/pay',     [PaymentController::class, 'pay']);
+    Route::post('/payments/{orderId}/pay', [PaymentController::class, 'pay']);
     Route::post('/escrow/{paymentId}/release', [EscrowController::class, 'release']);
-    Route::post('/revisions',                  [RevisionController::class, 'request']);
+    Route::post('/revisions', [RevisionController::class, 'request']);
 });

@@ -1,6 +1,6 @@
 class Booking {
-  final int    freelancerId;
-  final int    orderId;
+  final int freelancerId;
+  final int orderId;
   final String serviceName;
   final String providerName;
   final String total;
@@ -11,9 +11,6 @@ class Booking {
   final String note;
 
   Booking({
-    required this.id,
-    required this.idClient,
-    required this.idFreelancer,
     required this.freelancerId,
     required this.orderId,
     required this.serviceName,
@@ -28,26 +25,29 @@ class Booking {
 
   factory Booking.fromJson(Map<String, dynamic> json) {
     final freelancer = json['freelancer'] ?? {};
-    final service    = json['service']    ?? {};
-    final payment    = (json['payment'] is List)
+    final service = json['service'] ?? {};
+    final payment = (json['payment'] is List)
         ? (json['payment'] as List).isNotEmpty
-            ? (json['payment'] as List).first
-            : {}
+              ? (json['payment'] as List).first
+              : {}
         : json['payment'] ?? {};
 
     final double amount = (payment['amount'] as num?)?.toDouble() ?? 0;
 
     return Booking(
-      orderId:      json['id_order'] as int? ?? 0,
+      orderId: json['id_order'] as int? ?? 0,
       freelancerId: json['id_freelancer'] as int? ?? 0,
-      serviceName:  service['judul']?.toString() ?? json['detail_pesanan']?.toString() ?? '-',
+      serviceName:
+          service['judul']?.toString() ??
+          json['detail_pesanan']?.toString() ??
+          '-',
       providerName: freelancer['nama']?.toString() ?? 'Unknown Freelancer',
-      total:        _fmt(amount),
-      orderDate:    _formatDate(json['created_at']?.toString()),
-      deadline:     _formatDate(json['deadline']?.toString()),
-      status:       json['status']?.toString() ?? 'menunggu_pembayaran',
-      image:        freelancer['foto']?.toString() ?? '',
-      note:         json['catatan']?.toString() ?? '',
+      total: _fmt(amount),
+      orderDate: _formatDate(json['created_at']?.toString()),
+      deadline: _formatDate(json['deadline']?.toString()),
+      status: json['status']?.toString() ?? 'menunggu_pembayaran',
+      image: freelancer['foto']?.toString() ?? '',
+      note: json['catatan']?.toString() ?? '',
     );
   }
 
@@ -56,8 +56,18 @@ class Booking {
     try {
       final date = DateTime.parse(dateStr);
       const months = [
-        'Jan','Feb','Mar','Apr','May','Jun',
-        'Jul','Aug','Sep','Oct','Nov','Dec'
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
       ];
       return '${date.day} ${months[date.month - 1]} ${date.year}';
     } catch (_) {
@@ -66,7 +76,7 @@ class Booking {
   }
 
   static String _fmt(double price) {
-    final s   = price.toInt().toString();
+    final s = price.toInt().toString();
     final buf = StringBuffer();
     int count = 0;
     for (int i = s.length - 1; i >= 0; i--) {

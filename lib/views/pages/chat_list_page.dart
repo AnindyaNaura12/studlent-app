@@ -19,7 +19,9 @@ class ChatListPage extends StatefulWidget {
 class _ChatListPageState extends State<ChatListPage> {
   final ChatController _chatController = ChatController();
   final AuthController _authController = AuthController();
-  
+
+  final TextEditingController _searchController = TextEditingController();
+
   // 1. UBAH DARI Future MENJADI Stream
   late Stream<List<ChatModel>> _chatListStream;
   bool _isLoggedIn = false;
@@ -325,11 +327,12 @@ class _ChatListPageState extends State<ChatListPage> {
               ),
             ),
             SizedBox(height: scale(6)),
-            
+
             // 3. UBAH FutureBuilder MENJADI StreamBuilder
             Expanded(
               child: StreamBuilder<List<ChatModel>>(
-                stream: _chatListStream, // Menggunakan stream yang sudah didefinisikan
+                stream:
+                    _chatListStream, // Menggunakan stream yang sudah didefinisikan
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
@@ -399,7 +402,7 @@ class _ChatListPageState extends State<ChatListPage> {
                                   image: chat.imagePath,
                                 ),
                               ),
-                            ).then((_) => setState(() => _checkAuthAndLoad())); 
+                            ).then((_) => setState(() => _checkAuthAndLoad()));
                           },
                         ),
                       );
