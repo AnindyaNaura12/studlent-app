@@ -23,7 +23,7 @@ class FeatureItem extends StatelessWidget {
             iconPath,
             height: s(40),
             fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) =>
+            errorBuilder: (_, _, _) =>
                 Icon(Icons.star_outline, size: s(40), color: Colors.orange),
           ),
 

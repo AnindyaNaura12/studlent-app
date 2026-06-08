@@ -1,4 +1,7 @@
 class Booking {
+  final int    id;
+  final int    idClient;
+  final int    idFreelancer;
   final int    freelancerId;
   final int    orderId;
   final int    clientId; 
@@ -39,6 +42,7 @@ class Booking {
     final double amount = (payment['amount'] as num?)?.toDouble() ?? 0;
 
      return Booking(
+        id:           json['id'] as int? ?? 0,
         freelancerId: json['id_freelancer'] as int? ?? 0,
         orderId: json['id_order'] as int? ?? 0,
         clientId: json['id_client'] as int? ?? 0,
