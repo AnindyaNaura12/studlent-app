@@ -78,31 +78,39 @@ class ProfileController {
     String period,
   ) async {
     try {
-      // Hitung total services
+      // ==========================
+      // Total Services
+      // ==========================
       final services = await supabase
           .from('services')
           .select('id_service')
-          .eq('id_freelancer', idUser)
-          .eq('status', 'active');
+          .eq('id_freelancer', idUser);
 
-      // Hitung rating rata-rata
+      // ==========================
+      // Rating Average
+      // ==========================
       final reviews = await supabase
           .from('reviews')
           .select('rating')
           .eq('id_freelancer', idUser);
 
       double ratingAvg = 0;
+
       if ((reviews as List).isNotEmpty) {
         final total = reviews.fold<double>(
           0,
-          (sum, r) => sum + (r['rating'] ?? 0),
+          (sum, review) =>
+              sum + ((review['rating'] ?? 0) as num).toDouble(),
         );
+
         ratingAvg = total / reviews.length;
       }
 
-      // Filter earned berdasarkan periode
-      DateTime fromDate;
+      // ==========================
+      // Filter Periode
+      // ==========================
       final now = DateTime.now();
+      late DateTime fromDate;
 
       switch (period) {
         case 'weekly':
@@ -113,31 +121,65 @@ class ProfileController {
           fromDate = DateTime(now.year, 1, 1);
           break;
 
+        case 'monthly':
         default:
           fromDate = DateTime(now.year, now.month, 1);
+          break;
       }
 
-      final payments = await supabase
-          .from('payments')
-          .select('freelancer_receive, tanggal_bayar')
-          .eq('status', 'paid')
-          .gte('tanggal_bayar', fromDate.toIso8601String());
+      // ==========================
+      // Ambil order freelancer ini
+      // ==========================
+      final orders = await supabase
+          .from('orders')
+          .select('id_order')
+          .eq('id_freelancer', idUser);
 
       double earned = 0;
 
-      for (var p in payments as List) {
-        earned += (p['freelancer_receive'] ?? 0).toDouble();
+      if ((orders as List).isNotEmpty) {
+        final orderIds = orders
+            .map((e) => e['id_order'])
+            .toList();
+
+        // ==========================
+        // Ambil payment yang sudah released
+        // ==========================
+        final payments = await supabase
+            .from('payments')
+            .select(
+              'freelancer_receive, tanggal_bayar',
+            )
+            .inFilter('id_order', orderIds)
+            .eq('status', 'paid')
+            .eq('escrow_status', 'released')
+            .gte(
+              'tanggal_bayar',
+              fromDate.toIso8601String(),
+            );
+
+        for (final payment in payments as List) {
+          earned +=
+              ((payment['freelancer_receive'] ?? 0) as num)
+                  .toDouble();
+        }
       }
 
       return {
         'services': (services as List).length,
-        'rating': double.parse(ratingAvg.toStringAsFixed(1)),
+        'rating': double.parse(
+          ratingAvg.toStringAsFixed(1),
+        ),
         'earned': earned,
       };
     } catch (e) {
       debugPrint('getFreelancerStats error: $e');
 
-      return {'services': 0, 'rating': 0.0, 'earned': 0.0};
+      return {
+        'services': 0,
+        'rating': 0.0,
+        'earned': 0.0,
+      };
     }
   }
 
