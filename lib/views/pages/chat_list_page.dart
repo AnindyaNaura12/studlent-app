@@ -27,8 +27,6 @@ class _ChatListPageState extends State<ChatListPage> {
   bool _isLoggedIn = false;
   String _searchQuery = '';
 
-  final TextEditingController _searchController = TextEditingController();
-
   @override
   void initState() {
     super.initState();

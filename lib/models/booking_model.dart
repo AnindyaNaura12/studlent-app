@@ -1,7 +1,5 @@
 class Booking {
   final int    id;
-  final int    idClient;
-  final int    idFreelancer;
   final int    freelancerId;
   final int    orderId;
   final int    clientId; 
@@ -16,6 +14,7 @@ class Booking {
   final String note;
 
   Booking({
+    required this.id,
     required this.freelancerId,
     required this.orderId,
     required this.clientId,
