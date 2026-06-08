@@ -60,7 +60,7 @@ class _HomePageState extends State<HomePage> {
         initialCategory: _initialCategory,
       ),
       const ChatListPage(),
-      const MyOrdersPage(),
+      const BookingsPage(),
       const ProfilePage(),
     ];
 

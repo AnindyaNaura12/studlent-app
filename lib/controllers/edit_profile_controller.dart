@@ -12,15 +12,17 @@ class EditProfileController {
   late TextEditingController skillInputController;
 
   List<String> skills = [];
-  List<String> certificates = []; // DIUBAH: sekarang menyimpan URL dari supabase
+  List<String> certificates =
+      []; // DIUBAH: sekarang menyimpan URL dari supabase
   // DITAMBAH: menyimpan data sertifikat lengkap {id, url, name}
   List<Map<String, dynamic>> certificateData = [];
 
   EditProfileController({FreelancerProfileModel? initialModel})
-      : model = initialModel ?? FreelancerProfileModel() {
+    : model = initialModel ?? FreelancerProfileModel() {
     nameController = TextEditingController(text: model.name);
-    professionalStatusController =
-        TextEditingController(text: model.professionalStatus);
+    professionalStatusController = TextEditingController(
+      text: model.professionalStatus,
+    );
     aboutMeController = TextEditingController(text: model.aboutMe);
     skillInputController = TextEditingController();
     skills = List<String>.from(model.skills);
@@ -80,45 +82,30 @@ class EditProfileController {
 
   Future<bool> saveToSupabase() async {
     try {
+      final supabase = Supabase.instance.client;
       final authUser = supabase.auth.currentUser;
-      if (authUser == null) return false;
 
-      final user = await supabase
+      if (authUser == null || authUser.email == null) {
+        debugPrint('saveToSupabase: user belum login');
+        return false;
+      }
+
+      final userData = await supabase
           .from('users')
           .select('id_user')
           .eq('email', authUser.email!)
           .single();
 
-      final idUser = user['id_user'] as int;
-
-      await supabase.from('users').update({
-        'nama': nameController.text.trim(),
-        'professional_status': professionalStatusController.text.trim(),
-        'updated_at': DateTime.now().toIso8601String(),
-      }).eq('id_user', idUser);
+      final idUser = userData['id_user'];
 
       await supabase.from('freelancer_profiles').upsert({
         'id_user': idUser,
+        'nama': nameController.text.trim(),
         'professional_status': professionalStatusController.text.trim(),
-        'bio': aboutMeController.text.trim(),
+        'about_me': aboutMeController.text.trim(),
+        'skills': skills,
         'updated_at': DateTime.now().toIso8601String(),
-      });
-
-      await supabase
-          .from('freelancer_skills')
-          .delete()
-          .eq('id_user', idUser);
-
-      for (final skill in skills) {
-        await supabase.from('freelancer_skills').insert({
-          'id_user': idUser,
-          'skill_name': skill,
-          'created_at': DateTime.now().toIso8601String(),
-        });
-      }
-
-      // NOTE: sertifikat di-handle langsung di page via PortfolioController
-      // tidak perlu save ulang di sini karena sudah langsung insert/delete
+      }, onConflict: 'id_user');
 
       return true;
     } catch (e) {

@@ -16,11 +16,7 @@ class _MyOrdersPageState extends State<MyOrdersPage>
   late TabController _tabController;
   late Future<List<OrderModel>> _ordersFuture;
 
-  final List<String> _tabs = [
-    'All',
-    'Active',
-    'Done',
-  ];
+  final List<String> _tabs = ['All', 'Active', 'Done'];
 
   @override
   void initState() {
@@ -29,10 +25,9 @@ class _MyOrdersPageState extends State<MyOrdersPage>
     _refreshOrders();
   }
 
-  // Fungsi trigger async fetch
   Future<void> _refreshOrders() async {
     setState(() {
-      _ordersFuture = _controller.fetchUserOrders();
+      _ordersFuture = _controller.fetchFreelancerOrders();
     });
   }
 
@@ -50,7 +45,6 @@ class _MyOrdersPageState extends State<MyOrdersPage>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── TOP BAR ──
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
@@ -64,8 +58,6 @@ class _MyOrdersPageState extends State<MyOrdersPage>
                 ],
               ),
             ),
-
-            // ── TITLE ──
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 20),
               child: Column(
@@ -87,8 +79,6 @@ class _MyOrdersPageState extends State<MyOrdersPage>
               ),
             ),
             const SizedBox(height: 16),
-
-            // ── TAB BAR ──
             TabBar(
               controller: _tabController,
               isScrollable: true,
@@ -103,85 +93,116 @@ class _MyOrdersPageState extends State<MyOrdersPage>
               tabAlignment: TabAlignment.start,
               tabs: _tabs.map((t) => Tab(text: t)).toList(),
             ),
-
             const Divider(height: 1),
-
-            // ── TAB CONTENT WITH FUTURE BUILDER ──
             Expanded(
-              child: RefreshIndicator(
-                color: const Color(0xFFFFB74D),
-                onRefresh: _refreshOrders,
-                child: FutureBuilder<List<OrderModel>>(
-                  future: _ordersFuture,
-                  builder: (context, snapshot) {
-                    // 1. Loading State
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(
-                        child: CircularProgressIndicator(
-                          color: Color(0xFFFFB74D),
-                        ),
-                      );
-                    }
+              child: FutureBuilder<List<OrderModel>>(
+                future: _ordersFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFFFFB74D),
+                      ),
+                    );
+                  }
 
-                    // 2. Error State
-                    if (snapshot.hasError) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.error_outline, color: Colors.red, size: 48),
-                            const SizedBox(height: 16),
-                            Text('Terjadi kesalahan:\n${snapshot.error}', textAlign: TextAlign.center,),
-                            TextButton(
-                              onPressed: _refreshOrders,
-                              child: const Text('Coba Lagi'),
-                            )
-                          ],
-                        ),
-                      );
-                    }
-
-                    // 3. Success State
-                    final allOrders = snapshot.data ?? [];
-
-                    return TabBarView(
-                      controller: _tabController,
-                      children: _tabs.map((tabName) {
-                        final filteredOrders = _controller.getOrdersByTab(allOrders, tabName);
-                        
-                        // Empty State
-                        if (filteredOrders.isEmpty) {
-                          return Center(
-                            child: SingleChildScrollView(
-                              physics: const AlwaysScrollableScrollPhysics(),
+                  if (snapshot.hasError) {
+                    return RefreshIndicator(
+                      color: const Color(0xFFFFB74D),
+                      onRefresh: _refreshOrders,
+                      child: ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: [
+                          SizedBox(
+                            height: MediaQuery.of(context).size.height * 0.6,
+                            child: Center(
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.inbox, size: 64, color: Colors.grey.shade300),
+                                  const Icon(
+                                    Icons.error_outline,
+                                    color: Colors.red,
+                                    size: 48,
+                                  ),
                                   const SizedBox(height: 16),
-                                  Text(
-                                    'Tidak ada order di tab ini.',
-                                    style: TextStyle(color: Colors.grey.shade600),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 24,
+                                    ),
+                                    child: Text(
+                                      'Terjadi kesalahan:\n${snapshot.error}',
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: _refreshOrders,
+                                    child: const Text('Coba Lagi'),
                                   ),
                                 ],
                               ),
                             ),
-                          );
-                        }
-
-                        // Populated List
-                        return ListView.builder(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.all(16),
-                          itemCount: filteredOrders.length,
-                          itemBuilder: (context, index) {
-                            return _buildOrderCard(filteredOrders[index]);
-                          },
-                        );
-                      }).toList(),
+                          ),
+                        ],
+                      ),
                     );
-                  },
-                ),
+                  }
+
+                  final allOrders = snapshot.data ?? [];
+
+                  return TabBarView(
+                    controller: _tabController,
+                    children: _tabs.map((tabName) {
+                      final filteredOrders = _controller.getOrdersByTab(
+                        allOrders,
+                        tabName,
+                      );
+
+                      return RefreshIndicator(
+                        color: const Color(0xFFFFB74D),
+                        onRefresh: _refreshOrders,
+                        child: filteredOrders.isEmpty
+                            ? ListView(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                children: [
+                                  SizedBox(
+                                    height:
+                                        MediaQuery.of(context).size.height *
+                                        0.6,
+                                    child: Center(
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.inbox,
+                                            size: 64,
+                                            color: Colors.grey.shade300,
+                                          ),
+                                          const SizedBox(height: 16),
+                                          Text(
+                                            'Tidak ada order di tab ini.',
+                                            style: TextStyle(
+                                              color: Colors.grey.shade600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : ListView.builder(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                padding: const EdgeInsets.all(16),
+                                itemCount: filteredOrders.length,
+                                itemBuilder: (context, index) {
+                                  return _buildOrderCard(filteredOrders[index]);
+                                },
+                              ),
+                      );
+                    }).toList(),
+                  );
+                },
               ),
             ),
           ],
@@ -191,8 +212,9 @@ class _MyOrdersPageState extends State<MyOrdersPage>
   }
 
   Widget _buildOrderCard(OrderModel order) {
-    // Cek apakah avatar dari asset lokal atau network URL (supaya aman jika dari database)
-    final isNetworkImage = order.freelancerAvatar.startsWith('http');
+    final imageUrl = order.serviceImage.trim();
+    final isNetworkImage =
+        imageUrl.startsWith('http://') || imageUrl.startsWith('https://');
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -211,24 +233,16 @@ class _MyOrdersPageState extends State<MyOrdersPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Freelancer info + price ──
           Row(
             children: [
-              CircleAvatar(
-                radius: 28,
-                backgroundColor: Colors.grey[200],
-                backgroundImage: isNetworkImage 
-                    ? NetworkImage(order.freelancerAvatar) as ImageProvider
-                    : AssetImage(order.freelancerAvatar),
-                onBackgroundImageError: (_, __) {},
-              ),
+              _buildServiceImage(imageUrl, isNetworkImage),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      order.freelancerName,
+                      order.serviceName,
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -237,7 +251,7 @@ class _MyOrdersPageState extends State<MyOrdersPage>
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
-                      order.serviceName,
+                      order.freelancerName,
                       style: const TextStyle(
                         fontSize: 13,
                         color: Colors.black54,
@@ -248,36 +262,43 @@ class _MyOrdersPageState extends State<MyOrdersPage>
                   ],
                 ),
               ),
-              Text(
-                order.price,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  order.price,
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 14),
-
-          // ── Deadline + Status ──
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              RichText(
-                text: TextSpan(
-                  style: const TextStyle(fontSize: 13, color: Colors.black54),
-                  children: [
-                    const TextSpan(text: 'Deadline: '),
-                    TextSpan(
-                      text: order.deadline,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
+              Expanded(
+                child: RichText(
+                  text: TextSpan(
+                    style: const TextStyle(fontSize: 13, color: Colors.black54),
+                    children: [
+                      const TextSpan(text: 'Deadline: '),
+                      TextSpan(
+                        text: order.deadline,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
+              const SizedBox(width: 12),
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
@@ -288,7 +309,7 @@ class _MyOrdersPageState extends State<MyOrdersPage>
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  _controller.formatDisplayStatus(order.status), // String di-format agar cantik
+                  _controller.formatDisplayStatus(order.status),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 12,
@@ -299,8 +320,6 @@ class _MyOrdersPageState extends State<MyOrdersPage>
             ],
           ),
           const SizedBox(height: 14),
-
-          // ── View Detail Button ──
           SizedBox(
             width: double.infinity,
             height: 48,
@@ -309,7 +328,7 @@ class _MyOrdersPageState extends State<MyOrdersPage>
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => OrderDetailPage(order: order),
+                    builder: (_) => FreelancerOrderDetailPage(order: order),
                   ),
                 );
               },
@@ -331,6 +350,64 @@ class _MyOrdersPageState extends State<MyOrdersPage>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildServiceImage(String imageUrl, bool isNetworkImage) {
+    if (imageUrl.isEmpty) {
+      return Container(
+        width: 56,
+        height: 56,
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Icon(Icons.image_not_supported, color: Colors.grey),
+      );
+    }
+
+    if (isNetworkImage) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.network(
+          imageUrl,
+          width: 56,
+          height: 56,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) {
+            return Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.broken_image, color: Colors.grey),
+            );
+          },
+        ),
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Image.asset(
+        imageUrl,
+        width: 56,
+        height: 56,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) {
+          return Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.broken_image, color: Colors.grey),
+          );
+        },
       ),
     );
   }

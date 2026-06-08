@@ -1,11 +1,14 @@
 // lib/views/pages/detail_order_page.dart
 // ignore_for_file: deprecated_member_use
+
 import 'dart:convert';
 import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:file_picker/file_picker.dart';
+
 import '../../config.dart';
 import '../../models/services_model.dart';
 import 'payment_webview_page.dart';
@@ -28,13 +31,13 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
   String? _selectedPayment;
   final TextEditingController _noteController = TextEditingController();
   final _supabase = Supabase.instance.client;
+
   bool _isProcessing = false;
   bool _isUploading = false;
 
-  final List<_UploadedFile> _uploadedFiles = [];
+  _UploadedFile? _documentFile;
+  _UploadedFile? _imageFile;
 
-  // ── Payment Methods ────────────────────────────────────────
-  // 'value' = kode Midtrans, 'label' = tampilan ke user
   final List<Map<String, dynamic>> _eWalletMethods = [
     {'label': 'Shopeepay', 'value': 'shopeepay', 'activated': true},
     {'label': 'Gopay', 'value': 'gopay', 'activated': true},
@@ -68,7 +71,6 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
     );
   }
 
-  // ── Package helpers ────────────────────────────────────────
   PackageModel get _activePackage =>
       widget.selectedPackage ?? widget.service.basicPackage;
 
@@ -91,12 +93,11 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
 
   int? get _packageId => widget.selectedPackage?.id ?? widget.service.packageId;
 
-  // ── File Upload ────────────────────────────────────────────
   Future<void> _pickAndUploadFile() async {
     FilePickerResult? result;
     try {
       result = await FilePicker.platform.pickFiles(
-        allowMultiple: true,
+        allowMultiple: false,
         withData: true,
         type: FileType.any,
       );
@@ -104,7 +105,14 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
       _showSnack('Gagal membuka file picker: $e', isError: true);
       return;
     }
+
     if (result == null || result.files.isEmpty) return;
+
+    final picked = result.files.first;
+    if (picked.bytes == null) {
+      _showSnack('File tidak valid.', isError: true);
+      return;
+    }
 
     const allowed = [
       'pdf',
@@ -117,26 +125,34 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
       'ai',
       'fig',
     ];
-    final valid = result.files.where((f) {
-      if (f.bytes == null) return false;
-      return allowed.contains(f.name.split('.').last.toLowerCase());
-    }).toList();
 
-    if (valid.isEmpty) {
+    final ext = picked.name.split('.').last.toLowerCase();
+    if (!allowed.contains(ext)) {
       _showSnack(
         'Format tidak didukung. Gunakan: PDF, DOC, DOCX, ZIP, dll.',
-        isError: false,
+        isError: true,
       );
       return;
     }
 
+    if (_documentFile != null) {
+      await _deleteStorageFile(_documentFile!.storagePath);
+    }
+
     setState(() => _isUploading = true);
     try {
-      for (final f in valid) {
-        await _uploadFile(name: f.name, bytes: f.bytes!, isImage: false);
-      }
+      final file = await _uploadFile(
+        name: picked.name,
+        bytes: picked.bytes!,
+        isImage: false,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _documentFile = file;
+      });
     } catch (e) {
-      _showSnack('Gagal upload: $e', isError: true);
+      _showSnack('Gagal upload file: $e', isError: true);
     } finally {
       if (mounted) setState(() => _isUploading = false);
     }
@@ -146,7 +162,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
     FilePickerResult? result;
     try {
       result = await FilePicker.platform.pickFiles(
-        allowMultiple: true,
+        allowMultiple: false,
         withData: true,
         type: FileType.image,
       );
@@ -154,13 +170,31 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
       _showSnack('Gagal membuka galeri: $e', isError: true);
       return;
     }
+
     if (result == null || result.files.isEmpty) return;
+
+    final picked = result.files.first;
+    if (picked.bytes == null) {
+      _showSnack('Gambar tidak valid.', isError: true);
+      return;
+    }
+
+    if (_imageFile != null) {
+      await _deleteStorageFile(_imageFile!.storagePath);
+    }
 
     setState(() => _isUploading = true);
     try {
-      for (final f in result.files.where((f) => f.bytes != null)) {
-        await _uploadFile(name: f.name, bytes: f.bytes!, isImage: true);
-      }
+      final file = await _uploadFile(
+        name: picked.name,
+        bytes: picked.bytes!,
+        isImage: true,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _imageFile = file;
+      });
     } catch (e) {
       _showSnack('Gagal upload gambar: $e', isError: true);
     } finally {
@@ -168,71 +202,100 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
     }
   }
 
-  Future<void> _uploadFile({
+  Future<_UploadedFile> _uploadFile({
     required String name,
     required Uint8List bytes,
     required bool isImage,
   }) async {
     final ext = name.split('.').last.toLowerCase();
     final uniqueName = '${DateTime.now().millisecondsSinceEpoch}_$name';
-    final storagePath = 'order_files/$uniqueName';
+    final folder = isImage ? 'order_images' : 'order_files';
+    final storagePath = '$folder/$uniqueName';
+
+    String contentType;
+    if (isImage) {
+      contentType = 'image/$ext';
+    } else {
+      switch (ext) {
+        case 'pdf':
+          contentType = 'application/pdf';
+          break;
+        case 'doc':
+          contentType = 'application/msword';
+          break;
+        case 'docx':
+          contentType =
+              'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+          break;
+        case 'txt':
+          contentType = 'text/plain';
+          break;
+        case 'zip':
+          contentType = 'application/zip';
+          break;
+        case 'rar':
+          contentType = 'application/vnd.rar';
+          break;
+        default:
+          contentType = 'application/octet-stream';
+      }
+    }
 
     await _supabase.storage
         .from('deliverables')
         .uploadBinary(
           storagePath,
           bytes,
-          fileOptions: FileOptions(
-            contentType: isImage ? 'image/$ext' : 'application/octet-stream',
-            upsert: false,
-          ),
+          fileOptions: FileOptions(contentType: contentType, upsert: false),
         );
 
     final url = _supabase.storage
         .from('deliverables')
         .getPublicUrl(storagePath);
 
-    if (mounted) {
-      setState(
-        () => _uploadedFiles.add(
-          _UploadedFile(
-            name: name,
-            url: url,
-            isImage: isImage,
-            storagePath: storagePath,
-            bytes: bytes,
-          ),
-        ),
-      );
-    }
+    return _UploadedFile(
+      name: name,
+      url: url,
+      isImage: isImage,
+      storagePath: storagePath,
+      bytes: bytes,
+    );
   }
 
-  Future<void> _removeFile(int index) async {
+  Future<void> _deleteStorageFile(String path) async {
     try {
-      await _supabase.storage.from('deliverables').remove([
-        _uploadedFiles[index].storagePath,
-      ]);
+      await _supabase.storage.from('deliverables').remove([path]);
     } catch (_) {}
-    if (mounted) setState(() => _uploadedFiles.removeAt(index));
   }
 
-  // ── Confirm & Pay ──────────────────────────────────────────
-  // FLOW BARU:
-  // 1. Ambil data user dari Supabase
-  // 2. Kirim semua data ke Laravel → Laravel yang insert order + payment + hit Midtrans
-  // 3. Laravel return payment_url + order_id
-  // 4. Flutter upload file referensi ke Supabase (pakai order_id dari Laravel)
-  // 5. Buka WebView
-  // Order TIDAK diinsert dari Flutter — hanya dari Laravel
+  Future<void> _removeDocumentFile() async {
+    if (_documentFile == null) return;
+    await _deleteStorageFile(_documentFile!.storagePath);
+    if (!mounted) return;
+    setState(() {
+      _documentFile = null;
+    });
+  }
+
+  Future<void> _removeImageFile() async {
+    if (_imageFile == null) return;
+    await _deleteStorageFile(_imageFile!.storagePath);
+    if (!mounted) return;
+    setState(() {
+      _imageFile = null;
+    });
+  }
+
   Future<void> _handleConfirmPay(
     double packagePrice,
     double adminFee,
     double total,
   ) async {
     if (_selectedPayment == null) {
-      _showSnack('Pilih metode pembayaran terlebih dahulu', isError: false);
+      _showSnack('Pilih metode pembayaran terlebih dahulu', isError: true);
       return;
     }
+
     if (_isProcessing || _isUploading) return;
 
     setState(() => _isProcessing = true);
@@ -248,7 +311,10 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
           .select('id_user, nama, email, no_hp')
           .eq('email', currentUser.email!)
           .maybeSingle();
-      if (userData == null) throw Exception('Data pengguna tidak ditemukan.');
+
+      if (userData == null) {
+        throw Exception('Data pengguna tidak ditemukan.');
+      }
 
       final int clientId = userData['id_user'] as int;
       final int serviceId = int.tryParse(widget.service.id) ?? 0;
@@ -263,21 +329,22 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
             .select('id_freelancer')
             .eq('id_service', serviceId)
             .maybeSingle();
+
         if (sd == null || sd['id_freelancer'] == null) {
           throw Exception('Data freelancer tidak ditemukan.');
         }
+
         freelancerId = sd['id_freelancer'] as int;
       }
 
       final deliveryDays =
           int.tryParse(_deliveryTime.replaceAll(RegExp(r'[^0-9]'), '')) ?? 3;
+
       final deadline = DateTime.now()
           .add(Duration(days: deliveryDays))
           .toIso8601String()
           .split('T')[0];
 
-      // Kirim semua data ke Laravel
-      // Laravel yang insert order + payment + escrow + hit Midtrans
       final apiResponse = await http
           .post(
             Uri.parse('${Config.laravelBaseUrl}/payment/initiate'),
@@ -316,26 +383,22 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
       final paymentUrl = apiData['payment_url']?.toString() ?? '';
       final int orderId = apiData['order_id'] as int;
 
-      if (paymentUrl.isEmpty) throw Exception('Payment URL tidak ditemukan.');
-
-      // Upload file referensi ke Supabase pakai order_id dari Laravel
-      if (_uploadedFiles.isNotEmpty) {
-        await _supabase
-            .from('deliverables')
-            .insert(
-              _uploadedFiles
-                  .map(
-                    (f) => {
-                      'id_order': orderId,
-                      'file_url': f.url,
-                      'catatan': f.isImage
-                          ? 'Referensi gambar'
-                          : 'File referensi',
-                    },
-                  )
-                  .toList(),
-            );
+      if (paymentUrl.isEmpty) {
+        throw Exception('Payment URL tidak ditemukan.');
       }
+
+      await _supabase
+          .from('orders')
+          .update({
+            'requirement_file_name': _documentFile?.name,
+            'requirement_file_url': _documentFile?.url,
+            'requirement_file_path': _documentFile?.storagePath,
+            'requirement_image_name': _imageFile?.name,
+            'requirement_image_url': _imageFile?.url,
+            'requirement_image_path': _imageFile?.storagePath,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id_order', orderId);
 
       if (!mounted) return;
 
@@ -350,13 +413,14 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
         ),
       );
     } catch (e) {
-      if (mounted) _showSnack('❌ ${e.toString()}', isError: true);
+      if (mounted) {
+        _showSnack('❌ ${e.toString()}', isError: true);
+      }
     } finally {
       if (mounted) setState(() => _isProcessing = false);
     }
   }
 
-  // ── BUILD ──────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     const double adminFee = 2500;
@@ -371,7 +435,6 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
               child: SingleChildScrollView(
                 child: Column(
                   children: [
-                    // TOP BAR
                     Padding(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
@@ -405,12 +468,10 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                         ],
                       ),
                     ),
-
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Column(
                         children: [
-                          // SERVICE INFO
                           _buildCard(
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -520,8 +581,6 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                             ),
                           ),
                           const SizedBox(height: 12),
-
-                          // PRICE SUMMARY
                           _buildCard(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -553,8 +612,6 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                             ),
                           ),
                           const SizedBox(height: 12),
-
-                          // FILE REQUIREMENT
                           _buildCard(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -582,7 +639,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                                 ),
                                 const SizedBox(height: 4),
                                 const Text(
-                                  'Upload file referensi agar freelancer mengerti kebutuhanmu',
+                                  'Upload 1 file dokumen dan 1 gambar referensi',
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: Colors.black54,
@@ -593,7 +650,9 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                                   children: [
                                     _uploadBtn(
                                       icon: Icons.attach_file,
-                                      label: 'File',
+                                      label: _documentFile == null
+                                          ? 'File'
+                                          : 'Ganti File',
                                       onTap: _isUploading
                                           ? null
                                           : _pickAndUploadFile,
@@ -601,60 +660,47 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                                     const SizedBox(width: 10),
                                     _uploadBtn(
                                       icon: Icons.image_outlined,
-                                      label: 'Gambar',
+                                      label: _imageFile == null
+                                          ? 'Gambar'
+                                          : 'Ganti Gambar',
                                       onTap: _isUploading
                                           ? null
                                           : _pickAndUploadImage,
                                     ),
                                   ],
                                 ),
-                                if (_uploadedFiles.isNotEmpty) ...[
+                                if (_imageFile != null) ...[
                                   const SizedBox(height: 16),
                                   const Divider(height: 1),
                                   const SizedBox(height: 12),
-                                  if (_uploadedFiles.any((f) => f.isImage)) ...[
-                                    const Text(
-                                      'Gambar',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.black54,
-                                      ),
+                                  const Text(
+                                    'Gambar',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black54,
                                     ),
-                                    const SizedBox(height: 8),
-                                    Wrap(
-                                      spacing: 8,
-                                      runSpacing: 8,
-                                      children: _uploadedFiles
-                                          .where((f) => f.isImage)
-                                          .map((f) => _imagePreview(f))
-                                          .toList(),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  _imagePreview(_imageFile!),
+                                ],
+                                if (_documentFile != null) ...[
+                                  const SizedBox(height: 12),
+                                  const Text(
+                                    'Dokumen',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black54,
                                     ),
-                                    const SizedBox(height: 12),
-                                  ],
-                                  if (_uploadedFiles.any(
-                                    (f) => !f.isImage,
-                                  )) ...[
-                                    const Text(
-                                      'Dokumen',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.black54,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    ..._uploadedFiles
-                                        .where((f) => !f.isImage)
-                                        .map((f) => _filePreview(f)),
-                                  ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  _filePreview(_documentFile!),
                                 ],
                               ],
                             ),
                           ),
                           const SizedBox(height: 12),
-
-                          // NOTE
                           _buildCard(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -686,8 +732,6 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                             ),
                           ),
                           const SizedBox(height: 12),
-
-                          // PAYMENT METHODS
                           _buildCard(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -750,8 +794,6 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                 ),
               ),
             ),
-
-            // BOTTOM BUTTON
             Container(
               color: Colors.white,
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -811,7 +853,6 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
     );
   }
 
-  // ── Widget Helpers ─────────────────────────────────────────
   Widget _imgPlaceholder() => Container(
     width: 110,
     height: 100,
@@ -856,7 +897,6 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
   }
 
   Widget _imagePreview(_UploadedFile f) {
-    final index = _uploadedFiles.indexOf(f);
     return Stack(
       children: [
         ClipRRect(
@@ -874,7 +914,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
           top: 4,
           right: 4,
           child: GestureDetector(
-            onTap: () => _removeFile(index),
+            onTap: _removeImageFile,
             child: Container(
               width: 22,
               height: 22,
@@ -891,7 +931,6 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
   }
 
   Widget _filePreview(_UploadedFile f) {
-    final index = _uploadedFiles.indexOf(f);
     final ext = f.name.split('.').last.toUpperCase();
     final color =
         const {
@@ -957,7 +996,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
             ),
           ),
           GestureDetector(
-            onTap: () => _removeFile(index),
+            onTap: _removeDocumentFile,
             child: Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(

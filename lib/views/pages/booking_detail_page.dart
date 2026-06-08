@@ -1,16 +1,13 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../models/booking_model.dart';
+import '../../models/order_model.dart';
 import 'contact_freelancer_page.dart';
 import 'request_revision_page.dart';
 import 'rating_review_page.dart';
 
-// ============================================================
-// BookingDetailPage — StatefulWidget
-// ============================================================
 class BookingDetailPage extends StatefulWidget {
-  final Booking booking;
+  final OrderModel booking;
 
   const BookingDetailPage({super.key, required this.booking});
 
@@ -19,9 +16,9 @@ class BookingDetailPage extends StatefulWidget {
 }
 
 class _BookingDetailPageState extends State<BookingDetailPage> {
-  // ── Helpers ────────────────────────────────────────────────
   void _showSnackBar(String message, {Color? bgColor}) {
     if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -34,18 +31,17 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
     );
   }
 
-  // ── View Order (url_launcher) ──────────────────────────────
   Future<void> _openCompletedFile() async {
-    // TODO: ganti dengan widget.booking.fileUrl ketika field sudah tersedia
-    final String? rawUrl = null;
+    final String? rawUrl = widget.booking.fileUrl;
 
-    if (rawUrl == null || rawUrl.isEmpty) {
-      _showSnackBar("Membuka file hasil kerja...");
+    if (rawUrl == null || rawUrl.trim().isEmpty) {
+      _showSnackBar("File hasil kerja belum tersedia.");
       return;
     }
 
-    final Uri uri = Uri.parse(rawUrl);
     try {
+      final Uri uri = Uri.parse(rawUrl.trim());
+
       final bool canLaunch = await canLaunchUrl(uri);
       if (canLaunch) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -53,11 +49,100 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
         _showSnackBar("Tidak dapat membuka file. Periksa koneksi Anda.");
       }
     } catch (_) {
-      _showSnackBar("Terjadi kesalahan saat membuka file.");
+      _showSnackBar("URL file tidak valid atau terjadi kesalahan.");
     }
   }
 
-  // ── Build ──────────────────────────────────────────────────
+  String _uiStatus(String rawStatus) {
+    switch (rawStatus.trim().toLowerCase()) {
+      case 'pending':
+      case 'menunggu_pembayaran':
+      case 'menunggu_verifikasi':
+        return 'Pending';
+      case 'diproses':
+      case 'hasil_dikirim':
+      case 'revisi':
+      case 'paid':
+        return 'In Progress';
+      case 'selesai':
+        return 'Done';
+      case 'dibatalkan':
+      case 'pembayaran_gagal':
+      case 'failed':
+      case 'expired':
+        return 'Cancelled';
+      default:
+        return 'Pending';
+    }
+  }
+
+  bool _isDoneStatus(String rawStatus) {
+    final s = rawStatus.trim().toLowerCase();
+    return s == 'selesai';
+  }
+
+  bool _canViewOrderFile(String rawStatus) {
+    final s = rawStatus.trim().toLowerCase();
+    return s == 'hasil_dikirim' || s == 'selesai';
+  }
+
+  Widget _buildServiceImage(double size) {
+    final image = widget.booking.serviceImage;
+
+    if (image.isEmpty) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(Icons.image, color: Colors.grey, size: size * 0.45),
+      );
+    }
+
+    if (image.startsWith('http')) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.network(
+          image,
+          key: ValueKey(image),
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(Icons.image, color: Colors.grey, size: size * 0.45),
+          ),
+        ),
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Image.asset(
+        image,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade200,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(Icons.image, color: Colors.grey, size: size * 0.45),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -82,7 +167,6 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ================= HEADER CARD =================
             Container(
               padding: EdgeInsets.all(s(14)),
               decoration: BoxDecoration(
@@ -98,15 +182,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
               ),
               child: Row(
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(s(12)),
-                    child: Image.asset(
-                      widget.booking.image,
-                      width: s(70),
-                      height: s(70),
-                      fit: BoxFit.cover,
-                    ),
-                  ),
+                  _buildServiceImage(s(70)),
                   SizedBox(width: s(12)),
                   Expanded(
                     child: Column(
@@ -121,15 +197,12 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                         ),
                         SizedBox(height: s(4)),
                         Text(
-                          widget.booking.providerName,
-                          style: TextStyle(
-                            fontSize: s(12),
-                            color: Colors.grey,
-                          ),
+                          widget.booking.freelancerName,
+                          style: TextStyle(fontSize: s(12), color: Colors.grey),
                         ),
                         SizedBox(height: s(6)),
                         Text(
-                          "Rp ${widget.booking.total}",
+                          widget.booking.price,
                           style: TextStyle(
                             fontSize: s(13),
                             fontWeight: FontWeight.bold,
@@ -142,15 +215,11 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                 ],
               ),
             ),
-
             SizedBox(height: s(18)),
-
-            // ================= VIEW ORDER SECTION =================
-            _buildViewOrderSection(s),
-
-            SizedBox(height: s(18)),
-
-            // ================= DETAIL CARD =================
+            if (_canViewOrderFile(widget.booking.status)) ...[
+              _buildViewOrderSection(s),
+              SizedBox(height: s(18)),
+            ],
             Container(
               padding: EdgeInsets.all(s(14)),
               decoration: BoxDecoration(
@@ -166,18 +235,19 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
               ),
               child: Column(
                 children: [
-                  _item("Order Date", widget.booking.orderDate, s),
+                  _item("Order ID", '#${widget.booking.id}', s),
                   _divider(s),
                   _item("Deadline", widget.booking.deadline, s),
                   _divider(s),
-                  _columnNote("Note", widget.booking.note, s),
+                  _item("Status", _uiStatus(widget.booking.status), s),
+                  _divider(s),
+                  _item("Payment Method", widget.booking.paymentMethod, s),
+                  _divider(s),
+                  _item("Payment Status", widget.booking.paymentStatus, s),
                 ],
               ),
             ),
-
             SizedBox(height: s(24)),
-
-            // ================= CONTACT FREELANCER BUTTON =================
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -187,8 +257,8 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                     MaterialPageRoute(
                       builder: (_) => ContactFreelancerPage(
                         freelancerId: widget.booking.freelancerId,
-                        freelancerName: widget.booking.providerName,
-                        image: widget.booking.image,
+                        freelancerName: widget.booking.freelancerName,
+                        image: widget.booking.freelancerAvatar,
                       ),
                     ),
                   );
@@ -211,9 +281,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                 ),
               ),
             ),
-
-            // ================= REQUEST REVISI BUTTON =================
-            if (widget.booking.status == 'Done') ...[
+            if (_isDoneStatus(widget.booking.status)) ...[
               SizedBox(height: s(12)),
               SizedBox(
                 width: double.infinity,
@@ -250,13 +318,11 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                 ),
               ),
             ],
-
-            // ================= ORDER COMPLETE BUTTON =================
-            if (widget.booking.status == 'Done') ...[
+            if (_isDoneStatus(widget.booking.status)) ...[
               SizedBox(height: s(12)),
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton.icon(
+                child: ElevatedButton(
                   onPressed: () {
                     showDialog(
                       context: context,
@@ -274,50 +340,50 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                         ),
                         actions: [
                           TextButton(
-                            onPressed: () => Navigator.pop(ctx), // Tutup dialog
-                            child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text(
+                              "Cancel",
+                              style: TextStyle(color: Colors.grey),
+                            ),
                           ),
                           ElevatedButton(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFFFA726), // Warna hijau
+                              backgroundColor: const Color(0xFFFFA726),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
                             onPressed: () {
                               Navigator.pop(ctx);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => RatingReviewPage(
-                          idOrder: 0, 
-                          idClient: 0, 
-                          idFreelancer: widget.booking.freelancerId,
-                          freelancerName: widget.booking.providerName,
-                          freelancerImage: widget.booking.image,
-                          serviceName: widget.booking.serviceName,
-                        ),
-                      ),
-                    );
-                  },
-                  child: const Text(
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => RatingReviewPage(
+                                    idOrder:
+                                        int.tryParse(widget.booking.id) ?? 0,
+                                    idClient: 0,
+                                    idFreelancer: widget.booking.freelancerId,
+                                    freelancerName:
+                                        widget.booking.freelancerName,
+                                    freelancerImage:
+                                        widget.booking.freelancerAvatar,
+                                    serviceName: widget.booking.serviceName,
+                                  ),
+                                ),
+                              );
+                            },
+                            child: const Text(
                               "Yes, Done",
-                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ],
                       ),
                     );
                   },
-                
-                  label: Text(
-                    "Order complete",
-                    style: TextStyle(
-                      fontSize: s(13),
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
-                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFFFE082),
                     foregroundColor: Colors.black,
@@ -327,11 +393,17 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                       borderRadius: BorderRadius.circular(s(25)),
                     ),
                   ),
+                  child: Text(
+                    "Order complete",
+                    style: TextStyle(
+                      fontSize: s(13),
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                  ),
                 ),
               ),
             ],
-
-            
             SizedBox(height: s(16)),
           ],
         ),
@@ -339,11 +411,6 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
     );
   }
 
-  // ============================================================
-  // SECTION BUILDERS
-  // ============================================================
-
-  // ── View Order Section ─────────────────────────────────────
   Widget _buildViewOrderSection(double Function(double) s) {
     return Container(
       width: double.infinity,
@@ -418,7 +485,6 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
     );
   }
 
-  // ── Item Row ───────────────────────────────────────────────
   Widget _item(String title, String value, double Function(double) s) {
     return Padding(
       padding: EdgeInsets.symmetric(vertical: s(6)),
@@ -429,9 +495,13 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
             title,
             style: TextStyle(fontSize: s(12), color: Colors.grey),
           ),
-          Text(
-            value,
-            style: TextStyle(fontSize: s(12), fontWeight: FontWeight.bold),
+          SizedBox(width: s(12)),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: TextStyle(fontSize: s(12), fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -441,39 +511,16 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
   Widget _divider(double Function(double) s) {
     return Padding(
       padding: EdgeInsets.symmetric(vertical: s(6)),
-      child: Divider(
-        thickness: 0.6,
-        color: Colors.grey.withOpacity(0.3),
-      ),
+      child: Divider(thickness: 0.6, color: Colors.grey.withOpacity(0.3)),
     );
   }
 
-  Widget _columnNote(String title, String value, double Function(double) s) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: s(6)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(fontSize: s(12), color: Colors.grey),
-          ),
-          SizedBox(height: s(4)),
-          Text(
-            value,
-            style: TextStyle(fontSize: s(12), fontWeight: FontWeight.w500),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Status Badge ───────────────────────────────────────────
   Widget _statusBadge(String status, double Function(double) s) {
+    final uiStatus = _uiStatus(status);
     Color bg;
     Color text;
 
-    switch (status) {
+    switch (uiStatus) {
       case "Done":
         bg = Colors.green.withOpacity(0.15);
         text = Colors.green[700]!;
@@ -485,6 +532,10 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
       case "Pending":
         bg = Colors.orange.withOpacity(0.15);
         text = Colors.orange[800]!;
+        break;
+      case "Cancelled":
+        bg = Colors.red.withOpacity(0.15);
+        text = Colors.red[700]!;
         break;
       default:
         bg = Colors.grey.withOpacity(0.15);
@@ -498,7 +549,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
         borderRadius: BorderRadius.circular(s(20)),
       ),
       child: Text(
-        status,
+        uiStatus,
         style: TextStyle(
           fontSize: s(10),
           fontWeight: FontWeight.bold,
@@ -509,9 +560,6 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
   }
 }
 
-// ============================================================
-// Custom Painter — Dashed Border
-// ============================================================
 class _DashedBorderPainter extends CustomPainter {
   final Color color;
   final double borderRadius;
@@ -557,5 +605,6 @@ class _DashedBorderPainter extends CustomPainter {
       old.color != color ||
       old.dashWidth != dashWidth ||
       old.dashSpace != dashSpace ||
-      old.strokeWidth != strokeWidth;
+      old.strokeWidth != strokeWidth ||
+      old.borderRadius != borderRadius;
 }

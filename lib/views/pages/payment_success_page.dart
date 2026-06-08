@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 
 import '../../config.dart';
 import 'home_pages.dart';
-import 'my_orders_page.dart';
+import 'bookings_page.dart';
 
 class PaymentSuccessPage extends StatefulWidget {
   final int idOrder;
@@ -328,24 +328,6 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
                             ),
                           ),
                           const SizedBox(height: 12),
-                          OutlinedButton(
-                            onPressed: () => _goToOrders(context),
-                            style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: primaryColor),
-                              minimumSize: const Size(double.infinity, 54),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                            ),
-                            child: const Text(
-                              'Lihat Order Saya',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: primaryColor,
-                              ),
-                            ),
-                          ),
                         ],
                       ),
                     ),
@@ -365,7 +347,7 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
 
   void _goToOrders(BuildContext context) {
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const MyOrdersPage()),
+      MaterialPageRoute(builder: (_) => const BookingsPage()),
       (route) => false,
     );
   }

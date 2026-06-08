@@ -5,81 +5,180 @@ import '../models/order_model.dart';
 class MyOrdersController {
   final _supabase = Supabase.instance.client;
 
+  Future<int> _getCurrentUserId({
+    String notLoggedInMessage = 'User belum login',
+    String notFoundMessage = 'Data user tidak ditemukan',
+  }) async {
+    final email = _supabase.auth.currentUser?.email;
+    if (email == null) {
+      throw Exception(notLoggedInMessage);
+    }
+
+    final userData = await _supabase
+        .from('users')
+        .select('id_user')
+        .eq('email', email)
+        .maybeSingle();
+
+    if (userData == null) {
+      throw Exception(notFoundMessage);
+    }
+
+    return userData['id_user'] as int;
+  }
+
   Future<List<OrderModel>> fetchUserOrders() async {
+    return fetchClientOrders();
+  }
+
+  Future<List<OrderModel>> fetchClientOrders() async {
     try {
-      final email = _supabase.auth.currentUser?.email;
-      if (email == null) {
-        throw Exception('User belum login');
-      }
-
-      final userData = await _supabase
-          .from('users')
-          .select('id_user')
-          .eq('email', email)
-          .maybeSingle();
-
-      if (userData == null) {
-        throw Exception('Data user tidak ditemukan');
-      }
-
-      final int clientId = userData['id_user'] as int;
+      final clientId = await _getCurrentUserId(
+        notLoggedInMessage: 'Client belum login',
+        notFoundMessage: 'Data client tidak ditemukan',
+      );
 
       final response = await _supabase
           .from('orders')
           .select('''
             id_order,
+            id_freelancer,
+            id_service,
+            id_client,
             status,
             detail_pesanan,
             catatan,
             deadline,
             created_at,
-            freelancer:id_freelancer (
+            freelancer:id_freelancer(
               nama,
               foto
             ),
-            service:id_service (
-              judul
+            service:id_service(
+              id_service,
+              judul,
+              thumbnail_url,
+              service_images(
+                id_image,
+                image_url
+              )
             ),
-            payment:payments (
+            payment:payments(
               amount,
               admin_fee,
               status,
-              metode
+              metode,
+              payment_url
             )
           ''')
           .eq('id_client', clientId)
           .order('created_at', ascending: false);
 
-      final List<dynamic> data = response;
-
-      final normalized = data.map((item) {
-        final Map<String, dynamic> json = Map<String, dynamic>.from(item);
-
-        final rawStatus = (json['status'] ?? '')
-            .toString()
-            .trim()
-            .toLowerCase();
-        json['status'] = rawStatus;
-
-        final paymentRaw = json['payment'];
-        if (paymentRaw is List) {
-          json['payment'] = paymentRaw.isNotEmpty
-              ? Map<String, dynamic>.from(paymentRaw.first)
-              : null;
-        } else if (paymentRaw is Map) {
-          json['payment'] = Map<String, dynamic>.from(paymentRaw);
-        } else {
-          json['payment'] = null;
-        }
-
-        return json;
-      }).toList();
-
-      return normalized.map((json) => OrderModel.fromJson(json)).toList();
+      return _mapOrders(response);
     } catch (e) {
-      debugPrint('Error fetch orders: $e');
+      debugPrint('Error fetch client orders: $e');
       rethrow;
     }
+  }
+
+  Future<List<OrderModel>> fetchFreelancerOrders() async {
+    try {
+      final freelancerId = await _getCurrentUserId(
+        notLoggedInMessage: 'Freelancer belum login',
+        notFoundMessage: 'Data freelancer tidak ditemukan',
+      );
+
+      final response = await _supabase
+          .from('orders')
+          .select('''
+            id_order,
+            id_freelancer,
+            id_service,
+            id_client,
+            status,
+            detail_pesanan,
+            catatan,
+            deadline,
+            created_at,
+            freelancer:id_freelancer(
+              nama,
+              foto
+            ),
+            service:id_service(
+              id_service,
+              judul,
+              thumbnail_url,
+              service_images(
+                id_image,
+                image_url
+              )
+            ),
+            payment:payments(
+              amount,
+              admin_fee,
+              status,
+              metode,
+              payment_url
+            )
+          ''')
+          .eq('id_freelancer', freelancerId)
+          .order('created_at', ascending: false);
+
+      return _mapOrders(response);
+    } catch (e) {
+      debugPrint('Error fetch freelancer orders: $e');
+      rethrow;
+    }
+  }
+
+  List<OrderModel> _mapOrders(dynamic response) {
+    final List<dynamic> data = response;
+
+    final normalized = data.map((item) {
+      final Map<String, dynamic> json = Map<String, dynamic>.from(item);
+
+      json['status'] = (json['status'] ?? '').toString().trim().toLowerCase();
+
+      final freelancerRaw = json['freelancer'];
+      if (freelancerRaw is Map) {
+        json['freelancer'] = Map<String, dynamic>.from(freelancerRaw);
+      } else {
+        json['freelancer'] = <String, dynamic>{};
+      }
+
+      final serviceRaw = json['service'];
+      if (serviceRaw is Map) {
+        final serviceMap = Map<String, dynamic>.from(serviceRaw);
+
+        final serviceImagesRaw = serviceMap['service_images'];
+        if (serviceImagesRaw is List) {
+          serviceMap['service_images'] = serviceImagesRaw
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList();
+        } else {
+          serviceMap['service_images'] = [];
+        }
+
+        json['service'] = serviceMap;
+      } else {
+        json['service'] = <String, dynamic>{'service_images': []};
+      }
+
+      final paymentRaw = json['payment'];
+      if (paymentRaw is List) {
+        json['payment'] = paymentRaw.isNotEmpty
+            ? Map<String, dynamic>.from(paymentRaw.first)
+            : null;
+      } else if (paymentRaw is Map) {
+        json['payment'] = Map<String, dynamic>.from(paymentRaw);
+      } else {
+        json['payment'] = null;
+      }
+
+      return json;
+    }).toList();
+
+    return normalized.map((json) => OrderModel.fromJson(json)).toList();
   }
 
   List<OrderModel> getOrdersByTab(List<OrderModel> allOrders, String tabName) {
