@@ -41,8 +41,9 @@ class _DetailProfileFreelancerState extends State<DetailProfileFreelancer> {
   List<String> _skills = [];
   List<Map<String, dynamic>> _portfolios = [];
   List<ServiceModel> _services = [];
-  List<Map<String, dynamic>> _certificates =
-      []; // DITAMBAH: sertifikat freelancer
+  List<Map<String, dynamic>> _certificates = []; // DITAMBAH: sertifikat freelancer
+  double _profileRating = 0.0;
+  int _totalReviews = 0;
 
   @override
   void initState() {
@@ -131,6 +132,27 @@ class _DetailProfileFreelancerState extends State<DetailProfileFreelancer> {
       debugPrint('freelancer_certificates error: $e');
     }
 
+    // Hitung profile rating dari tabel reviews
+    double profileRating = 0.0;
+    int totalReviews = 0;
+    try {
+      final allReviews = await _supabase
+          .from('reviews')
+          .select('rating')
+          .eq('id_freelancer', freelancerId);
+
+      if ((allReviews as List).isNotEmpty) {
+        final ratings = allReviews
+            .map((r) => (r['rating'] as num).toDouble())
+            .toList();
+        final avg = ratings.reduce((a, b) => a + b) / ratings.length;
+        profileRating = double.parse(avg.toStringAsFixed(1));
+        totalReviews = ratings.length;
+      }
+    } catch (e) {
+      debugPrint('profile rating error: $e');
+    }
+
     // ── Foto PP: foto_freelancer → fallback users.foto ──
     String? photoUrl;
     if (fp?['foto_freelancer'] != null &&
@@ -154,6 +176,8 @@ class _DetailProfileFreelancerState extends State<DetailProfileFreelancer> {
         _certificates = certsData
             .map((c) => Map<String, dynamic>.from(c))
             .toList();
+        _profileRating = profileRating;
+        _totalReviews = totalReviews;
         _loading = false;
       });
     }
@@ -623,7 +647,7 @@ class _DetailProfileFreelancerState extends State<DetailProfileFreelancer> {
                   ),
                   SizedBox(width: s(6)),
                   Text(
-                    "${widget.service.rating}",
+                    _profileRating > 0 ? _profileRating.toString() : "-",
                     style: TextStyle(
                       fontSize: s(15),
                       fontWeight: FontWeight.w800,
@@ -632,7 +656,7 @@ class _DetailProfileFreelancerState extends State<DetailProfileFreelancer> {
                   ),
                   SizedBox(width: s(4)),
                   Text(
-                    "(${widget.service.totalOrder} reviews)",
+                    "($_totalReviews reviews)",
                     style: TextStyle(fontSize: s(13), color: _C.textSoft),
                   ),
                 ],

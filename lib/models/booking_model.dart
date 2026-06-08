@@ -1,6 +1,8 @@
 class Booking {
   final int    freelancerId;
   final int    orderId;
+  final int    clientId; 
+  final int    serviceId;
   final String serviceName;
   final String providerName;
   final String total;
@@ -11,11 +13,10 @@ class Booking {
   final String note;
 
   Booking({
-    required this.id,
-    required this.idClient,
-    required this.idFreelancer,
     required this.freelancerId,
     required this.orderId,
+    required this.clientId,
+    required this.serviceId,
     required this.serviceName,
     required this.providerName,
     required this.total,
@@ -37,20 +38,22 @@ class Booking {
 
     final double amount = (payment['amount'] as num?)?.toDouble() ?? 0;
 
-    return Booking(
-      orderId:      json['id_order'] as int? ?? 0,
-      freelancerId: json['id_freelancer'] as int? ?? 0,
-      serviceName:  service['judul']?.toString() ?? json['detail_pesanan']?.toString() ?? '-',
-      providerName: freelancer['nama']?.toString() ?? 'Unknown Freelancer',
-      total:        _fmt(amount),
-      orderDate:    _formatDate(json['created_at']?.toString()),
-      deadline:     _formatDate(json['deadline']?.toString()),
-      status:       json['status']?.toString() ?? 'menunggu_pembayaran',
-      image:        freelancer['foto']?.toString() ?? '',
-      note:         json['catatan']?.toString() ?? '',
-    );
-  }
-
+     return Booking(
+        freelancerId: json['id_freelancer'] as int? ?? 0,
+        orderId: json['id_order'] as int? ?? 0,
+        clientId: json['id_client'] as int? ?? 0,
+        serviceId: json['id_service'] as int? ?? 0,
+        serviceName: service['judul']?.toString() ?? '-',
+        providerName: freelancer['nama']?.toString() ?? 'Unknown Freelancer',
+        total: _fmt(amount),
+        orderDate: _formatDate(json['created_at']?.toString()),
+        deadline: _formatDate(json['deadline']?.toString()),
+        status: json['status']?.toString() ?? 'menunggu_pembayaran',
+        image: freelancer['foto']?.toString() ?? '',
+        note: json['catatan']?.toString() ?? '',
+      );
+    }
+    
   static String _formatDate(String? dateStr) {
     if (dateStr == null) return '-';
     try {

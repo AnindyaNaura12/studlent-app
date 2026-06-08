@@ -251,7 +251,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
       if (userData == null) throw Exception('Data pengguna tidak ditemukan.');
 
       final int clientId = userData['id_user'] as int;
-      final int serviceId = int.tryParse(widget.service.id) ?? 0;
+      final int serviceId = int.tryParse(widget.service.id.toString()) ?? widget.service.id as int;
 
       int freelancerId;
       if (widget.service.freelancerId != null &&

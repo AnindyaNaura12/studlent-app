@@ -5,6 +5,7 @@ class RatingReviewPage extends StatefulWidget {
   final int idOrder;
   final int idClient;
   final int idFreelancer;
+  final int idService;
   final String freelancerName;
   final String freelancerImage;
   final String serviceName;
@@ -14,6 +15,7 @@ class RatingReviewPage extends StatefulWidget {
     required this.idOrder,
     required this.idClient,
     required this.idFreelancer,
+    required this.idService,
     required this.freelancerName,
     required this.freelancerImage,
     required this.serviceName,
@@ -24,12 +26,12 @@ class RatingReviewPage extends StatefulWidget {
 }
 
 class _RatingReviewPageState extends State<RatingReviewPage> {
-  int _rating = 0; 
+  int _rating = 0;
   bool _isLoading = false;
   final TextEditingController _commentController = TextEditingController();
 
   static const List<String> _ratingLabels = [
-    '', 
+    '',
     'Very Bad',
     'Bad',
     'Neutral',
@@ -45,18 +47,19 @@ class _RatingReviewPageState extends State<RatingReviewPage> {
 
   Future<void> _submitReview() async {
     if (_rating == 0) {
-      _showSnackBar("Pilih rating bintang terlebih dahulu.");
+      _showSnackBar("Please select a star rating first.");
       return;
     }
 
     if (_commentController.text.trim().isEmpty) {
-      _showSnackBar("Komentar tidak boleh kosong.");
+      _showSnackBar("Comment cannot be empty.");
       return;
     }
 
     setState(() => _isLoading = true);
 
     try {
+      // Cek apakah order sudah pernah direview
       final existing = await Supabase.instance.client
           .from('reviews')
           .select()
@@ -64,33 +67,77 @@ class _RatingReviewPageState extends State<RatingReviewPage> {
           .maybeSingle();
 
       if (existing != null) {
-        _showSnackBar("Order ini sudah pernah direview.");
+        _showSnackBar("This order has already been reviewed.");
+        setState(() => _isLoading = false);
         return;
       }
-      
-      await Supabase.instance.client
+
+      // Insert review baru
+      await Supabase.instance.client.from('reviews').insert({
+        'id_order': widget.idOrder,
+        'id_client': widget.idClient,
+        'id_freelancer': widget.idFreelancer,
+        'id_service': widget.idService,
+        'rating': _rating,
+        'komentar': _commentController.text.trim(),
+      });
+
+      // Hitung ulang rating rata-rata untuk service ini
+      final reviewsData = await Supabase.instance.client
           .from('reviews')
-          .insert({
-            'id_order': widget.idOrder,
-            'id_client': widget.idClient,
-            'id_freelancer': widget.idFreelancer,
-            'rating': _rating,
-            'komentar': _commentController.text.trim(),
-          });
+          .select('rating')
+          .eq('id_service', widget.idService);
+
+      final ratings = (reviewsData as List)
+          .map((r) => (r['rating'] as num).toDouble())
+          .toList();
+
+      if (ratings.isNotEmpty) {
+        final avg = ratings.reduce((a, b) => a + b) / ratings.length;
+        final avgRounded = double.parse(avg.toStringAsFixed(1));
+
+        // Update service_detail
+        await Supabase.instance.client.from('service_detail').update({
+          'rating_avg': avgRounded,
+          'total_reviews': ratings.length,
+        }).eq('id_service', widget.idService);
+
+        // Update tabel services
+        await Supabase.instance.client.from('services').update({
+          'rating_avg': avgRounded,
+        }).eq('id_service', widget.idService);
+      }
+
+      // Hitung ulang rating rata-rata untuk freelancer ini
+      final allReviews = await Supabase.instance.client
+          .from('reviews')
+          .select('rating')
+          .eq('id_freelancer', widget.idFreelancer);
+
+      final allRatings = (allReviews as List)
+          .map((r) => (r['rating'] as num).toDouble())
+          .toList();
+
+      if (allRatings.isNotEmpty) {
+        final freelancerAvg =
+            allRatings.reduce((a, b) => a + b) / allRatings.length;
+
+        // Update freelancer_profiles
+        await Supabase.instance.client.from('freelancer_profiles').update({
+          'rating_avg': double.parse(freelancerAvg.toStringAsFixed(1)),
+          'total_rating': allRatings.length,
+        }).eq('id_user', widget.idFreelancer);
+      }
 
       _showSnackBar(
         "Review submitted successfully!",
         color: Colors.green,
       );
 
-      await Future.delayed(
-        const Duration(milliseconds: 800),
-      );
+      await Future.delayed(const Duration(milliseconds: 800));
 
       if (mounted) {
-        Navigator.of(context).popUntil(
-          (route) => route.isFirst,
-        );
+        Navigator.of(context).popUntil((route) => route.isFirst);
       }
     } catch (e) {
       _showSnackBar("Failed to submit review: $e");
@@ -109,8 +156,7 @@ class _RatingReviewPageState extends State<RatingReviewPage> {
         backgroundColor: color ?? const Color(0xFFFFA726),
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         duration: const Duration(seconds: 3),
       ),
     );
@@ -166,7 +212,6 @@ class _RatingReviewPageState extends State<RatingReviewPage> {
           ),
         ),
       ),
-
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
@@ -174,34 +219,26 @@ class _RatingReviewPageState extends State<RatingReviewPage> {
             backgroundColor: const Color(0xFFFFF8EE),
             elevation: 0,
             pinned: true,
-            centerTitle: true, 
-            iconTheme: const IconThemeData(color: Colors.black), 
+            centerTitle: true,
+            iconTheme: const IconThemeData(color: Colors.black),
             title: const Text(
               "Reviews and Ratings",
               style: TextStyle(
                 color: Colors.black,
-                fontWeight: FontWeight.bold, 
+                fontWeight: FontWeight.bold,
               ),
             ),
           ),
-
           SliverToBoxAdapter(
             child: Padding(
               padding: EdgeInsets.fromLTRB(s(16), s(12), s(16), s(32)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── Freelancer info card ──────────────────
                   _buildFreelancerCard(s),
-
                   SizedBox(height: s(20)),
-
-                  // ── Star rating ───────────────────────────
                   _buildStarRating(s),
-
                   SizedBox(height: s(20)),
-
-                  // ── Komentar input ────────────────────────
                   _buildCommentInput(s),
                 ],
               ),
@@ -214,8 +251,7 @@ class _RatingReviewPageState extends State<RatingReviewPage> {
 
   Widget _buildFreelancerCard(double Function(double) s) {
     return Container(
-      padding: EdgeInsets.symmetric(
-          horizontal: s(14), vertical: s(12)),
+      padding: EdgeInsets.symmetric(horizontal: s(14), vertical: s(12)),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(s(16)),
@@ -232,28 +268,17 @@ class _RatingReviewPageState extends State<RatingReviewPage> {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(s(10)),
-            child: Image.asset(
-              widget.freelancerImage,
-              width: s(52),
-              height: s(52),
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                width: s(52),
-                height: s(52),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFE0B2),
-                  borderRadius: BorderRadius.circular(s(10)),
-                ),
-                child: Icon(
-                  Icons.person_rounded,
-                  color: const Color(0xFFFFA726),
-                  size: s(26),
-                ),
-              ),
-            ),
+            child: widget.freelancerImage.isNotEmpty
+                ? Image.network(
+                    widget.freelancerImage,
+                    width: s(52),
+                    height: s(52),
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _buildAvatarPlaceholder(s),
+                  )
+                : _buildAvatarPlaceholder(s),
           ),
           SizedBox(width: s(12)),
-
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -290,11 +315,26 @@ class _RatingReviewPageState extends State<RatingReviewPage> {
     );
   }
 
+  Widget _buildAvatarPlaceholder(double Function(double) s) {
+    return Container(
+      width: s(52),
+      height: s(52),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFE0B2),
+        borderRadius: BorderRadius.circular(s(10)),
+      ),
+      child: Icon(
+        Icons.person_rounded,
+        color: const Color(0xFFFFA726),
+        size: s(26),
+      ),
+    );
+  }
+
   Widget _buildStarRating(double Function(double) s) {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.symmetric(
-          horizontal: s(20), vertical: s(22)),
+      padding: EdgeInsets.symmetric(horizontal: s(20), vertical: s(22)),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(s(16)),
@@ -310,7 +350,7 @@ class _RatingReviewPageState extends State<RatingReviewPage> {
       child: Column(
         children: [
           Text(
-            "How was the Services?",
+            "How was the Service?",
             style: TextStyle(
               fontSize: s(14),
               fontWeight: FontWeight.w700,
@@ -318,9 +358,7 @@ class _RatingReviewPageState extends State<RatingReviewPage> {
               letterSpacing: 0.1,
             ),
           ),
-
           SizedBox(height: s(18)),
-
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(5, (index) {
@@ -351,23 +389,17 @@ class _RatingReviewPageState extends State<RatingReviewPage> {
               );
             }),
           ),
-
           SizedBox(height: s(12)),
-
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 180),
             child: Text(
-              _rating > 0
-                  ? _ratingLabels[_rating]
-                  : 'Tap the star to rate',
+              _rating > 0 ? _ratingLabels[_rating] : 'Tap the star to rate',
               key: ValueKey(_rating),
               style: TextStyle(
                 fontSize: s(12),
-                fontWeight:
-                    _rating > 0 ? FontWeight.w600 : FontWeight.w400,
-                color: _rating > 0
-                    ? const Color(0xFFFFA726)
-                    : Colors.grey[400],
+                fontWeight: _rating > 0 ? FontWeight.w600 : FontWeight.w400,
+                color:
+                    _rating > 0 ? const Color(0xFFFFA726) : Colors.grey[400],
                 letterSpacing: 0.1,
               ),
             ),
@@ -404,9 +436,7 @@ class _RatingReviewPageState extends State<RatingReviewPage> {
               letterSpacing: 0.1,
             ),
           ),
-
           SizedBox(height: s(12)),
-
           Container(
             decoration: BoxDecoration(
               color: const Color(0xFFFAF7F4),

@@ -290,8 +290,9 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                       context,
                       MaterialPageRoute(
                         builder: (_) => RatingReviewPage(
-                          idOrder: 0, 
-                          idClient: 0, 
+                          idOrder: widget.booking.orderId, 
+                          idClient: widget.booking.clientId, 
+                          idService: widget.booking.serviceId,
                           idFreelancer: widget.booking.freelancerId,
                           freelancerName: widget.booking.providerName,
                           freelancerImage: widget.booking.image,
