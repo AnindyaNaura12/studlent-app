@@ -146,10 +146,13 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
             SizedBox(height: s(18)),
 
             // ================= VIEW ORDER SECTION =================
-            _buildViewOrderSection(s),
-
-            SizedBox(height: s(18)),
-
+            if (widget.booking.status != 'Pending' &&
+                widget.booking.status != 'pending' &&
+                widget.booking.status != 'In Progress' &&
+                widget.booking.status != 'in_progress') ...[
+              _buildViewOrderSection(s),
+              SizedBox(height: s(18)),
+            ],
             // ================= DETAIL CARD =================
             Container(
               padding: EdgeInsets.all(s(14)),
