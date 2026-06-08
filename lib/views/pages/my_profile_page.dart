@@ -113,22 +113,19 @@ class _EditProfileFreelancerPageState
       if (!mounted) return;
 
       if (saved) {
-        // Tambah ke local state untuk langsung tampil
-        _controller.addCertificateData(
-          {
-            'file_url': result['url']!,
-            'file_name': result['name']!,
-          },
-          () {},
-        );
-        setState(() => _uploadingCert = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Sertifikat berhasil ditambahkan!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } else {
+  _controller.addCertificate(
+    fileUrl: result['url']!,   // ← named parameter
+    fileName: result['name']!, // ← named parameter
+    refresh: () => setState(() {}), // ← named parameter
+  );
+  setState(() => _uploadingCert = false);
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text('Sertifikat berhasil ditambahkan!'),
+      backgroundColor: Colors.green,
+    ),
+  );
+} else {
         setState(() => _uploadingCert = false);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -144,26 +141,19 @@ class _EditProfileFreelancerPageState
 
   // DITAMBAH: fungsi hapus sertifikat
   Future<void> _deleteCertificate(int index) async {
-    final cert = _controller.certificateData[index];
-    final idCert = cert['id_certificate'] as int?;
+  await _controller.removeCertificate(index, () {
+    if (mounted) setState(() {});
+  });
 
-    if (idCert != null) {
-      await _portfolioController.deleteCertificate(idCert);
-    }
-
-    _controller.removeCertificateData(index, () {
-      if (mounted) setState(() {});
-    });
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Sertifikat dihapus'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    }
+  if (mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Sertifikat dihapus'),
+        backgroundColor: Colors.green,
+      ),
+    );
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -558,138 +548,135 @@ class _EditProfileFreelancerPageState
 
   // DIUBAH TOTAL: Certificate section sekarang CRUD ke supabase
   Widget _buildCertificateSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Add certificates or awards to build client trust.',
-          style: TextStyle(fontSize: 12, color: Colors.black54, height: 1.5),
-        ),
-        const SizedBox(height: 12),
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text(
+        'Add certificates or awards to build client trust.',
+        style: TextStyle(fontSize: 12, color: Colors.black54, height: 1.5),
+      ),
+      const SizedBox(height: 12),
 
-        // ── Daftar sertifikat yang sudah ada ──
-        if (_controller.certificates.isNotEmpty)
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: _controller.certificates
-                .asMap()
-                .entries
-                .map((entry) {
-                  final cert = entry.value; // Map<String, dynamic>
-                  final fileUrl = cert['file_url'] as String? ?? '';
-                  final isNetwork = fileUrl.startsWith('http');
+      // ── Daftar sertifikat yang sudah ada ──
+      if (_controller.certificates.isNotEmpty)
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: _controller.certificates
+              .asMap()
+              .entries
+              .map((entry) {
+                final cert = entry.value;
+                final fileUrl = cert['file_url'] as String? ?? '';
+                final isNetwork = fileUrl.startsWith('http');
 
-                  return Stack(
-                    children: [
-                      Container(
-                        width: 100,
-                        height: 100,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.shade300),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: isNetwork
-                              ? Image.network(
-                                  fileUrl,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => Container(
-                                    color: Colors.grey[200],
-                                    child: const Icon(
-                                      Icons.workspace_premium,
-                                      color: Colors.orange,
-                                      size: 40,
-                                    ),
-                                  ),
-                                )
-                              : Image.asset(
-                                  fileUrl,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => Container(
-                                    color: Colors.grey[200],
-                                    child: const Icon(
-                                      Icons.workspace_premium,
-                                      color: Colors.orange,
-                                      size: 40,
-                                    ),
+                return Stack(
+                  children: [
+                    Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: isNetwork
+                            ? Image.network(
+                                fileUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(
+                                  color: Colors.grey[200],
+                                  child: const Icon(
+                                    Icons.workspace_premium,
+                                    color: Colors.orange,
+                                    size: 40,
                                   ),
                                 ),
-                        ),
+                              )
+                            : Image.asset(
+                                fileUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(
+                                  color: Colors.grey[200],
+                                  child: const Icon(
+                                    Icons.workspace_premium,
+                                    color: Colors.orange,
+                                    size: 40,
+                                  ),
+                                ),
+                              ),
                       ),
-                      Positioned(
-                        top: 4,
-                        right: 4,
-                        child: GestureDetector(
-                          onTap: () async {
-                            await _controller.removeCertificate(
-                              entry.key,
-                              () => setState(() {}),
-                            );
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(3),
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.close,
-                              size: 14,
-                              color: Colors.black54,
-                            ),
+                    ),
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: GestureDetector(
+                        onTap: () async {
+                          await _controller.removeCertificate(
+                            entry.key,
+                            () => setState(() {}),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.close,
+                            size: 14,
+                            color: Colors.black54,
                           ),
                         ),
                       ),
-                    ],
-                  );
-                })
-                .toList(),
-          ),
-
-        const SizedBox(height: 12),
-
-        // ── Tombol Add Certificate ──
-        GestureDetector(
-          onTap: () {
-            _controller.addCertificate(
-              fileUrl: 'assets/images/placeholder.png',
-              fileName: 'Sertifikat Baru',
-              refresh: () => setState(() {}),
-            );
-          },
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF5EFE6),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE8D5B7)),
-            ),
-            child: const Center(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.workspace_premium,
-                    color: Color(0xFFCCAA66),
-                    size: 18,
-                  ),
-                  SizedBox(width: 8),
-                  Text(
-                    '+ Add Certificate',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFFCCAA66),
                     ),
+                  ],
+                );
+              })
+              .toList(),
+        ),
+
+      const SizedBox(height: 12),
+
+      // ── Tombol Add Certificate ──
+      GestureDetector(
+        onTap: _addCertificate, // ← DIPERBAIKI: dari addCertificate() menjadi _addCertificate()
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF5EFE6),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE8D5B7)),
+          ),
+          child: const Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.workspace_premium,
+                  color: Color(0xFFCCAA66),
+                  size: 18,
+                ),
+                SizedBox(width: 8),
+                Text(
+                  '+ Add Certificate',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFFCCAA66),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
+}
 
   // DITAMBAH: widget item sertifikat dengan preview dan hapus
   Widget _buildCertificateItem(int index, Map<String, dynamic> cert) {
