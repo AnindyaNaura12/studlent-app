@@ -10,16 +10,17 @@ class Order extends Model
 
     protected $fillable = [
         'id_client',
-        'id_freelancer', // ← pastikan ada ini
+        'id_freelancer',
         'id_service',
         'id_package',
+        'id_deal',
         'detail_pesanan',
         'catatan',
         'deadline',
         'status',
         'progress',
     ];
-    
+
     public function client()
     {
         return $this->belongsTo(User::class, 'id_client', 'id_user');
@@ -30,9 +31,13 @@ class Order extends Model
         return $this->belongsTo(User::class, 'id_freelancer', 'id_user');
     }
 
-    // app/Models/Order.php — tambah relasi ini kalau belum ada
     public function payment()
     {
-        return $this->hasOne(\App\Models\Payment::class, 'id_order', 'id_order');
+        return $this->hasOne(Payment::class, 'id_order', 'id_order');
+    }
+
+    public function deal()
+    {
+        return $this->belongsTo(Deal::class, 'id_deal', 'id_deal');
     }
 }

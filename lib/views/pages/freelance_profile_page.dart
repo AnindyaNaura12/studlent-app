@@ -700,18 +700,25 @@ class _ProfilePageState extends State<ProfilePage> {
                 final title = item['title'] as String;
                 final hasTag = item['hasTag'] as bool;
 
+                // DIUBAH: My Profile sekarang refresh data dan
+                // pastikan kembali ke freelancer view setelah pop
                 if (title == 'My Profile') {
                   return InkWell(
                     borderRadius: BorderRadius.circular(16),
                     onTap: () async {
-                      await Navigator.push(
+                      final result = await Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => const EditProfileFreelancerPage(),
                         ),
                       );
                       if (!mounted) return;
+                      // DITAMBAH: refresh data user terbaru
                       _fetchUserData();
+                      // DITAMBAH: paksa tetap di freelancer view
+                      // setelah kembali dari edit profile,
+                      // apapun result yang dikembalikan
+                      setState(() => _controller.isFreelancer = true);
                     },
                     child: Container(
                       margin: const EdgeInsets.only(bottom: 12),

@@ -25,7 +25,6 @@ class EditProfileController {
     skills = List<String>.from(model.skills);
   }
 
-  // ── Load dari Supabase ────────────────────────────────────
   Future<void> loadFromSupabase() async {
     try {
       final authUser = supabase.auth.currentUser;
@@ -96,7 +95,6 @@ class EditProfileController {
     }
   }
 
-  // ── Save ke Supabase ──────────────────────────────────────
   Future<bool> saveToSupabase() async {
     try {
       final authUser = supabase.auth.currentUser;
@@ -176,6 +174,9 @@ class EditProfileController {
         debugPrint('[EditProfileController] Step 4 ✓ '
             'Tidak ada sertifikat baru untuk disimpan');
       }
+
+      // NOTE: sertifikat di-handle langsung di page via PortfolioController
+      // tidak perlu save ulang di sini karena sudah langsung insert/delete
 
       return true;
     } on PostgrestException catch (e) {

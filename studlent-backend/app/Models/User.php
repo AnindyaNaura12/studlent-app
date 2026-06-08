@@ -15,16 +15,16 @@ class User extends Authenticatable
     protected $fillable = [
         'nama',
         'email',
-        'phone',
+        'no_hp',
         'password',
-        'product interest',
+        'product_interest', // ← FIX: typo 'product interest' (spasi) → underscore
         'role',
         'foto',
-        'joined_at'
+        'joined_at',
     ];
 
     protected $hidden = [
-        'password'
+        'password',
     ];
 
     public function chats()
@@ -34,6 +34,11 @@ class User extends Authenticatable
 
     public function wallet()
     {
-        return $this->hasOne(Wallet::class, 'id_user');
+        return $this->hasOne(Wallet::class, 'id_user', 'id_user');
+    }
+
+    public function freelancerProfile()
+    {
+        return $this->hasOne(FreelancerProfile::class, 'id_user', 'id_user');
     }
 }
