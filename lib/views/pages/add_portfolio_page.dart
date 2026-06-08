@@ -354,7 +354,7 @@ class _AddPortfolioPageState extends State<AddPortfolioPage> {
           isExpanded: true,
           hint: const Text('Select a category'),
           icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black54),
-          items: _controller.categories
+          items: _controller.jobdesks
               .map<DropdownMenuItem<String>>(
                 (item) =>
                     DropdownMenuItem<String>(value: item, child: Text(item)),
