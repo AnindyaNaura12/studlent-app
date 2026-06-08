@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
-import 'register_page.dart';
-import 'home_pages.dart';
+import 'register_freelancer_page.dart';
+import 'login_page.dart';
 import '../widgets/custom_back_button.dart';
-import '../../controllers/auth_controller.dart';
 
-class RegisterCoverPage extends StatelessWidget {
-  RegisterCoverPage({super.key});
-
-  final AuthController _controller = AuthController();
+class RegisterFreelancerCoverPage extends StatelessWidget {
+  const RegisterFreelancerCoverPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -37,28 +34,27 @@ class RegisterCoverPage extends StatelessWidget {
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: s(24)),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     SizedBox(height: s(52)),
-
-                    const Spacer(),
 
                     // ================= LOGO =================
                     Image.asset(
                       'assets/images/logo_studlent.png',
-                      width: s(140),
+                      width: s(160),
                     ),
 
                     SizedBox(height: s(20)),
 
                     // ================= TITLE =================
                     Text(
-                      "Get Your Work Done\nWith Skilled Students",
+                      "Offer Your Skills,\nEarn as a Freelancer",
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: s(22),
+                        fontSize: s(24),
                         fontWeight: FontWeight.bold,
                         color: Colors.black87,
-                        height: 1.3,
+                        height: 1.35,
                       ),
                     ),
 
@@ -66,58 +62,69 @@ class RegisterCoverPage extends StatelessWidget {
 
                     // ================= SUBTITLE =================
                     Text(
-                      "Join Studlent and find skilled students ready\nto help with your projects",
+                      "Join Studlent as a freelancer and start\nearning from your skills today",
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: s(13),
                         color: Colors.black54,
-                        height: 1.4,
+                        height: 1.5,
+                      ),
+                    ),
+
+                    SizedBox(height: s(20)),
+
+                    // ================= ILLUSTRATION =================
+                    Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: s(10)),
+                        child: Image.asset(
+                          'assets/images/cover_regist.png',
+                          fit: BoxFit.contain,
+                          width: double.infinity,
+                        ),
                       ),
                     ),
 
                     SizedBox(height: s(24)),
 
-                    // ================= ILLUSTRATION =================
-                    Flexible(
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxHeight: screenHeight * 0.35,
-                        ),
-                        child: Image.asset(
-                          'assets/images/cover_regist.png',
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                    ),
-
-                    const Spacer(),
-
-                    // ================= CREATE ACCOUNT BUTTON =================
+                    // ================= JOIN BUTTON =================
                     SizedBox(
                       width: double.infinity,
-                      height: s(50),
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const RegisterPage(),
-                            ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF3B82F6),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(s(12)),
+                      height: s(52),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(s(14)),
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color(0xFFFF9800),
+                              Color(0xFFFFB74D),
+                            ],
                           ),
-                          elevation: 2,
                         ),
-                        child: Text(
-                          "Create Account",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: s(15),
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const RegisterFreelancerPage(),
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            shadowColor: Colors.transparent,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(s(14)),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: Text(
+                            "Join as Freelancer",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: s(16),
+                            ),
                           ),
                         ),
                       ),
@@ -130,27 +137,35 @@ class RegisterCoverPage extends StatelessWidget {
                       child: RichText(
                         text: TextSpan(
                           style: TextStyle(
-                            fontSize: s(13),
                             color: Colors.black54,
+                            fontSize: s(13),
                           ),
                           children: [
-                            const TextSpan(text: 'Already have an account? '),
+                            const TextSpan(text: 'Already a Freelancer? '),
                             TextSpan(
                               text: 'Login',
-                              style: TextStyle(
-                                color: const Color(0xFFFFB84C),
+                              style: const TextStyle(
+                                color: Color(0xFFFFB84C),
                                 fontWeight: FontWeight.bold,
-                                fontSize: s(13),
                               ),
                               recognizer: TapGestureRecognizer()
-                                ..onTap = () => _controller.goToLogin(context),
+                                ..onTap = () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const LoginPage(
+                                        isFromFreelancerCover: true,
+                                      ),
+                                    ),
+                                  );
+                                },
                             ),
                           ],
                         ),
                       ),
                     ),
 
-                    SizedBox(height: s(16)),
+                    SizedBox(height: s(24)),
                   ],
                 ),
               ),
@@ -160,13 +175,7 @@ class RegisterCoverPage extends StatelessWidget {
                 top: s(6),
                 left: s(6),
                 child: CustomBackButton(
-                  onTap: () {
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (_) => const HomePage()),
-                      (route) => false,
-                    );
-                  },
+                  onTap: () => Navigator.pop(context, true),
                 ),
               ),
             ],

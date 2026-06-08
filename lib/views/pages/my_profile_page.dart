@@ -24,23 +24,19 @@ class _EditProfileFreelancerPageState
   @override
   void initState() {
     super.initState();
-    _controller =
-        EditProfileController(initialModel: widget.initialModel);
+    _controller = EditProfileController(initialModel: widget.initialModel);
     _loadData();
   }
 
-  // ── Load semua data ───────────────────────────────────────
   Future<void> _loadData() async {
     setState(() => _loadingData = true);
 
-    // Load foto freelancer
     final profileCtrl = ProfileController();
     final data = await profileCtrl.getCurrentUser();
     if (data != null && mounted) {
-      setState(() => _fotoUrl = data['foto_freelancer']); // ← fix key
+      setState(() => _fotoUrl = data['foto_freelancer']);
     }
 
-    // Load profile data dari Supabase
     await _controller.loadFromSupabase();
 
     if (mounted) {
@@ -54,7 +50,6 @@ class _EditProfileFreelancerPageState
     super.dispose();
   }
 
-  // ── Save ke Supabase ──────────────────────────────────────
   Future<void> _onSavePressed() async {
     final error = _controller.validate();
     if (error != null) {
@@ -63,18 +58,15 @@ class _EditProfileFreelancerPageState
       return;
     }
 
-    // Tampilkan loading
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) =>
-          const Center(child: CircularProgressIndicator()),
+      builder: (_) => const Center(child: CircularProgressIndicator()),
     );
 
     final success = await _controller.saveToSupabase();
 
-    if (mounted) Navigator.pop(context); // tutup loading dialog
-
+    if (mounted) Navigator.pop(context);
     if (!mounted) return;
 
     if (success) {
@@ -84,7 +76,7 @@ class _EditProfileFreelancerPageState
           backgroundColor: Colors.green,
         ),
       );
-      Navigator.pop(context, true); // ← kirim true untuk trigger refresh
+      Navigator.pop(context, true);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -104,10 +96,7 @@ class _EditProfileFreelancerPageState
           children: [
             // ── TOP BAR ──
             Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Stack(
                 alignment: Alignment.center,
                 children: [
@@ -134,9 +123,7 @@ class _EditProfileFreelancerPageState
               child: _loadingData
                   ? const Center(child: CircularProgressIndicator())
                   : SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -148,13 +135,12 @@ class _EditProfileFreelancerPageState
                               children: [
                                 GestureDetector(
                                   onTap: () async {
-                                    final profileCtrl =
-                                        ProfileController();
-                                    final data = await profileCtrl
-                                        .getCurrentUser();
+                                    final profileCtrl = ProfileController();
+                                    final data =
+                                        await profileCtrl.getCurrentUser();
                                     if (data == null) return;
-                                    final url = await profileCtrl
-                                        .uploadProfileImage(
+                                    final url =
+                                        await profileCtrl.uploadProfileImage(
                                       data['id_user'],
                                       isFreelancer: true,
                                     );
@@ -165,21 +151,18 @@ class _EditProfileFreelancerPageState
                                   child: Stack(
                                     children: [
                                       Container(
-                                        padding:
-                                            const EdgeInsets.all(3),
+                                        padding: const EdgeInsets.all(3),
                                         decoration: BoxDecoration(
                                           shape: BoxShape.circle,
                                           border: Border.all(
-                                            color: const Color(
-                                                0xFFFFB74D),
+                                            color: const Color(0xFFFFB74D),
                                             width: 3,
                                           ),
                                         ),
                                         child: CircleAvatar(
                                           radius: 52,
-                                          backgroundColor: Colors
-                                              .orange
-                                              .withOpacity(0.2),
+                                          backgroundColor:
+                                              Colors.orange.withOpacity(0.2),
                                           child: ClipOval(
                                             child: _fotoUrl != null
                                                 ? Image.network(
@@ -187,17 +170,14 @@ class _EditProfileFreelancerPageState
                                                     width: 104,
                                                     height: 104,
                                                     fit: BoxFit.cover,
-                                                    key: ValueKey(
-                                                        _fotoUrl),
-                                                    errorBuilder: (_,
-                                                            __,
-                                                            ___) =>
-                                                        Image.asset(
+                                                    key: ValueKey(_fotoUrl),
+                                                    errorBuilder:
+                                                        (_, __, ___) =>
+                                                            Image.asset(
                                                       'assets/images/icons/profile.png',
                                                       width: 104,
                                                       height: 104,
-                                                      fit: BoxFit
-                                                          .cover,
+                                                      fit: BoxFit.cover,
                                                     ),
                                                   )
                                                 : Image.asset(
@@ -213,10 +193,8 @@ class _EditProfileFreelancerPageState
                                         bottom: 0,
                                         right: 0,
                                         child: Container(
-                                          padding:
-                                              const EdgeInsets.all(6),
-                                          decoration:
-                                              const BoxDecoration(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: const BoxDecoration(
                                             color: Color(0xFFFFB74D),
                                             shape: BoxShape.circle,
                                           ),
@@ -232,7 +210,7 @@ class _EditProfileFreelancerPageState
                                 ),
                                 const SizedBox(height: 8),
                                 const Text(
-                                  'Tap untuk ganti foto',
+                                  'Tap to change photo',
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: Colors.grey,
@@ -255,8 +233,8 @@ class _EditProfileFreelancerPageState
                           // ── PROFESSIONAL STATUS ──
                           _buildSectionLabel('Professional Status'),
                           _buildEditableField(
-                            controller: _controller
-                                .professionalStatusController,
+                            controller:
+                                _controller.professionalStatusController,
                             hint: 'Contoh: UI/UX Designer',
                           ),
                           const SizedBox(height: 20),
@@ -272,8 +250,7 @@ class _EditProfileFreelancerPageState
                           const SizedBox(height: 24),
 
                           // ── SERTIFIKAT ──
-                          _buildSectionLabel(
-                              'Sertifikat & Penghargaan'),
+                          _buildSectionLabel('Certificates & Awards'),
                           _buildCertificateSection(),
                           const SizedBox(height: 32),
 
@@ -284,11 +261,9 @@ class _EditProfileFreelancerPageState
                             child: ElevatedButton(
                               onPressed: _onSavePressed,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor:
-                                    const Color(0xFF3B82F6),
+                                backgroundColor: const Color(0xFF3B82F6),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius:
-                                      BorderRadius.circular(30),
+                                  borderRadius: BorderRadius.circular(30),
                                 ),
                                 elevation: 2,
                               ),
@@ -332,17 +307,11 @@ class _EditProfileFreelancerPageState
     required String hint,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 18,
-        vertical: 4,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
       decoration: BoxDecoration(
         color: const Color(0xFFF5EFE6),
         borderRadius: BorderRadius.circular(30),
-        border: Border.all(
-          color: const Color(0xFFE8D5B7),
-          width: 1,
-        ),
+        border: Border.all(color: const Color(0xFFE8D5B7), width: 1),
       ),
       child: Row(
         children: [
@@ -351,23 +320,14 @@ class _EditProfileFreelancerPageState
               controller: controller,
               decoration: InputDecoration(
                 hintText: hint,
-                hintStyle:
-                    const TextStyle(color: Colors.black45),
+                hintStyle: const TextStyle(color: Colors.black45),
                 border: InputBorder.none,
-                contentPadding:
-                    const EdgeInsets.symmetric(vertical: 14),
+                contentPadding: const EdgeInsets.symmetric(vertical: 14),
               ),
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.black87,
-              ),
+              style: const TextStyle(fontSize: 14, color: Colors.black87),
             ),
           ),
-          const Icon(
-            Icons.edit_outlined,
-            size: 18,
-            color: Color(0xFFCCAA66),
-          ),
+          const Icon(Icons.edit_outlined, size: 18, color: Color(0xFFCCAA66)),
         ],
       ),
     );
@@ -379,8 +339,7 @@ class _EditProfileFreelancerPageState
       decoration: BoxDecoration(
         color: const Color(0xFFF5EFE6),
         borderRadius: BorderRadius.circular(20),
-        border:
-            Border.all(color: const Color(0xFFE8D5B7), width: 1),
+        border: Border.all(color: const Color(0xFFE8D5B7), width: 1),
       ),
       child: Stack(
         children: [
@@ -391,8 +350,7 @@ class _EditProfileFreelancerPageState
               hintText: 'Tell clients about yourself...',
               hintStyle: TextStyle(color: Colors.black45),
               border: InputBorder.none,
-              contentPadding:
-                  EdgeInsets.only(top: 10, right: 24),
+              contentPadding: EdgeInsets.only(top: 10, right: 24),
             ),
             style: const TextStyle(
               fontSize: 14,
@@ -420,8 +378,7 @@ class _EditProfileFreelancerPageState
       decoration: BoxDecoration(
         color: const Color(0xFFF5EFE6),
         borderRadius: BorderRadius.circular(20),
-        border:
-            Border.all(color: const Color(0xFFE8D5B7), width: 1),
+        border: Border.all(color: const Color(0xFFE8D5B7), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -455,9 +412,7 @@ class _EditProfileFreelancerPageState
             children: [
               Expanded(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(30),
@@ -475,8 +430,7 @@ class _EditProfileFreelancerPageState
                         fontSize: 13,
                       ),
                       border: InputBorder.none,
-                      contentPadding:
-                          EdgeInsets.symmetric(vertical: 12),
+                      contentPadding: EdgeInsets.symmetric(vertical: 12),
                     ),
                     style: const TextStyle(fontSize: 13),
                     onSubmitted: (val) => _controller.addSkill(
@@ -525,14 +479,9 @@ class _EditProfileFreelancerPageState
   Widget _buildSkillChip(String skill) {
     final isBlue = _controller.skills.indexOf(skill) % 2 == 0;
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 14,
-        vertical: 8,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: isBlue
-            ? const Color(0xFFB8CCF0)
-            : const Color(0xFFF0EAE0),
+        color: isBlue ? const Color(0xFFB8CCF0) : const Color(0xFFF0EAE0),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -552,11 +501,7 @@ class _EditProfileFreelancerPageState
               skill,
               () => setState(() {}),
             ),
-            child: const Icon(
-              Icons.close,
-              size: 14,
-              color: Colors.black54,
-            ),
+            child: const Icon(Icons.close, size: 14, color: Colors.black54),
           ),
         ],
       ),
@@ -568,14 +513,12 @@ class _EditProfileFreelancerPageState
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Tambahkan sertifikat, piagam, atau penghargaan\nuntuk meyakinkan klien',
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.black54,
-            height: 1.5,
-          ),
+          'Add certificates or awards to build client trust.',
+          style: TextStyle(fontSize: 12, color: Colors.black54, height: 1.5),
         ),
         const SizedBox(height: 12),
+
+        // ── Daftar sertifikat yang sudah ada ──
         if (_controller.certificates.isNotEmpty)
           Wrap(
             spacing: 10,
@@ -584,64 +527,87 @@ class _EditProfileFreelancerPageState
                 .asMap()
                 .entries
                 .map((entry) {
-              return Stack(
-                children: [
-                  Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                          color: Colors.grey.shade300),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.asset(
-                        entry.value,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          color: Colors.grey[200],
-                          child: const Icon(
-                            Icons.workspace_premium,
-                            color: Colors.orange,
-                            size: 40,
+                  final cert = entry.value; // Map<String, dynamic>
+                  final fileUrl = cert['file_url'] as String? ?? '';
+                  final isNetwork = fileUrl.startsWith('http');
+
+                  return Stack(
+                    children: [
+                      Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: isNetwork
+                              ? Image.network(
+                                  fileUrl,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Container(
+                                    color: Colors.grey[200],
+                                    child: const Icon(
+                                      Icons.workspace_premium,
+                                      color: Colors.orange,
+                                      size: 40,
+                                    ),
+                                  ),
+                                )
+                              : Image.asset(
+                                  fileUrl,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Container(
+                                    color: Colors.grey[200],
+                                    child: const Icon(
+                                      Icons.workspace_premium,
+                                      color: Colors.orange,
+                                      size: 40,
+                                    ),
+                                  ),
+                                ),
+                        ),
+                      ),
+                      Positioned(
+                        top: 4,
+                        right: 4,
+                        child: GestureDetector(
+                          onTap: () async {
+                            await _controller.removeCertificate(
+                              entry.key,
+                              () => setState(() {}),
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(3),
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.close,
+                              size: 14,
+                              color: Colors.black54,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ),
-                  Positioned(
-                    top: 4,
-                    right: 4,
-                    child: GestureDetector(
-                      onTap: () => _controller.removeCertificate(
-                        entry.key,
-                        () => setState(() {}),
-                      ),
-                      child: Container(
-                        padding: const EdgeInsets.all(3),
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.close,
-                          size: 14,
-                          color: Colors.black54,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            }).toList(),
+                    ],
+                  );
+                })
+                .toList(),
           ),
+
         const SizedBox(height: 12),
+
+        // ── Tombol Add Certificate ──
         GestureDetector(
           onTap: () {
             _controller.addCertificate(
-              'assets/images/placeholder.png',
-              () => setState(() {}),
+              fileUrl: 'assets/images/placeholder.png',
+              fileName: 'Sertifikat Baru',
+              refresh: () => setState(() {}),
             );
           },
           child: Container(
@@ -650,8 +616,7 @@ class _EditProfileFreelancerPageState
             decoration: BoxDecoration(
               color: const Color(0xFFF5EFE6),
               borderRadius: BorderRadius.circular(16),
-              border:
-                  Border.all(color: const Color(0xFFE8D5B7)),
+              border: Border.all(color: const Color(0xFFE8D5B7)),
             ),
             child: const Center(
               child: Row(
@@ -664,7 +629,7 @@ class _EditProfileFreelancerPageState
                   ),
                   SizedBox(width: 8),
                   Text(
-                    '+ Tambah Sertifikat',
+                    '+ Add Certificate',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,

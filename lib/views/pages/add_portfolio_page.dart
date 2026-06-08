@@ -219,7 +219,7 @@ class _AddPortfolioPageState extends State<AddPortfolioPage> {
                                             ),
                                             const SizedBox(height: 8),
                                             Text(
-                                              'Gagal memuat gambar',
+                                              'Failed to load image',
                                               style: TextStyle(
                                                 color: Colors.grey.shade400,
                                                 fontSize: 13,
@@ -239,7 +239,7 @@ class _AddPortfolioPageState extends State<AddPortfolioPage> {
                                         ),
                                         const SizedBox(height: 8),
                                         Text(
-                                          'Tap untuk pilih gambar',
+                                          'Tap to select image',
                                           style: TextStyle(
                                             color: Colors.grey.shade400,
                                             fontSize: 13,
@@ -295,7 +295,7 @@ class _AddPortfolioPageState extends State<AddPortfolioPage> {
                                     ),
                                   )
                                 : Text(
-                                    isEdit ? 'Update' : 'Simpan',
+                                    isEdit ? 'Update' : 'Save',
                                     style: const TextStyle(
                                       color: Colors.black,
                                       fontWeight: FontWeight.bold,
@@ -349,7 +349,7 @@ class _AddPortfolioPageState extends State<AddPortfolioPage> {
         child: DropdownButton<String>(
           value: _selectedCategory,
           isExpanded: true,
-          hint: const Text('Pilih kategori'),
+          hint: const Text('Select a category'),
           icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black54),
           items: _controller.categories
               .map<DropdownMenuItem<String>>(

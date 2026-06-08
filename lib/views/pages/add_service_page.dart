@@ -200,122 +200,123 @@ class _AddServicePageState extends State<AddServicePage> {
   }
 
   Future<void> _onRequestPressed() async {
-    if (_titleController.text.trim().isEmpty) {
+  if (_titleController.text.trim().isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Service title wajib diisi')),
+    );
+    return;
+  }
+
+  if (_selectedCategoryId == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Service category wajib dipilih')),
+    );
+    return;
+  }
+
+  // Validasi: semua paket wajib diisi harganya
+  final packageKeys = ['basic', 'standard', 'premium'];
+  for (final key in packageKeys) {
+    final price = _packageControllers[key]!['price']!.text.trim();
+    if (price.isEmpty) {
+      // Arahkan tab ke paket yang belum diisi
+      final tabIndex = packageKeys.indexOf(key);
+      setState(() => _selectedPackageTab = tabIndex);
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Service title wajib diisi')),
-      );
-      return;
-    }
-
-    if (_selectedCategoryId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Service category wajib dipilih')),
-      );
-      return;
-    }
-
-    setState(() => _loading = true);
-
-    try {
-      final supabase = Supabase.instance.client;
-      final authUser = supabase.auth.currentUser;
-
-      if (authUser == null) {
-        setState(() => _loading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('User belum login'),
-            backgroundColor: Colors.red,
+        SnackBar(
+          content: Text(
+            'Harga paket ${key[0].toUpperCase()}${key.substring(1)} wajib diisi',
           ),
-        );
-        return;
-      }
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+  }
 
-      final user = await supabase
-          .from('users')
-          .select('id_user')
-          .eq('email', authUser.email!)
-          .single();
+  setState(() => _loading = true);
 
-      String? thumbnailUrl;
-      if (_imageBytes != null) {
-        thumbnailUrl = await _uploadImageToStorage();
-      }
+  try {
+    // 1. Dapatkan id_user dari controller (tetap di controller, bukan query ulang)
+    final currentUserId = await widget.controller.getCurrentUserId();
 
-      final serviceResult = await supabase
-          .from('services')
-          .insert({
-            'id_freelancer': user['id_user'],
-            'id_category': _selectedCategoryId,
-            'judul': _titleController.text.trim(),
-            'deskripsi': _descController.text.trim(),
-            'thumbnail_url': thumbnailUrl,
-            'status': 'pending',
-            'created_at': DateTime.now().toIso8601String(),
-            'updated_at': DateTime.now().toIso8601String(),
-          })
-          .select()
-          .single();
-
-      final idService = serviceResult['id_service'];
-
-      if (thumbnailUrl != null) {
-        await supabase.from('service_images').insert({
-          'id_service': idService,
-          'image_url': thumbnailUrl,
-          'created_at': DateTime.now().toIso8601String(),
-        });
-      }
-
-      final packages = ['basic', 'standard', 'premium'];
-
-      for (final pkg in packages) {
-        final ctrl = _packageControllers[pkg]!;
-
-        await supabase.from('service_packages').insert({
-          'id_service': idService,
-          'nama': pkg,
-          'harga':
-              double.tryParse(
-                ctrl['price']!.text.replaceAll(RegExp(r'[^0-9]'), ''),
-              ) ??
-              0,
-          'delivery_time':
-              int.tryParse(
-                ctrl['delivery']!.text.replaceAll(RegExp(r'[^0-9]'), ''),
-              ) ??
-              0,
-          'deskripsi': ctrl['desc']!.text.trim(),
-          'created_at': DateTime.now().toIso8601String(),
-        });
-      }
-
-      await widget.controller.fetchServices();
-
+    if (currentUserId == null) {
       if (!mounted) return;
-
       setState(() => _loading = false);
-
-      widget.onServiceAdded();
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Service berhasil diajukan!'),
+          content: Text('User belum login'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // 2. Upload gambar jika ada (tetap di View karena menyentuh _imageBytes)
+    String? thumbnailUrl;
+    if (_imageBytes != null) {
+      thumbnailUrl = await _uploadImageToStorage();
+    }
+
+    // 3. Ambil data ketiga paket dari _packageControllers
+    final basicCtrl    = _packageControllers['basic']!;
+    final standardCtrl = _packageControllers['standard']!;
+    final premiumCtrl  = _packageControllers['premium']!;
+
+    // 4. Delegasikan seluruh logika DB ke controller.addService()
+    final result = await widget.controller.addService(
+      freelancerId : currentUserId,
+      categoryId   : _selectedCategoryId!,
+      title        : _titleController.text.trim(),
+      description  : _descController.text.trim(),
+      imageUrl     : thumbnailUrl,
+      status       : 'pending',
+
+      // Paket Basic
+      basicPrice            : basicCtrl['price']!.text,
+      basicDeliveryTime     : basicCtrl['delivery']!.text,
+      basicShortDescription : basicCtrl['desc']!.text,
+
+      // Paket Standard
+      standardPrice            : standardCtrl['price']!.text,
+      standardDeliveryTime     : standardCtrl['delivery']!.text,
+      standardShortDescription : standardCtrl['desc']!.text,
+
+      // Paket Premium
+      premiumPrice            : premiumCtrl['price']!.text,
+      premiumDeliveryTime     : premiumCtrl['delivery']!.text,
+      premiumShortDescription : premiumCtrl['desc']!.text,
+    );
+
+    if (!mounted) return;
+    setState(() => _loading = false);
+
+    if (result != null) {
+      widget.onServiceAdded();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('The service request has been submitted!'),
           backgroundColor: Colors.green,
         ),
       );
-
       Navigator.pop(context);
-    } catch (e) {
-      setState(() => _loading = false);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
-      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to add service. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
+  } catch (e) {
+    if (!mounted) return;
+    setState(() => _loading = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+    );
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -355,7 +356,7 @@ class _AddServicePageState extends State<AddServicePage> {
               _buildLabel('Service Title'),
               _buildTextField(
                 controller: _titleController,
-                hint: 'Masukkan judul service',
+                hint: 'Enter service title',
               ),
               const SizedBox(height: 12),
 
@@ -367,7 +368,7 @@ class _AddServicePageState extends State<AddServicePage> {
               const Padding(
                 padding: EdgeInsets.only(bottom: 6),
                 child: Text(
-                  'Upload gambar preview service kamu',
+                  'Upload service preview image',
                   style: TextStyle(
                     fontSize: 10,
                     color: Color(0xFFA8A8A8),
@@ -392,7 +393,7 @@ class _AddServicePageState extends State<AddServicePage> {
               ),
               const SizedBox(height: 2),
               const Text(
-                'Isi harga & detail untuk setiap paket',
+                'Enter price & details for each package',
                 style: TextStyle(fontSize: 10, color: Color(0xFFA8A8A8)),
               ),
               const SizedBox(height: 10),
@@ -536,7 +537,7 @@ class _AddServicePageState extends State<AddServicePage> {
                           Icon(Icons.camera_alt, size: 12, color: Colors.white),
                           SizedBox(width: 4),
                           Text(
-                            'Ganti',
+                            'Change',
                             style: TextStyle(fontSize: 11, color: Colors.white),
                           ),
                         ],
@@ -555,7 +556,7 @@ class _AddServicePageState extends State<AddServicePage> {
                   ),
                   const SizedBox(height: 4),
                   const Text(
-                    'Tap untuk pilih gambar',
+                    'Tap to select image',
                     style: TextStyle(fontSize: 10, color: Color(0xFF9F9F9F)),
                   ),
                   const SizedBox(height: 2),
@@ -624,7 +625,7 @@ class _AddServicePageState extends State<AddServicePage> {
           ? const Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Loading kategori...',
+                'Loading categories...',
                 style: TextStyle(color: Color(0xFFC4C4C4), fontSize: 11),
               ),
             )
@@ -632,7 +633,7 @@ class _AddServicePageState extends State<AddServicePage> {
           ? const Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Kategori belum tersedia',
+                'Category not available',
                 style: TextStyle(color: Color(0xFFC4C4C4), fontSize: 11),
               ),
             )
@@ -641,7 +642,7 @@ class _AddServicePageState extends State<AddServicePage> {
                 value: _selectedCategoryId,
                 isExpanded: true,
                 hint: const Text(
-                  'Pilih kategori',
+                  'Select category',
                   style: TextStyle(color: Color(0xFFC4C4C4), fontSize: 11),
                 ),
                 icon: const Icon(
@@ -684,7 +685,7 @@ class _AddServicePageState extends State<AddServicePage> {
         maxLines: 5,
         style: const TextStyle(fontSize: 12, color: Colors.black87),
         decoration: const InputDecoration(
-          hintText: 'Jelaskan service kamu secara detail...',
+          hintText: 'Describe your service in detail...',
           hintStyle: TextStyle(color: Color(0xFFC4C4C4), fontSize: 11),
           border: InputBorder.none,
           contentPadding: EdgeInsets.all(12),
@@ -753,7 +754,7 @@ class _AddServicePageState extends State<AddServicePage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Paket $packageName',
+            'Package $packageName',
             style: const TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
@@ -762,7 +763,7 @@ class _AddServicePageState extends State<AddServicePage> {
           ),
           const SizedBox(height: 10),
           const Text(
-            'Harga (Rp)',
+            'Price (Rp)',
             style: TextStyle(
               fontSize: 10,
               color: Color(0xFF8B8B8B),
@@ -773,7 +774,7 @@ class _AddServicePageState extends State<AddServicePage> {
           _buildPriceField(ctrlMap['price']!),
           const SizedBox(height: 10),
           const Text(
-            'Delivery Time (hari)',
+            'Delivery Time (days)',
             style: TextStyle(
               fontSize: 10,
               color: Color(0xFF8B8B8B),
@@ -784,7 +785,7 @@ class _AddServicePageState extends State<AddServicePage> {
           _buildDeliveryField(ctrlMap['delivery']!),
           const SizedBox(height: 10),
           const Text(
-            'Deskripsi Paket',
+            'Package Description',
             style: TextStyle(
               fontSize: 10,
               color: Color(0xFF8B8B8B),
@@ -804,7 +805,7 @@ class _AddServicePageState extends State<AddServicePage> {
               maxLines: 3,
               style: const TextStyle(fontSize: 11, color: Colors.black87),
               decoration: InputDecoration(
-                hintText: 'Apa yang didapat di paket $packageName?',
+                hintText: 'What do you get in the $packageName package?',
                 hintStyle: const TextStyle(
                   color: Color(0xFFC4C4C4),
                   fontSize: 11,
@@ -835,7 +836,7 @@ class _AddServicePageState extends State<AddServicePage> {
         keyboardType: TextInputType.number,
         style: const TextStyle(fontSize: 11, color: Colors.black87),
         decoration: const InputDecoration(
-          hintText: 'Contoh: 150000',
+          hintText: 'Example: 150000',
           hintStyle: TextStyle(color: Color(0xFFC4C4C4), fontSize: 11),
           border: InputBorder.none,
           contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
@@ -857,7 +858,7 @@ class _AddServicePageState extends State<AddServicePage> {
         keyboardType: TextInputType.number,
         style: const TextStyle(fontSize: 11, color: Colors.black87),
         decoration: const InputDecoration(
-          hintText: 'Contoh: 3',
+          hintText: 'Example: 3',
           hintStyle: TextStyle(color: Color(0xFFC4C4C4), fontSize: 11),
           border: InputBorder.none,
           contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
