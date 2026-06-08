@@ -9,7 +9,6 @@ import '../views/pages/my_orders_page.dart';
 import '../views/pages/login_page.dart';
 import '../views/pages/add_portfolio_page.dart';
 import '../views/pages/home_pages.dart';
-
 import '../views/pages/portfolio_list_page.dart';
 import '../views/pages/register_freelancer_page.dart';
 
@@ -17,6 +16,8 @@ class ProfileController {
   final supabase = Supabase.instance.client;
   bool isFreelancer = false;
   bool isLoggedIn = false;
+
+  static bool isFreelancerUnlocked = false;
 
   // ── Get Client User ───────────────────────────────────────
   UserModel getClientUser() {
@@ -54,6 +55,7 @@ class ProfileController {
   }
 
   // ── Client Menu Items ─────────────────────────────────────
+  // "Logout" di sini memanggil supabase.auth.signOut() via onMenuTap
   List<Map<String, dynamic>> getClientMenuItems() {
     return [
       {'title': 'Logout', 'hasTag': false},
@@ -61,6 +63,8 @@ class ProfileController {
   }
 
   // ── Freelancer Menu Items ─────────────────────────────────
+  // "Logout Freelancer" hanya reset lokal (tanpa signOut),
+  // ditangani langsung di View dengan setState.
   List<Map<String, dynamic>> getFreelancerMenuItems() {
     return [
       {'title': 'My Profile', 'hasTag': true},
@@ -68,24 +72,22 @@ class ProfileController {
       {'title': 'My Portfolio', 'hasTag': false},
       {'title': 'My Orders', 'hasTag': false},
       {'title': 'My Services', 'hasTag': false},
-      {'title': 'Logout', 'hasTag': false},
+      {'title': 'Logout Freelancer', 'hasTag': false}, // local reset only
     ];
   }
 
-  // ===-dropdown earned freelancer ----
+  // ── Freelancer Stats ──────────────────────────────────────
   Future<Map<String, dynamic>> getFreelancerStats(
     int idUser,
     String period,
   ) async {
     try {
-      // Hitung total services
       final services = await supabase
           .from('services')
           .select('id_service')
           .eq('id_freelancer', idUser)
           .eq('status', 'active');
 
-      // Hitung rating rata-rata
       final reviews = await supabase
           .from('reviews')
           .select('rating')
@@ -100,7 +102,6 @@ class ProfileController {
         ratingAvg = total / reviews.length;
       }
 
-      // Filter earned berdasarkan periode
       DateTime fromDate;
       final now = DateTime.now();
 
@@ -108,11 +109,9 @@ class ProfileController {
         case 'weekly':
           fromDate = now.subtract(const Duration(days: 7));
           break;
-
         case 'yearly':
           fromDate = DateTime(now.year, 1, 1);
           break;
-
         default:
           fromDate = DateTime(now.year, now.month, 1);
       }
@@ -124,7 +123,6 @@ class ProfileController {
           .gte('tanggal_bayar', fromDate.toIso8601String());
 
       double earned = 0;
-
       for (var p in payments as List) {
         earned += (p['freelancer_receive'] ?? 0).toDouble();
       }
@@ -136,8 +134,11 @@ class ProfileController {
       };
     } catch (e) {
       debugPrint('getFreelancerStats error: $e');
-
-      return {'services': 0, 'rating': 0.0, 'earned': 0.0};
+      return {
+        'services': 0,
+        'rating': 0.0,
+        'earned': 0.0,
+      };
     }
   }
 
@@ -150,7 +151,6 @@ class ProfileController {
         return null;
       }
 
-      // Ambil data user
       final user = await supabase
           .from('users')
           .select()
@@ -160,18 +160,28 @@ class ProfileController {
       isLoggedIn = true;
       isFreelancer = user['is_freelancer'] == true;
 
-      // Ambil semua orders client
+      String professionalStatus = '';
+      if (isFreelancer) {
+        final profileData = await supabase
+            .from('freelancer_profiles')
+            .select('professional_status')
+            .eq('id_user', user['id_user'])
+            .maybeSingle(); 
+            
+        if (profileData != null) {
+          professionalStatus = profileData['professional_status'] ?? '';
+        }
+      }
+
       final orders = await supabase
           .from('orders')
           .select('id_order, status')
           .eq('id_client', user['id_user']);
 
-      // Hitung completed orders
       final completedOrders = (orders as List)
           .where((o) => o['status'] == 'selesai')
           .length;
 
-      // Hitung total spent dari payments
       double totalSpent = 0;
       if (orders.isNotEmpty) {
         final orderIds = orders.map((o) => o['id_order']).toList();
@@ -188,9 +198,11 @@ class ProfileController {
 
       return {
         ...user,
+        'professional_status': professionalStatus,
         'my_orders': orders.length,
         'completed_orders': completedOrders,
         'total_spent': totalSpent,
+
       };
     } catch (e) {
       debugPrint('getCurrentUser error: $e');
@@ -217,22 +229,19 @@ class ProfileController {
       final mimeType = picked.mimeType ?? 'image/jpeg';
       final extension = mimeType.split('/').last;
 
-      // ← Nama file berbeda untuk client dan freelancer
       final prefix = isFreelancer ? 'freelancer' : 'client';
       final fileName = '${prefix}_$idUser.$extension';
 
       final formats = ['jpg', 'jpeg', 'png', 'webp', 'heic'];
       for (final ext in formats) {
         try {
-          await supabase.storage.from('Profile-image').remove([
-            '${prefix}_$idUser.$ext',
-          ]);
+          await supabase.storage
+              .from('Profile-image')
+              .remove(['${prefix}_$idUser.$ext']);
         } catch (_) {}
       }
 
-      await supabase.storage
-          .from('Profile-image')
-          .uploadBinary(
+      await supabase.storage.from('Profile-image').uploadBinary(
             fileName,
             bytes,
             fileOptions: FileOptions(upsert: true, contentType: mimeType),
@@ -242,7 +251,6 @@ class ProfileController {
           .from('Profile-image')
           .getPublicUrl(fileName);
 
-      // Simpan ke kolom yang berbeda
       final updateField = isFreelancer ? 'foto_freelancer' : 'foto';
       await supabase
           .from('users')
@@ -259,7 +267,7 @@ class ProfileController {
     }
   }
 
-  // ── Update data profil ────────────────────────────────────//
+  // ── Update data profil ────────────────────────────────────
   Future<bool> updateProfile({
     required int idUser,
     required String nama,
@@ -294,21 +302,20 @@ class ProfileController {
     }
   }
 
-  // ── Logout ────────────────────────────────────────────────
+  // ── Logout Supabase penuh (untuk Client) ──────────────────
   Future<void> logout(BuildContext context) async {
     await supabase.auth.signOut();
-
     if (!context.mounted) return;
-
-    // Hapus semua stack → kembali ke HomePage (atau halaman utama)
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (_) => const HomePage()),
-      (route) => false, // hapus semua route sebelumnya
+      MaterialPageRoute(builder: (_) => const HomePage(initialIndex: 4)),
+      (route) => false,
     );
   }
 
-  // ── Menu Items ───────────────────────────────────────────
+  // ── Menu Tap Handler ──────────────────────────────────────
+  // "Logout Freelancer" tidak ada di sini karena ditangani
+  // langsung di View (setState lokal, tanpa signOut).
   void onMenuTap(String title, BuildContext context) {
     switch (title) {
       case 'My Services':
@@ -329,15 +336,14 @@ class ProfileController {
           MaterialPageRoute(builder: (_) => const MyOrdersPage()),
         );
         break;
-
       case 'My Portfolio':
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const PortfolioListPage()),
         );
         break;
-
       case 'Logout':
+        // Hanya dipanggil dari menu Client — signOut penuh
         logout(context);
         break;
     }

@@ -81,8 +81,6 @@ class _EditProfileFreelancerPageState
           backgroundColor: Colors.green,
         ),
       );
-      // DIUBAH: pop dengan true supaya profile page tahu harus refresh
-      // dan kembali ke freelancer profile, bukan client
       Navigator.pop(context, true);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -288,7 +286,7 @@ class _EditProfileFreelancerPageState
                                 ),
                                 const SizedBox(height: 8),
                                 const Text(
-                                  'Tap untuk ganti foto',
+                                  'Tap to change photo',
                                   style: TextStyle(
                                       fontSize: 12, color: Colors.grey),
                                 ),
@@ -321,8 +319,8 @@ class _EditProfileFreelancerPageState
                           _buildSkillsSection(),
                           const SizedBox(height: 24),
 
-                          // DIUBAH: Sertifikat section sekarang CRUD ke supabase
-                          _buildSectionLabel('Sertifikat & Penghargaan'),
+                          // ── SERTIFIKAT ──
+                          _buildSectionLabel('Certificates & Awards'),
                           _buildCertificateSection(),
                           const SizedBox(height: 32),
 
@@ -393,15 +391,12 @@ class _EditProfileFreelancerPageState
                 hintText: hint,
                 hintStyle: const TextStyle(color: Colors.black45),
                 border: InputBorder.none,
-                contentPadding:
-                    const EdgeInsets.symmetric(vertical: 14),
+                contentPadding: const EdgeInsets.symmetric(vertical: 14),
               ),
-              style:
-                  const TextStyle(fontSize: 14, color: Colors.black87),
+              style: const TextStyle(fontSize: 14, color: Colors.black87),
             ),
           ),
-          const Icon(Icons.edit_outlined,
-              size: 18, color: Color(0xFFCCAA66)),
+          const Icon(Icons.edit_outlined, size: 18, color: Color(0xFFCCAA66)),
         ],
       ),
     );
@@ -479,8 +474,7 @@ class _EditProfileFreelancerPageState
             children: [
               Expanded(
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(30),
@@ -494,8 +488,7 @@ class _EditProfileFreelancerPageState
                       hintStyle: TextStyle(
                           color: Colors.black38, fontSize: 13),
                       border: InputBorder.none,
-                      contentPadding:
-                          EdgeInsets.symmetric(vertical: 12),
+                      contentPadding: EdgeInsets.symmetric(vertical: 12),
                     ),
                     style: const TextStyle(fontSize: 13),
                     onSubmitted: (val) => _controller.addSkill(
@@ -537,11 +530,9 @@ class _EditProfileFreelancerPageState
   Widget _buildSkillChip(String skill) {
     final isBlue = _controller.skills.indexOf(skill) % 2 == 0;
     return Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color:
-            isBlue ? const Color(0xFFB8CCF0) : const Color(0xFFF0EAE0),
+        color: isBlue ? const Color(0xFFB8CCF0) : const Color(0xFFF0EAE0),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -554,10 +545,11 @@ class _EditProfileFreelancerPageState
                   color: Colors.black87)),
           const SizedBox(width: 6),
           GestureDetector(
-            onTap: () =>
-                _controller.removeSkill(skill, () => setState(() {})),
-            child: const Icon(Icons.close,
-                size: 14, color: Colors.black54),
+            onTap: () => _controller.removeSkill(
+              skill,
+              () => setState(() {}),
+            ),
+            child: const Icon(Icons.close, size: 14, color: Colors.black54),
           ),
         ],
       ),
@@ -570,28 +562,103 @@ class _EditProfileFreelancerPageState
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Tambahkan sertifikat, piagam, atau penghargaan\nuntuk meyakinkan klien',
-          style: TextStyle(
-              fontSize: 12, color: Colors.black54, height: 1.5),
+          'Add certificates or awards to build client trust.',
+          style: TextStyle(fontSize: 12, color: Colors.black54, height: 1.5),
         ),
         const SizedBox(height: 12),
 
-        // DITAMBAH: tampilkan daftar sertifikat yang sudah ada
-        if (_controller.certificateData.isNotEmpty)
-          Column(
-            children: _controller.certificateData
+        // ── Daftar sertifikat yang sudah ada ──
+        if (_controller.certificates.isNotEmpty)
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: _controller.certificates
                 .asMap()
                 .entries
-                .map((entry) => _buildCertificateItem(
-                    entry.key, entry.value))
+                .map((entry) {
+                  final cert = entry.value; // Map<String, dynamic>
+                  final fileUrl = cert['file_url'] as String? ?? '';
+                  final isNetwork = fileUrl.startsWith('http');
+
+                  return Stack(
+                    children: [
+                      Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: isNetwork
+                              ? Image.network(
+                                  fileUrl,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Container(
+                                    color: Colors.grey[200],
+                                    child: const Icon(
+                                      Icons.workspace_premium,
+                                      color: Colors.orange,
+                                      size: 40,
+                                    ),
+                                  ),
+                                )
+                              : Image.asset(
+                                  fileUrl,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Container(
+                                    color: Colors.grey[200],
+                                    child: const Icon(
+                                      Icons.workspace_premium,
+                                      color: Colors.orange,
+                                      size: 40,
+                                    ),
+                                  ),
+                                ),
+                        ),
+                      ),
+                      Positioned(
+                        top: 4,
+                        right: 4,
+                        child: GestureDetector(
+                          onTap: () async {
+                            await _controller.removeCertificate(
+                              entry.key,
+                              () => setState(() {}),
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(3),
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.close,
+                              size: 14,
+                              color: Colors.black54,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                })
                 .toList(),
           ),
 
         const SizedBox(height: 12),
 
-        // DIUBAH: tombol tambah sertifikat dengan loading state
+        // ── Tombol Add Certificate ──
         GestureDetector(
-          onTap: _uploadingCert ? null : _addCertificate,
+          onTap: () {
+            _controller.addCertificate(
+              fileUrl: 'assets/images/placeholder.png',
+              fileName: 'Sertifikat Baru',
+              refresh: () => setState(() {}),
+            );
+          },
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 16),
@@ -600,28 +667,22 @@ class _EditProfileFreelancerPageState
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: const Color(0xFFE8D5B7)),
             ),
-            child: Center(
-              child: _uploadingCert
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.workspace_premium,
-                            color: Color(0xFFCCAA66), size: 18),
-                        SizedBox(width: 8),
-                        Text(
-                          '+ Tambah Sertifikat',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFFCCAA66),
-                          ),
-                        ),
-                      ],
+            child: const Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.workspace_premium,
+                    color: Color(0xFFCCAA66),
+                    size: 18,
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    '+ Add Certificate',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFFCCAA66),
                     ),
             ),
           ),

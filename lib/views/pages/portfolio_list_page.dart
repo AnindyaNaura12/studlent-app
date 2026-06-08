@@ -34,12 +34,12 @@ class _PortfolioListPageState extends State<PortfolioListPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Hapus Portfolio?'),
-        content: const Text('Portfolio ini akan dihapus permanen.'),
+        title: const Text('Delete Portfolio?'),
+        content: const Text('This portfolio will be permanently deleted.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal'),
+            child: const Text('Cancel'),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -49,7 +49,7 @@ class _PortfolioListPageState extends State<PortfolioListPage> {
               ),
             ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Hapus', style: TextStyle(color: Colors.white)),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -134,7 +134,7 @@ class _PortfolioListPageState extends State<PortfolioListPage> {
                                     ),
                                     const SizedBox(height: 12),
                                     const Text(
-                                      'Belum ada portfolio',
+                                      'No portfolio yet.',
                                       style: TextStyle(color: Colors.grey),
                                     ),
                                   ],
