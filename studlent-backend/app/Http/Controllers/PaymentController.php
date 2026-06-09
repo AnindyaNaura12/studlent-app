@@ -18,28 +18,27 @@ class PaymentController extends Controller
     public function initiatePayment(Request $request, MidtransService $midtrans)
     {
         $request->validate([
-            'client_id'      => 'required|integer',
-            'freelancer_id'  => 'required|integer',
-            'service_id'     => 'required|integer',
-            'package_id'     => 'nullable|integer',
-            'service_name'   => 'required|string',
-            'package_name'   => 'required|string',
-            'catatan'        => 'nullable|string',
-            'deadline'       => 'required|date',
-            'amount'         => 'required|integer|min:1000',
-            'admin_fee'      => 'required|integer',
-            'package_price'  => 'required|integer',
-            'payment_method' => 'nullable|string',
-            'customer'       => 'required|array',
-            'customer.name'  => 'required|string',
-            'customer.email' => 'required|email',
-            'customer.phone' => 'nullable|string',
+            'client_id'       => 'required|integer',
+            'freelancer_id'   => 'required|integer',
+            'service_id'      => 'required|integer',
+            'package_id'      => 'nullable|integer',
+            'service_name'    => 'required|string',
+            'package_name'    => 'required|string',
+            'catatan'         => 'nullable|string',
+            'deadline'        => 'required|date',
+            'amount'          => 'required|integer|min:1000',
+            'admin_fee'       => 'required|integer',
+            'package_price'   => 'required|integer',
+            'payment_method'  => 'nullable|string',
+            'customer'        => 'required|array',
+            'customer.name'   => 'required|string',
+            'customer.email'  => 'required|email',
+            'customer.phone'  => 'nullable|string',
         ]);
 
         DB::beginTransaction();
 
         try {
-            // 1. Insert order — status masih menunggu_pembayaran
             $order = Order::create([
                 'id_client'      => $request->client_id,
                 'id_freelancer'  => $request->freelancer_id,
@@ -48,40 +47,37 @@ class PaymentController extends Controller
                 'detail_pesanan' => $request->service_name . ' - ' . $request->package_name . ' Package',
                 'catatan'        => $request->catatan,
                 'deadline'       => $request->deadline,
-                'status'         => 'menunggu_pembayaran',
+                'status'         => 'diproses',
                 'progress'       => 0,
             ]);
-            Log::info('Request data', $request->all());
-           // 2. Hitung fee
-            $feePercent = 10.0;
 
+            Log::info('Request data', $request->all());
+
+            $feePercent = 10.0;
             $platformFee = $request->package_price * ($feePercent / 100);
             $freelancerGet = $request->package_price - $platformFee;
-            // 3. Insert payment — status masih pending
+
             $payment = Payment::create([
-                'id_order'           => $order->id_order,
-                'metode'             => $request->payment_method,
-                'amount'             => $request->amount,
-                'admin_fee'          => $request->admin_fee,
-                'status'             => 'pending',
-                'escrow_status'      => 'hold',
-                'fee_percent'        => 10.0,
-                'platform_fee'       => $platformFee,
-                'freelancer_receive' => $freelancerGet,
+                'id_order'            => $order->id_order,
+                'metode'              => $request->payment_method,
+                'amount'              => $request->amount,
+                'admin_fee'           => $request->admin_fee,
+                'status'              => 'pending',
+                'escrow_status'       => 'hold',
+                'fee_percent'         => 10.0,
+                'platform_fee'        => $platformFee,
+                'freelancer_receive'  => $freelancerGet,
             ]);
 
-            // 4. Insert escrow — hold dulu sampai order selesai
             Escrow::create([
-                'id_payment'        => $payment->id_payment,
-                'amount'            => $request->amount,
-                'platform_fee'      => $platformFee,
-                'freelancer_amount' => $freelancerGet,
-                'status'            => 'hold',
+                'id_payment'         => $payment->id_payment,
+                'amount'             => $request->amount,
+                'platform_fee'       => $platformFee,
+                'freelancer_amount'  => $freelancerGet,
+                'status'             => 'hold',
             ]);
 
-            // 5. Hit Midtrans Snap
-            // Load relasi client untuk MidtransService
-            $order->setRelation('client', (object)[
+            $order->setRelation('client', (object) [
                 'nama'  => $request->customer['name'],
                 'email' => $request->customer['email'],
                 'no_hp' => $request->customer['phone'] ?? '',
@@ -93,10 +89,9 @@ class PaymentController extends Controller
                 $request->payment_method
             );
 
-            // 6. Update payment dengan data dari Midtrans
-            $payment->gateway_trx_id    = $snap['token'];
+            $payment->gateway_trx_id = $snap['token'];
             $payment->midtrans_order_id = $snap['midtrans_order_id'];
-            $payment->payment_url       = $snap['redirect_url'];
+            $payment->payment_url = $snap['redirect_url'];
             $payment->save();
 
             DB::commit();
@@ -109,15 +104,207 @@ class PaymentController extends Controller
                 'midtrans_order_id' => $snap['midtrans_order_id'],
                 'amount'            => $payment->amount,
             ]);
-
         } catch (\Throwable $e) {
             DB::rollBack();
+
             Log::error('initiatePayment error', [
                 'message' => $e->getMessage(),
                 'client'  => $request->client_id,
             ]);
+
             return response()->json([
                 'message' => 'Gagal membuat transaksi: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function handleNotification(Request $request)
+    {
+        DB::beginTransaction();
+
+        try {
+            $payload = $request->all();
+
+            Log::info('Midtrans notification received', $payload);
+
+            $orderId = (string) ($payload['order_id'] ?? '');
+            $statusCode = (string) ($payload['status_code'] ?? '');
+            $grossAmount = (string) ($payload['gross_amount'] ?? '');
+            $signatureKey = (string) ($payload['signature_key'] ?? '');
+            $transactionStatus = strtolower((string) ($payload['transaction_status'] ?? ''));
+            $fraudStatus = strtolower((string) ($payload['fraud_status'] ?? ''));
+            $paymentType = $payload['payment_type'] ?? null;
+            $transactionId = $payload['transaction_id'] ?? null;
+
+            if (!$orderId || !$statusCode || !$grossAmount || !$signatureKey) {
+                DB::rollBack();
+                return response()->json(['message' => 'Payload not valid'], 400);
+            }
+
+            $serverKey = config('midtrans.server_key');
+            $localSignature = hash(
+                'sha512',
+                $orderId . $statusCode . $grossAmount . $serverKey
+            );
+
+            if ($signatureKey !== $localSignature) {
+                Log::warning('Invalid Midtrans signature', [
+                    'order_id' => $orderId,
+                    'received_signature' => $signatureKey,
+                    'expected_signature' => $localSignature,
+                ]);
+
+                DB::rollBack();
+                return response()->json(['message' => 'Invalid signature'], 403);
+            }
+
+            $payment = Payment::where('midtrans_order_id', $orderId)->first();
+
+            if (!$payment) {
+                DB::rollBack();
+                return response()->json(['message' => 'Payment not found'], 404);
+            }
+
+            $order = Order::where('id_order', $payment->id_order)->first();
+
+            if (!$order) {
+                DB::rollBack();
+                return response()->json(['message' => 'Order not found'], 404);
+            }
+
+            if (!empty($paymentType)) {
+                $payment->metode = $paymentType;
+            }
+
+            if (!empty($transactionId)) {
+                $payment->gateway_trx_id = $transactionId;
+            }
+
+            if ($transactionStatus === 'capture') {
+                if ($fraudStatus === 'challenge') {
+                    $payment->status = 'challenge';
+                    $payment->save();
+
+                    DB::commit();
+
+                    return response()->json([
+                        'message' => 'Payment challenge handled',
+                        'order_id' => $order->id_order,
+                        'payment_status' => $payment->status,
+                        'order_status' => $order->status,
+                    ], 200);
+                }
+
+                $payment->status = 'paid';
+                $payment->escrow_status = 'hold';
+                $payment->tanggal_bayar = now();
+                $payment->save();
+
+                Escrow::updateOrCreate(
+                    ['id_payment' => $payment->id_payment],
+                    [
+                        'amount' => $payment->amount,
+                        'platform_fee' => $payment->platform_fee ?? 0,
+                        'freelancer_amount' => $payment->freelancer_receive ?? 0,
+                        'status' => 'hold',
+                    ]
+                );
+
+                if ($order->status !== 'selesai') {
+                    $order->status = 'diproses';
+                    $order->save();
+                }
+
+                DB::commit();
+
+                return response()->json([
+                    'message' => 'Payment capture success handled',
+                    'order_id' => $order->id_order,
+                    'payment_status' => $payment->status,
+                    'order_status' => $order->status,
+                ], 200);
+            }
+
+            if ($transactionStatus === 'settlement') {
+                $payment->status = 'paid';
+                $payment->escrow_status = 'hold';
+                $payment->tanggal_bayar = now();
+                $payment->save();
+
+                Escrow::updateOrCreate(
+                    ['id_payment' => $payment->id_payment],
+                    [
+                        'amount' => $payment->amount,
+                        'platform_fee' => $payment->platform_fee ?? 0,
+                        'freelancer_amount' => $payment->freelancer_receive ?? 0,
+                        'status' => 'hold',
+                    ]
+                );
+
+                if ($order->status !== 'selesai') {
+                    $order->status = 'diproses';
+                    $order->save();
+                }
+
+                DB::commit();
+
+                return response()->json([
+                    'message' => 'Payment settlement success handled',
+                    'order_id' => $order->id_order,
+                    'payment_status' => $payment->status,
+                    'order_status' => $order->status,
+                ], 200);
+            }
+
+            if ($transactionStatus === 'pending') {
+                if ($payment->status !== 'paid') {
+                    $payment->status = 'pending';
+                    $payment->save();
+                }
+
+                DB::commit();
+
+                return response()->json([
+                    'message' => 'Payment pending handled',
+                    'order_id' => $order->id_order,
+                    'payment_status' => $payment->status,
+                    'order_status' => $order->status,
+                ], 200);
+            }
+
+            if (in_array($transactionStatus, ['cancel', 'deny', 'expire', 'failure'])) {
+                if ($payment->status !== 'paid') {
+                    $payment->status = $transactionStatus === 'expire' ? 'expired' : 'failed';
+                    $payment->save();
+                }
+
+                DB::commit();
+
+                return response()->json([
+                    'message' => 'Payment failed/expired handled',
+                    'order_id' => $order->id_order,
+                    'payment_status' => $payment->status,
+                    'order_status' => $order->status,
+                ], 200);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Notification received but status not handled explicitly',
+                'transaction_status' => $transactionStatus,
+                'order_id' => $order->id_order,
+            ], 200);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            Log::error('Midtrans notification error', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'message' => 'Internal server error'
             ], 500);
         }
     }
@@ -128,7 +315,7 @@ class PaymentController extends Controller
             'id_order' => 'required|integer|exists:orders,id_order',
         ]);
 
-        $order   = Order::with('payment')->findOrFail($request->id_order);
+        $order = Order::with('payment')->findOrFail($request->id_order);
         $payment = $order->payment;
 
         if (!$payment || $payment->status !== 'paid') {
@@ -142,14 +329,14 @@ class PaymentController extends Controller
         DB::transaction(function () use ($order, $payment, $feeService, $walletService) {
             $freelancer = User::findOrFail($order->id_freelancer);
             $baseAmount = $payment->amount - ($payment->admin_fee ?? 2500);
-            $fee        = $feeService->calculate($baseAmount, $freelancer->joined_at);
+            $fee = $feeService->calculate($baseAmount, $freelancer->joined_at);
 
             $escrow = Escrow::where('id_payment', $payment->id_payment)->first();
             if ($escrow) {
-                $escrow->platform_fee      = $fee['platform_fee'];
+                $escrow->platform_fee = $fee['platform_fee'];
                 $escrow->freelancer_amount = $fee['freelancer_amount'];
-                $escrow->status            = 'released';
-                $escrow->released_at       = now();
+                $escrow->status = 'released';
+                $escrow->released_at = now();
                 $escrow->save();
             }
 
@@ -163,17 +350,17 @@ class PaymentController extends Controller
             $order->status = 'selesai';
             $order->save();
 
-            $payment->escrow_status      = 'released';
-            $payment->fee_percent        = $fee['fee_percent'] * 100;
-            $payment->platform_fee       = $fee['platform_fee'];
+            $payment->escrow_status = 'released';
+            $payment->fee_percent = $fee['fee_percent'] * 100;
+            $payment->platform_fee = $fee['platform_fee'];
             $payment->freelancer_receive = $fee['freelancer_amount'];
             $payment->save();
         });
 
         return response()->json([
-            'message'            => 'Order selesai, dana berhasil dicairkan ke freelancer',
+            'message' => 'Order selesai, dana berhasil dicairkan ke freelancer',
             'freelancer_receive' => $payment->fresh()->freelancer_receive,
-            'platform_fee'       => $payment->fresh()->platform_fee,
+            'platform_fee' => $payment->fresh()->platform_fee,
         ]);
     }
 

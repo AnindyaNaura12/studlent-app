@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../controllers/booking_controller.dart';
-import '../../models/booking_model.dart';
+import '../../controllers/my_orders_controller.dart';
+import '../../models/order_model.dart';
 import 'booking_detail_page.dart';
 
 class BookingsPage extends StatefulWidget {
@@ -11,24 +11,155 @@ class BookingsPage extends StatefulWidget {
 }
 
 class _BookingsPageState extends State<BookingsPage> {
-  final _controller = BookingController();
-  late Future<List<Booking>> _bookingsFuture;
+  final controller = MyOrdersController();
+  late Future<List<OrderModel>> _ordersFuture;
+  String selectedFilter = 'All';
 
   @override
   void initState() {
     super.initState();
-    _refresh();
+    _ordersFuture = controller.fetchUserOrders();
   }
 
-  void _refresh() {
+  Future<void> _refresh() async {
     setState(() {
-      _bookingsFuture = _controller.fetchBookings();
+      _ordersFuture = controller.fetchUserOrders();
     });
+  }
+
+  List<OrderModel> _filteredOrders(List<OrderModel> orders) {
+    if (selectedFilter == 'All') return orders;
+
+    return orders.where((o) {
+      final status = _uiStatus(o.status);
+
+      if (selectedFilter == 'Active') {
+        return status == 'Pending' ||
+            status == 'Diproses' ||
+            status == 'Hasil Dikirim' ||
+            status == 'Revisi';
+      }
+
+      if (selectedFilter == 'Done') {
+        return status == 'Done';
+      }
+
+      return true;
+    }).toList();
+  }
+
+  String _uiStatus(String rawStatus) {
+    switch (rawStatus.trim().toLowerCase()) {
+      case 'pending':
+      case 'menunggu_pembayaran':
+      case 'menunggu_verifikasi':
+        return 'Pending';
+
+      case 'diproses':
+      case 'paid':
+      case 'in_progress':
+        return 'Diproses';
+
+      case 'hasil_dikirim':
+        return 'Hasil Dikirim';
+
+      case 'revisi':
+        return 'Revisi';
+
+      case 'done':
+      case 'selesai':
+        return 'Done';
+
+      case 'dibatalkan':
+      case 'pembayaran_gagal':
+      case 'failed':
+      case 'expired':
+        return 'Cancelled';
+
+      default:
+        return 'Pending';
+    }
+  }
+
+  String _formatOrderDate(DateTime? value) {
+    if (value == null) return '-';
+
+    final dt = value.toLocal();
+    final day = dt.day.toString().padLeft(2, '0');
+    final month = dt.month.toString().padLeft(2, '0');
+    final year = dt.year.toString();
+
+    return '$day/$month/$year';
+  }
+
+  Widget _buildOrderImage(OrderModel b, double Function(double) s) {
+    final image = b.serviceImage;
+
+    if (image.isEmpty) {
+      return Container(
+        width: s(60),
+        height: s(60),
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(s(10)),
+        ),
+        child: Icon(Icons.image_not_supported, color: Colors.grey, size: s(24)),
+      );
+    }
+
+    if (image.startsWith('http')) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(s(10)),
+        child: Image.network(
+          image,
+          width: s(60),
+          height: s(60),
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Container(
+            width: s(60),
+            height: s(60),
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              borderRadius: BorderRadius.circular(s(10)),
+            ),
+            child: Icon(
+              Icons.image_not_supported,
+              color: Colors.grey,
+              size: s(24),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(s(10)),
+      child: Image.asset(
+        image,
+        width: s(60),
+        height: s(60),
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Container(
+          width: s(60),
+          height: s(60),
+          decoration: BoxDecoration(
+            color: Colors.grey[200],
+            borderRadius: BorderRadius.circular(s(10)),
+          ),
+          child: Icon(
+            Icons.image_not_supported,
+            color: Colors.grey,
+            size: s(24),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
+
     double s(double size) =>
         (size * (screenWidth / 375)).clamp(size * 0.75, size * 1.3);
 
@@ -37,41 +168,30 @@ class _BookingsPageState extends State<BookingsPage> {
       body: SafeArea(
         child: Column(
           children: [
-            // HEADER
             Padding(
               padding: EdgeInsets.fromLTRB(s(20), s(16), s(20), s(4)),
               child: Text(
-                "My Orders",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: s(20),
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
+                'My Orders',
+                style: TextStyle(fontSize: s(20), fontWeight: FontWeight.bold),
               ),
             ),
-
-            // FILTER
             Padding(
               padding: EdgeInsets.symmetric(horizontal: s(16), vertical: s(6)),
               child: Row(
                 children: [
-                  _filterBtn("All", s),
+                  _filter("All", s),
                   SizedBox(width: s(8)),
-                  _filterBtn("Active", s),
+                  _filter("Active", s),
                   SizedBox(width: s(8)),
-                  _filterBtn("Done", s),
+                  _filter("Done", s),
                 ],
               ),
             ),
             SizedBox(height: s(6)),
-
-            // LIST
             Expanded(
-              child: FutureBuilder<List<Booking>>(
-                future: _bookingsFuture,
+              child: FutureBuilder<List<OrderModel>>(
+                future: _ordersFuture,
                 builder: (context, snapshot) {
-                  // Loading
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(
                       child: CircularProgressIndicator(
@@ -80,38 +200,39 @@ class _BookingsPageState extends State<BookingsPage> {
                     );
                   }
 
-                  // Error
                   if (snapshot.hasError) {
                     return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            Icons.error_outline,
-                            color: Colors.red,
-                            size: 48,
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            '${snapshot.error}',
-                            textAlign: TextAlign.center,
-                          ),
-                          TextButton(
-                            onPressed: _refresh,
-                            child: const Text('Coba Lagi'),
-                          ),
-                        ],
+                      child: Padding(
+                        padding: EdgeInsets.all(s(20)),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.error_outline,
+                              color: Colors.red,
+                              size: 48,
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              '${snapshot.error}',
+                              textAlign: TextAlign.center,
+                            ),
+                            TextButton(
+                              onPressed: _refresh,
+                              child: const Text('Coba Lagi'),
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   }
 
-                  final all = snapshot.data ?? [];
-                  final filtered = _controller.getFiltered(all);
+                  final allOrders = snapshot.data ?? [];
+                  final bookings = _filteredOrders(allOrders);
 
-                  // Empty
-                  if (filtered.isEmpty) {
+                  if (bookings.isEmpty) {
                     return RefreshIndicator(
-                      onRefresh: () async => _refresh(),
+                      onRefresh: _refresh,
                       color: const Color(0xFFFFA726),
                       child: ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
@@ -134,14 +255,15 @@ class _BookingsPageState extends State<BookingsPage> {
                   }
 
                   return RefreshIndicator(
-                    onRefresh: () async => _refresh(),
+                    onRefresh: _refresh,
                     color: const Color(0xFFFFA726),
                     child: ListView.builder(
-                      physics: const AlwaysScrollableScrollPhysics(),
+                      physics: const ClampingScrollPhysics(),
                       padding: EdgeInsets.fromLTRB(s(16), s(4), s(16), s(16)),
-                      itemCount: filtered.length,
-                      itemBuilder: (context, index) =>
-                          _bookingCard(filtered[index], s),
+                      itemCount: bookings.length,
+                      itemBuilder: (context, index) {
+                        return _bookingCard(bookings[index], s);
+                      },
                     ),
                   );
                 },
@@ -153,13 +275,15 @@ class _BookingsPageState extends State<BookingsPage> {
     );
   }
 
-  Widget _filterBtn(String text, double Function(double) s) {
-    final isActive = _controller.selectedFilter == text;
+  Widget _filter(String text, double Function(double) s) {
+    final isActive = selectedFilter == text;
+
     return Expanded(
       child: GestureDetector(
         onTap: () {
-          setState(() => _controller.setFilter(text));
-          _refresh();
+          setState(() {
+            selectedFilter = text;
+          });
         },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
@@ -188,9 +312,7 @@ class _BookingsPageState extends State<BookingsPage> {
     );
   }
 
-  Widget _bookingCard(Booking b, double Function(double) s) {
-    final isNetworkImage = b.image.startsWith('http');
-
+  Widget _bookingCard(OrderModel b, double Function(double) s) {
     return Container(
       margin: EdgeInsets.only(bottom: s(12)),
       padding: EdgeInsets.all(s(12)),
@@ -208,24 +330,11 @@ class _BookingsPageState extends State<BookingsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // TOP ROW
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Avatar freelancer
-              CircleAvatar(
-                radius: s(28),
-                backgroundColor: Colors.grey.shade200,
-                backgroundImage: isNetworkImage
-                    ? NetworkImage(b.image) as ImageProvider
-                    : null,
-                child: !isNetworkImage
-                    ? Icon(Icons.person, color: Colors.grey, size: s(24))
-                    : null,
-              ),
+              _buildOrderImage(b, s),
               SizedBox(width: s(10)),
-
-              // Info
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -241,12 +350,12 @@ class _BookingsPageState extends State<BookingsPage> {
                       ),
                     ),
                     Text(
-                      b.providerName,
+                      b.freelancerName,
                       style: TextStyle(color: Colors.grey, fontSize: s(11)),
                     ),
                     SizedBox(height: s(4)),
                     Text(
-                      'Rp ${b.total}',
+                      b.price,
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: s(12),
@@ -257,28 +366,24 @@ class _BookingsPageState extends State<BookingsPage> {
                 ),
               ),
               SizedBox(width: s(6)),
-
-              // Status badge
               Container(
                 padding: EdgeInsets.symmetric(horizontal: s(8), vertical: s(5)),
                 decoration: BoxDecoration(
-                  color: _controller.statusColor(b.status).withOpacity(0.15),
+                  color: _statusColor(_uiStatus(b.status)),
                   borderRadius: BorderRadius.circular(s(18)),
                 ),
                 child: Text(
-                  _controller.formatStatus(b.status),
+                  _uiStatus(b.status),
                   style: TextStyle(
                     fontSize: s(10),
                     fontWeight: FontWeight.bold,
-                    color: _controller.statusColor(b.status),
+                    color: _statusTextColor(_uiStatus(b.status)),
                   ),
                 ),
               ),
             ],
           ),
           SizedBox(height: s(12)),
-
-          // BOTTOM ROW
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -286,11 +391,11 @@ class _BookingsPageState extends State<BookingsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Order Date',
+                    "Order Date",
                     style: TextStyle(fontSize: s(9), color: Colors.grey),
                   ),
                   Text(
-                    b.orderDate,
+                    _formatOrderDate(b.createdAt),
                     style: TextStyle(fontSize: s(11), color: Colors.black87),
                   ),
                 ],
@@ -299,7 +404,7 @@ class _BookingsPageState extends State<BookingsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Deadline',
+                    "Deadline",
                     style: TextStyle(fontSize: s(9), color: Colors.grey),
                   ),
                   Text(
@@ -309,13 +414,17 @@ class _BookingsPageState extends State<BookingsPage> {
                 ],
               ),
               GestureDetector(
-                onTap: () {
-                  Navigator.push(
+                onTap: () async {
+                  final result = await Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (_) => BookingDetailPage(booking: b),
                     ),
                   );
+
+                  if (result == true) {
+                    await _refresh();
+                  }
                 },
                 child: Container(
                   padding: EdgeInsets.symmetric(
@@ -327,7 +436,7 @@ class _BookingsPageState extends State<BookingsPage> {
                     borderRadius: BorderRadius.circular(s(18)),
                   ),
                   child: Text(
-                    'Details',
+                    "Details",
                     style: TextStyle(
                       fontSize: s(11),
                       fontWeight: FontWeight.bold,
@@ -343,29 +452,39 @@ class _BookingsPageState extends State<BookingsPage> {
     );
   }
 
-  // ================= STATUS COLOR =================
   Color _statusColor(String status) {
     switch (status) {
       case "Done":
         return Colors.green.withOpacity(0.15);
-      case "In Progress":
+      case "Diproses":
         return Colors.blue.withOpacity(0.15);
+      case "Hasil Dikirim":
+        return Colors.purple.withOpacity(0.15);
+      case "Revisi":
+        return Colors.deepOrange.withOpacity(0.15);
       case "Pending":
         return Colors.orange.withOpacity(0.15);
+      case "Cancelled":
+        return Colors.red.withOpacity(0.15);
       default:
         return Colors.grey.withOpacity(0.15);
     }
   }
 
-  // ================= STATUS TEXT COLOR =================
   Color _statusTextColor(String status) {
     switch (status) {
       case "Done":
         return Colors.green[700]!;
-      case "In Progress":
+      case "Diproses":
         return Colors.blue[700]!;
+      case "Hasil Dikirim":
+        return Colors.purple[700]!;
+      case "Revisi":
+        return Colors.deepOrange[700]!;
       case "Pending":
         return Colors.orange[800]!;
+      case "Cancelled":
+        return Colors.red[700]!;
       default:
         return Colors.grey[700]!;
     }

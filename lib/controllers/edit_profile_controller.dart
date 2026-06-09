@@ -12,14 +12,14 @@ class EditProfileController {
   late TextEditingController skillInputController;
 
   List<String> skills = [];
-
   List<Map<String, dynamic>> certificates = [];
 
   EditProfileController({FreelancerProfileModel? initialModel})
-      : model = initialModel ?? FreelancerProfileModel() {
+    : model = initialModel ?? FreelancerProfileModel() {
     nameController = TextEditingController(text: model.name);
-    professionalStatusController =
-        TextEditingController(text: model.professionalStatus);
+    professionalStatusController = TextEditingController(
+      text: model.professionalStatus,
+    );
     aboutMeController = TextEditingController(text: model.aboutMe);
     skillInputController = TextEditingController();
     skills = List<String>.from(model.skills);
@@ -29,11 +29,12 @@ class EditProfileController {
     try {
       final authUser = supabase.auth.currentUser;
       if (authUser == null) {
-        debugPrint('[EditProfileController] loadFromSupabase: user belum login');
+        debugPrint(
+          '[EditProfileController] loadFromSupabase: user belum login',
+        );
         return;
       }
 
-      // 1. Ambil data user
       final user = await supabase
           .from('users')
           .select('id_user, nama')
@@ -43,7 +44,6 @@ class EditProfileController {
       final idUser = user['id_user'] as int;
       nameController.text = user['nama'] ?? '';
 
-      // 2. Ambil freelancer_profiles
       final profiles = await supabase
           .from('freelancer_profiles')
           .select()
@@ -52,28 +52,28 @@ class EditProfileController {
       if ((profiles as List).isNotEmpty) {
         final profile = profiles[0];
         professionalStatusController.text =
-            profile['professional_status'] ?? '';
-        aboutMeController.text = profile['bio'] ?? '';
+            (profile['professional_status'] ?? '').toString();
+        aboutMeController.text = (profile['bio'] ?? profile['about_me'] ?? '')
+            .toString();
       }
 
-      // 3. Ambil skills
       final skillsResult = await supabase
           .from('freelancer_skills')
           .select('skill_name')
           .eq('id_user', idUser);
 
       skills = (skillsResult as List)
-          .map((s) => s['skill_name'] as String)
+          .map((s) => (s['skill_name'] ?? '').toString())
+          .where((s) => s.trim().isNotEmpty)
           .toList();
 
-      // 4. Ambil sertifikat yang sudah ada di DB
       final certsResult = await supabase
           .from('freelancer_certificates')
           .select('id_certificate, file_url, file_name')
           .eq('id_user', idUser)
           .order('created_at');
 
-      certificates = (certsResult as List).map((c) {
+      certificates = (certsResult as List).map<Map<String, dynamic>>((c) {
         return {
           'id_certificate': c['id_certificate'],
           'file_url': c['file_url'] ?? '',
@@ -82,13 +82,19 @@ class EditProfileController {
         };
       }).toList();
 
-      debugPrint('[EditProfileController] Load berhasil: '
-          '${skills.length} skills, ${certificates.length} sertifikat');
+      debugPrint(
+        '[EditProfileController] Load berhasil: '
+        '${skills.length} skills, ${certificates.length} sertifikat',
+      );
     } on PostgrestException catch (e) {
-      debugPrint('[EditProfileController] loadFromSupabase PostgrestException: '
-          'code=${e.code} | message=${e.message} | hint=${e.hint}');
-      debugPrint('  → Kemungkinan RLS memblokir SELECT. '
-          'Pastikan policy SELECT sudah aktif untuk tabel terkait.');
+      debugPrint(
+        '[EditProfileController] loadFromSupabase PostgrestException: '
+        'code=${e.code} | message=${e.message} | hint=${e.hint}',
+      );
+      debugPrint(
+        '  → Kemungkinan RLS memblokir SELECT. '
+        'Pastikan policy SELECT sudah aktif untuk tabel terkait.',
+      );
     } catch (e, stack) {
       debugPrint('[EditProfileController] loadFromSupabase error: $e');
       debugPrint(stack.toString());
@@ -98,7 +104,7 @@ class EditProfileController {
   Future<bool> saveToSupabase() async {
     try {
       final authUser = supabase.auth.currentUser;
-      if (authUser == null) {
+      if (authUser == null || authUser.email == null) {
         debugPrint('[EditProfileController] saveToSupabase: user belum login');
         return false;
       }
@@ -112,82 +118,88 @@ class EditProfileController {
       final idUser = user['id_user'] as int;
       final now = DateTime.now().toIso8601String();
 
-      // ── STEP 1: Update tabel users (hanya kolom yang ada) ──
-      await supabase.from('users').update({
-        'nama': nameController.text.trim(),
-        'updated_at': now,
-      }).eq('id_user', idUser);
+      await supabase
+          .from('users')
+          .update({'nama': nameController.text.trim(), 'updated_at': now})
+          .eq('id_user', idUser);
 
       debugPrint('[EditProfileController] Step 1 ✓ users updated');
 
-      // ── STEP 2: Upsert freelancer_profiles ──
-      await supabase.from('freelancer_profiles').upsert(
-        {
-          'id_user': idUser,
-          'professional_status': professionalStatusController.text.trim(),
-          'bio': aboutMeController.text.trim(),
-          'updated_at': now,
-        },
-        onConflict: 'id_user',
+      await supabase.from('freelancer_profiles').upsert({
+        'id_user': idUser,
+        'professional_status': professionalStatusController.text.trim(),
+        'bio': aboutMeController.text.trim(),
+        'updated_at': now,
+      }, onConflict: 'id_user');
+
+      debugPrint(
+        '[EditProfileController] Step 2 ✓ freelancer_profiles upserted',
       );
 
-      debugPrint('[EditProfileController] Step 2 ✓ freelancer_profiles upserted');
-
-      // ── STEP 3: Sync skills (delete lama → insert baru) ──
-      await supabase
-          .from('freelancer_skills')
-          .delete()
-          .eq('id_user', idUser);
+      await supabase.from('freelancer_skills').delete().eq('id_user', idUser);
 
       if (skills.isNotEmpty) {
-        final skillRows = skills.map((skill) => {
-          'id_user': idUser,
-          'skill_name': skill.trim(),
-          'created_at': now,
-          'updated_at': now,
-        }).toList();
+        final skillRows = skills
+            .map(
+              (skill) => {
+                'id_user': idUser,
+                'skill_name': skill.trim(),
+                'created_at': now,
+                'updated_at': now,
+              },
+            )
+            .toList();
 
         await supabase.from('freelancer_skills').insert(skillRows);
       }
 
-      debugPrint('[EditProfileController] Step 3 ✓ '
-          '${skills.length} skills synced');
+      debugPrint(
+        '[EditProfileController] Step 3 ✓ ${skills.length} skills synced',
+      );
 
-      // ── STEP 4: Simpan sertifikat baru ──
       final newCerts = certificates
           .where((c) => c['is_existing'] != true)
           .toList();
 
       if (newCerts.isNotEmpty) {
-        final certRows = newCerts.map((c) => {
-          'id_user': idUser,
-          'file_url': c['file_url'] ?? '',
-          'file_name': c['file_name'] ?? '',
-          'created_at': now,
-          'updated_at': now,
-        }).toList();
+        final certRows = newCerts
+            .map(
+              (c) => {
+                'id_user': idUser,
+                'file_url': c['file_url'] ?? '',
+                'file_name': c['file_name'] ?? '',
+                'created_at': now,
+                'updated_at': now,
+              },
+            )
+            .toList();
 
         await supabase.from('freelancer_certificates').insert(certRows);
-        debugPrint('[EditProfileController] Step 4 ✓ '
-            '${newCerts.length} sertifikat baru disimpan');
-      } else {
-        debugPrint('[EditProfileController] Step 4 ✓ '
-            'Tidak ada sertifikat baru untuk disimpan');
-      }
 
-      // NOTE: sertifikat di-handle langsung di page via PortfolioController
-      // tidak perlu save ulang di sini karena sudah langsung insert/delete
+        for (final cert in newCerts) {
+          cert['is_existing'] = true;
+        }
+
+        debugPrint(
+          '[EditProfileController] Step 4 ✓ '
+          '${newCerts.length} sertifikat baru disimpan',
+        );
+      } else {
+        debugPrint(
+          '[EditProfileController] Step 4 ✓ '
+          'Tidak ada sertifikat baru untuk disimpan',
+        );
+      }
 
       return true;
     } on PostgrestException catch (e) {
-      // Error spesifik dari Supabase/PostgREST
       debugPrint('══════════════════════════════════════════');
       debugPrint('[EditProfileController] ⛔ SUPABASE ERROR saat save:');
       debugPrint('  code    : ${e.code}');
       debugPrint('  message : ${e.message}');
       debugPrint('  hint    : ${e.hint}');
       debugPrint('  details : ${e.details}');
-      if (e.code == '42501' || (e.message?.contains('policy') ?? false)) {
+      if (e.code == '42501' || ((e.message).contains('policy'))) {
         debugPrint('  → ⚠️  KEMUNGKINAN MASALAH RLS (Row Level Security)!');
         debugPrint('  → Cek Supabase Dashboard > Authentication > Policies');
         debugPrint('  → Pastikan policy UPDATE/INSERT/DELETE sudah aktif');
@@ -197,13 +209,14 @@ class EditProfileController {
       debugPrint('══════════════════════════════════════════');
       return false;
     } catch (e, stack) {
-      debugPrint('[EditProfileController] ⛔ saveToSupabase unexpected error: $e');
+      debugPrint(
+        '[EditProfileController] ⛔ saveToSupabase unexpected error: $e',
+      );
       debugPrint(stack.toString());
       return false;
     }
   }
 
-  // ── Skill helpers ─────────────────────────────────────────
   void addSkill(String skill, VoidCallback refresh) {
     final trimmed = skill.trim();
     if (trimmed.isNotEmpty && !skills.contains(trimmed)) {
@@ -218,7 +231,6 @@ class EditProfileController {
     refresh();
   }
 
-  // ── Certificate helpers ───────────────────────────────────
   void addCertificate({
     required String fileUrl,
     required String fileName,
@@ -241,10 +253,14 @@ class EditProfileController {
             .from('freelancer_certificates')
             .delete()
             .eq('id_certificate', cert['id_certificate']);
-        debugPrint('[EditProfileController] Sertifikat id=${cert['id_certificate']} dihapus dari DB');
+        debugPrint(
+          '[EditProfileController] Sertifikat id=${cert['id_certificate']} dihapus dari DB',
+        );
       } on PostgrestException catch (e) {
-        debugPrint('[EditProfileController] ⛔ Gagal hapus sertifikat dari DB: '
-            'code=${e.code} | ${e.message}');
+        debugPrint(
+          '[EditProfileController] ⛔ Gagal hapus sertifikat dari DB: '
+          'code=${e.code} | ${e.message}',
+        );
         if (e.code == '42501') {
           debugPrint('  → ⚠️  RLS memblokir DELETE di freelancer_certificates');
         }
@@ -257,7 +273,6 @@ class EditProfileController {
     refresh();
   }
 
-  // ── Validation ────────────────────────────────────────────
   String? validate() {
     if (nameController.text.trim().isEmpty) {
       return 'Nama tidak boleh kosong.';
