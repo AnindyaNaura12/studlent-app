@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/order_model.dart';
+import 'dart:io';
 
 class MyOrdersController {
   final _supabase = Supabase.instance.client;
@@ -257,5 +258,120 @@ class MyOrdersController {
       default:
         return status;
     }
+  }
+
+  Future<int> requestRevision({
+    required int orderId,
+    required int currentRevisionCount,
+  }) async {
+    const int maxRevision = 3;
+
+    if (currentRevisionCount >= maxRevision) {
+      throw Exception('Batas maksimal revisi ($maxRevision kali) sudah tercapai.');
+    }
+
+    final newCount = currentRevisionCount + 1;
+
+    await _supabase
+        .from('orders')
+        .update({
+          'revision_count': newCount,
+          'status': 'revisi',
+          'updated_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id_order', orderId);
+
+    return newCount;
+  }
+
+  Future<String> submitResultWithRevisionCheck({
+  required int orderId,
+  required String resultFileUrl,
+  required int currentRevisionCount,
+}) async {
+  const int maxRevision = 3;
+
+  // Jika ini adalah pengiriman setelah revisi ke-3, langsung selesai
+  final String newStatus =
+      currentRevisionCount >= maxRevision ? 'selesai' : 'hasil_dikirim';
+
+  // Insert ke tabel deliverables
+  await _supabase.from('deliverables').insert({
+    'id_order': orderId,
+    'file_url': resultFileUrl,
+    'catatan': newStatus == 'selesai'
+        ? 'Hasil kerja final (revisi ke-$currentRevisionCount)'
+        : 'Hasil kerja freelancer',
+  });
+
+  // Update status order
+  await _supabase
+      .from('orders')
+      .update({
+        'status': newStatus,
+        'result_file_url': resultFileUrl,
+        'updated_at': DateTime.now().toIso8601String(),
+      })
+      .eq('id_order', orderId);
+
+  return newStatus;
+  }
+  
+  Future<void> submitRequestRevision({
+    required int orderId,
+    required int currentRevisionCount,
+    required String revisionNote,
+    required List<File> attachmentFiles,
+    required List<String> attachmentNames,
+  }) async {
+    const int maxRevision = 3;
+
+    if (currentRevisionCount >= maxRevision) {
+      throw Exception(
+        'Batas maksimal revisi ($maxRevision kali) sudah tercapai.',
+      );
+    }
+
+    final newCount = currentRevisionCount + 1;
+
+    String? uploadedFileUrl;
+    if (attachmentFiles.isNotEmpty) {
+      final firstFile = attachmentFiles.first;
+      final firstName = attachmentNames.isNotEmpty
+          ? attachmentNames.first
+          : 'revision_file';
+      final uniqueName =
+          '${DateTime.now().millisecondsSinceEpoch}_$firstName';
+      final storagePath = 'revision_files/$orderId/$uniqueName';
+
+      final bytes = await firstFile.readAsBytes();
+
+      await _supabase.storage
+          .from('deliverables')
+          .uploadBinary(
+            storagePath,
+            bytes,
+            fileOptions: const FileOptions(
+              contentType: 'application/octet-stream',
+              upsert: false,
+            ),
+          );
+
+      uploadedFileUrl = _supabase.storage
+          .from('deliverables')
+          .getPublicUrl(storagePath);
+    }
+
+    await _supabase
+        .from('orders')
+        .update({
+          'revision_count': newCount,
+          'status': 'revisi',
+          'revision_note':
+              revisionNote.trim().isEmpty ? null : revisionNote.trim(),
+          'revision_file_url': uploadedFileUrl,
+          'updated_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id_order', orderId);
   }
 }

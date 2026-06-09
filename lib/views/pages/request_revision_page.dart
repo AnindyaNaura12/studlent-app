@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/order_model.dart';
+import '../../controllers/my_orders_controller.dart';
 
 class _AttachmentItem {
   final File file;
@@ -33,6 +34,7 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
   final TextEditingController _revisionController = TextEditingController();
   final List<_AttachmentItem> _attachments = [];
   bool _isLoading = false;
+  final _ordersController = MyOrdersController();
 
   void _showSnackBar(String message, {Color? bgColor}) {
     if (!mounted) return;
@@ -159,30 +161,44 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
   }
 
   Future<void> _submitRevision() async {
-    final String revisionText = _revisionController.text.trim();
+  final String revisionText = _revisionController.text.trim();
 
-    if (revisionText.isEmpty) {
-      _showSnackBar("Mohon deskripsikan permintaan revisi Anda.");
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    try {
-      await Future.delayed(const Duration(seconds: 2));
-
-      if (!mounted) return;
-      Navigator.pop(context, true);
-    } catch (e) {
-      if (!mounted) return;
-      _showSnackBar(
-        "Gagal mengirim revisi. Coba lagi.",
-        bgColor: Colors.red[600],
-      );
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
+  if (revisionText.isEmpty) {
+    _showSnackBar("Mohon deskripsikan permintaan revisi Anda.");
+    return;
   }
+
+  setState(() => _isLoading = true);
+
+  try {
+    final orderId = int.tryParse(widget.booking.id) ?? 0;
+    final currentCount = widget.booking.revisionCount;
+
+    // Pisahkan file dan gambar dari _attachments
+    final List<File> files = _attachments.map((a) => a.file).toList();
+    final List<String> names = _attachments.map((a) => a.name).toList();
+
+    await _ordersController.submitRequestRevision(
+      orderId: orderId,
+      currentRevisionCount: currentCount,
+      revisionNote: revisionText,
+      attachmentFiles: files,
+      attachmentNames: names,
+    );
+
+    if (!mounted) return;
+    _showSnackBar('Revisi ke-${currentCount + 1} berhasil diajukan.');
+    Navigator.pop(context, true);
+  } catch (e) {
+    if (!mounted) return;
+    _showSnackBar(
+      "Gagal mengirim revisi: ${e.toString()}",
+      bgColor: Colors.red[600],
+    );
+  } finally {
+    if (mounted) setState(() => _isLoading = false);
+  }
+}
 
   Widget _buildFreelancerAvatar(double Function(double) s) {
     final avatar = widget.booking.freelancerAvatar;
