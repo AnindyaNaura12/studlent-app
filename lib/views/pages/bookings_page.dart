@@ -34,11 +34,16 @@ class _BookingsPageState extends State<BookingsPage> {
       final status = _uiStatus(o.status);
 
       if (selectedFilter == 'Active') {
-        return status == 'Pending' || status == 'In Progress';
+        return status == 'Pending' ||
+            status == 'Diproses' ||
+            status == 'Hasil Dikirim' ||
+            status == 'Revisi';
       }
+
       if (selectedFilter == 'Done') {
         return status == 'Done';
       }
+
       return true;
     }).toList();
   }
@@ -49,18 +54,28 @@ class _BookingsPageState extends State<BookingsPage> {
       case 'menunggu_pembayaran':
       case 'menunggu_verifikasi':
         return 'Pending';
+
       case 'diproses':
-      case 'hasil_dikirim':
-      case 'revisi':
       case 'paid':
-        return 'In Progress';
+      case 'in_progress':
+        return 'Diproses';
+
+      case 'hasil_dikirim':
+        return 'Hasil Dikirim';
+
+      case 'revisi':
+        return 'Revisi';
+
+      case 'done':
       case 'selesai':
         return 'Done';
+
       case 'dibatalkan':
       case 'pembayaran_gagal':
       case 'failed':
       case 'expired':
         return 'Cancelled';
+
       default:
         return 'Pending';
     }
@@ -399,13 +414,17 @@ class _BookingsPageState extends State<BookingsPage> {
                 ],
               ),
               GestureDetector(
-                onTap: () {
-                  Navigator.push(
+                onTap: () async {
+                  final result = await Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (_) => BookingDetailPage(booking: b),
                     ),
                   );
+
+                  if (result == true) {
+                    await _refresh();
+                  }
                 },
                 child: Container(
                   padding: EdgeInsets.symmetric(
@@ -437,10 +456,16 @@ class _BookingsPageState extends State<BookingsPage> {
     switch (status) {
       case "Done":
         return Colors.green.withOpacity(0.15);
-      case "In Progress":
+      case "Diproses":
         return Colors.blue.withOpacity(0.15);
+      case "Hasil Dikirim":
+        return Colors.purple.withOpacity(0.15);
+      case "Revisi":
+        return Colors.deepOrange.withOpacity(0.15);
       case "Pending":
         return Colors.orange.withOpacity(0.15);
+      case "Cancelled":
+        return Colors.red.withOpacity(0.15);
       default:
         return Colors.grey.withOpacity(0.15);
     }
@@ -450,10 +475,16 @@ class _BookingsPageState extends State<BookingsPage> {
     switch (status) {
       case "Done":
         return Colors.green[700]!;
-      case "In Progress":
+      case "Diproses":
         return Colors.blue[700]!;
+      case "Hasil Dikirim":
+        return Colors.purple[700]!;
+      case "Revisi":
+        return Colors.deepOrange[700]!;
       case "Pending":
         return Colors.orange[800]!;
+      case "Cancelled":
+        return Colors.red[700]!;
       default:
         return Colors.grey[700]!;
     }

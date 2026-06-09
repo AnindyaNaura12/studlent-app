@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class OrderModel {
   final String id;
   final int freelancerId;
+  final int serviceId;
   final String freelancerName;
   final String freelancerAvatar;
   final String serviceName;
@@ -21,6 +22,7 @@ class OrderModel {
   OrderModel({
     required this.id,
     required this.freelancerId,
+    required this.serviceId,
     required this.freelancerName,
     required this.freelancerAvatar,
     required this.serviceName,
@@ -39,6 +41,69 @@ class OrderModel {
 
   double get packagePrice => amount;
   double get totalAmount => amount + adminFee;
+
+  String get displayStatus {
+    switch (status.trim().toLowerCase()) {
+      case 'menunggu_pembayaran':
+        return 'Menunggu Pembayaran';
+      case 'paid':
+        return 'Paid';
+      case 'pending':
+        return 'Pembayaran Berhasil';
+      case 'diproses':
+        return 'Diproses';
+      case 'hasil_dikirim':
+        return 'Done';
+      case 'revisi':
+        return 'Revisi';
+      case 'selesai':
+        return 'Selesai';
+      case 'dibatalkan':
+        return 'Dibatalkan';
+      default:
+        return status;
+    }
+  }
+
+  OrderModel copyWith({
+    String? id,
+    int? freelancerId,
+    int? serviceId,
+    String? freelancerName,
+    String? freelancerAvatar,
+    String? serviceName,
+    String? serviceImage,
+    String? price,
+    String? deadline,
+    String? status,
+    String? note,
+    double? amount,
+    double? adminFee,
+    String? paymentStatus,
+    String? paymentMethod,
+    DateTime? createdAt,
+    String? fileUrl,
+  }) {
+    return OrderModel(
+      id: id ?? this.id,
+      freelancerId: freelancerId ?? this.freelancerId,
+      serviceId: serviceId ?? this.serviceId,
+      freelancerName: freelancerName ?? this.freelancerName,
+      freelancerAvatar: freelancerAvatar ?? this.freelancerAvatar,
+      serviceName: serviceName ?? this.serviceName,
+      serviceImage: serviceImage ?? this.serviceImage,
+      price: price ?? this.price,
+      deadline: deadline ?? this.deadline,
+      status: status ?? this.status,
+      note: note ?? this.note,
+      amount: amount ?? this.amount,
+      adminFee: adminFee ?? this.adminFee,
+      paymentStatus: paymentStatus ?? this.paymentStatus,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
+      createdAt: createdAt ?? this.createdAt,
+      fileUrl: fileUrl ?? this.fileUrl,
+    );
+  }
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
     final freelancerRaw = json['freelancer'];
@@ -80,9 +145,17 @@ class OrderModel {
     final double amount = (payment['amount'] as num?)?.toDouble() ?? 0;
     final double adminFee = (payment['admin_fee'] as num?)?.toDouble() ?? 2500;
 
+    final String resultFileUrl =
+        json['result_file_url']?.toString() ??
+        json['file_url']?.toString() ??
+        json['completed_file_url']?.toString() ??
+        json['deliverable_file_url']?.toString() ??
+        '';
+
     return OrderModel(
       id: json['id_order']?.toString() ?? '',
       freelancerId: (json['id_freelancer'] as num?)?.toInt() ?? 0,
+      serviceId: (json['id_service'] as num?)?.toInt() ?? 0,
       freelancerName: freelancer['nama']?.toString() ?? 'Unknown Freelancer',
       freelancerAvatar: freelancer['foto']?.toString() ?? '',
       serviceName:
@@ -101,7 +174,7 @@ class OrderModel {
       paymentStatus: payment['status']?.toString() ?? 'pending',
       paymentMethod: payment['metode']?.toString() ?? '-',
       createdAt: DateTime.tryParse(json['created_at']?.toString() ?? ''),
-      fileUrl: payment['payment_url']?.toString(),
+      fileUrl: resultFileUrl.trim().isEmpty ? null : resultFileUrl.trim(),
     );
   }
 

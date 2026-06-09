@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../controllers/profile_controller.dart';
+import 'register_freelancer_cover_page.dart';
 import 'register_freelancer_page.dart';
 import 'login_page.dart';
 import 'register_page.dart';
@@ -23,6 +24,8 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _loading = true;
   Map<String, dynamic>? _userData;
   StreamSubscription? _authSubscription;
+
+  bool _hasInitializedRole = false;
 
   String _earnedPeriod = 'monthly';
   Map<String, dynamic> _freelancerStats = {
@@ -68,6 +71,7 @@ class _ProfilePageState extends State<ProfilePage> {
           _controller.isLoggedIn = false;
           _userData = null;
           _loading = false;
+          ProfileController.isFreelancerUnlocked = false;
         });
       }
     });
@@ -93,8 +97,10 @@ class _ProfilePageState extends State<ProfilePage> {
         _userData = data;
         _controller.isLoggedIn = true;
 
-        // SELALU buka profile client saat pertama masuk
-        _controller.isFreelancer = false;
+        if (!_hasInitializedRole) {
+          _controller.isFreelancer = false;
+          _hasInitializedRole = true;
+        }
 
         _nameController.text = data['nama'] ?? '';
         _usernameController.text = data['username'] ?? '';
@@ -120,6 +126,21 @@ class _ProfilePageState extends State<ProfilePage> {
       });
     }
   }
+
+  // ── Navigasi ke Cover Page, tangkap hasil sukses ──────────
+  Future<void> _goToFreelancerCoverPage() async {
+  final result = await Navigator.push<bool>(
+    context,
+    MaterialPageRoute(builder: (_) => const RegisterFreelancerCoverPage()),
+  );
+
+  if (result == true && mounted) {
+    setState(() {
+      ProfileController.isFreelancerUnlocked = true;
+      _controller.isFreelancer = true;
+    });
+  }
+}
 
   @override
   void dispose() {
@@ -157,8 +178,6 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _buildGuestProfile() {
     return Scaffold(
       backgroundColor: Colors.white,
-
-      // ── Body dengan gradient ──
       body: Container(
         width: double.infinity,
         decoration: const BoxDecoration(
@@ -173,7 +192,6 @@ class _ProfilePageState extends State<ProfilePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Header ──
               const Padding(
                 padding: EdgeInsets.fromLTRB(20, 20, 20, 0),
                 child: Text(
@@ -186,8 +204,6 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
               const SizedBox(height: 36),
-
-              // ── Avatar ──
               Center(
                 child: Container(
                   width: 72,
@@ -200,8 +216,6 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
               const SizedBox(height: 18),
-
-              // ── Welcome Text ──
               const Center(
                 child: Text(
                   'Welcome to Studlent!',
@@ -225,8 +239,6 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
               const SizedBox(height: 30),
-
-              // ── Card Login / Register ──
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Container(
@@ -235,10 +247,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: const Color(0xFFE8D8C0),
-                      width: 2,
-                    ),
+                    border: Border.all(color: const Color(0xFFE8D8C0), width: 2),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.06),
@@ -268,8 +277,6 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ),
                       const SizedBox(height: 24),
-
-                      // Tombol Login
                       SizedBox(
                         width: double.infinity,
                         height: 52,
@@ -277,10 +284,8 @@ class _ProfilePageState extends State<ProfilePage> {
                           onPressed: () {
                             Navigator.push(
                               context,
-                              MaterialPageRoute(
-                                builder: (_) => const LoginPage(),
-                              ),
-                            );
+                              MaterialPageRoute(builder: (_) => const LoginPage()),
+                            ).then((_) => setState(() {}));
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFFFB74D),
@@ -300,8 +305,6 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ),
                       const SizedBox(height: 14),
-
-                      // Tombol Register
                       SizedBox(
                         width: double.infinity,
                         height: 52,
@@ -309,9 +312,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           onPressed: () {
                             Navigator.push(
                               context,
-                              MaterialPageRoute(
-                                builder: (_) => const RegisterPage(),
-                              ),
+                              MaterialPageRoute(builder: (_) => const RegisterPage()),
                             );
                           },
                           style: ElevatedButton.styleFrom(
@@ -346,6 +347,13 @@ class _ProfilePageState extends State<ProfilePage> {
   // CLIENT PROFILE
   // ─────────────────────────────────────────────
   Widget _buildClientProfile() {
+    final bool isRegisteredFreelancer = _userData?['is_freelancer'] == true;
+
+    // Kondisi 1: belum daftar → "Join Freelance"
+    // Kondisi 2: sudah daftar tapi belum unlock → "Login Freelance"
+    final String topButtonLabel =
+        isRegisteredFreelancer ? 'Login Freelance' : 'Join Freelance';
+
     return SingleChildScrollView(
       child: Column(
         children: [
@@ -360,7 +368,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 GestureDetector(
-                  onTap: () => _showJoinFreelanceDialog(context),
+                  onTap: () => _goToFreelancerCoverPage(),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 18,
@@ -377,9 +385,9 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ],
                     ),
-                    child: const Text(
-                      "Join Freelance",
-                      style: TextStyle(
+                    child: Text(
+                      topButtonLabel,
+                      style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 13,
                       ),
@@ -406,10 +414,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(
-                      color: const Color(0xFFFFB74D),
-                      width: 3,
-                    ),
+                    border: Border.all(color: const Color(0xFFFFB74D), width: 3),
                   ),
                   child: CircleAvatar(
                     radius: 48,
@@ -459,9 +464,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           const SizedBox(height: 12),
           Text(
-            _nameController.text.isNotEmpty
-                ? _nameController.text
-                : 'Nama User',
+            _nameController.text.isNotEmpty ? _nameController.text : 'Nama User',
             style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
@@ -667,10 +670,10 @@ class _ProfilePageState extends State<ProfilePage> {
                         children: [
                           Text(
                             _earnedPeriod == 'weekly'
-                                ? 'Mingguan'
+                                ? 'Weekly'
                                 : _earnedPeriod == 'yearly'
-                                ? 'Tahunan'
-                                : 'Bulanan',
+                                ? 'Yearly'
+                                : 'Monthly',
                             style: const TextStyle(
                               fontSize: 11,
                               color: Colors.grey,
@@ -756,12 +759,25 @@ class _ProfilePageState extends State<ProfilePage> {
                   );
                 }
 
+                // "Logout Freelancer" → local-only reset, tanpa signOut
+                if (title == 'Logout Freelancer') {
+                  return _menuItem(
+                    'Logout',
+                    hasTag: false,
+                    onTap: () {
+                      setState(() {
+                        ProfileController.isFreelancerUnlocked = false;
+                        _controller.isFreelancer = false;
+                      });
+                    },
+                  );
+                }
+
                 return _menuItem(
                   title,
                   hasTag: hasTag,
                   onTap: () {
                     if (title == 'Chat') {
-                      // Berpindah ke ChatListPage
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -803,20 +819,20 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _roleButton(String text, bool active) {
-    return GestureDetector(
-      onTap: () async {
-        if (text == "Freelance") {
-          final isRegistered = _userData?['is_freelancer'] == true;
-          if (!isRegistered) {
-            _showJoinFreelanceDialog(context);
-            return;
-          }
-          setState(() => _controller.isFreelancer = true);
-        } else {
-          setState(() => _controller.isFreelancer = false);
-        }
-      },
+Widget _roleButton(String text, bool active) {
+  final bool isFreelanceButton = text == "Freelance";
+  final bool isDisabled = isFreelanceButton && !ProfileController.isFreelancerUnlocked; // ← ganti
+
+  return GestureDetector(
+    onTap: isDisabled
+        ? null
+        : () {
+            if (text == "Freelance") {
+              setState(() => _controller.isFreelancer = true);
+            } else {
+              setState(() => _controller.isFreelancer = false);
+            }
+          },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
@@ -831,7 +847,11 @@ class _ProfilePageState extends State<ProfilePage> {
           text,
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: active ? Colors.black : Colors.grey,
+            color: isDisabled
+                ? Colors.grey.shade400  // abu-abu pudar jika disabled
+                : active
+                ? Colors.black
+                : Colors.grey,
           ),
         ),
       ),
@@ -1022,14 +1042,14 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
             const SizedBox(height: 16),
             const Text(
-              'Filter Penghasilan',
+              'Income Filter',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             for (final option in [
-              {'label': 'Mingguan', 'value': 'weekly'},
-              {'label': 'Bulanan', 'value': 'monthly'},
-              {'label': 'Tahunan', 'value': 'yearly'},
+              {'label': 'Weekly', 'value': 'weekly'},
+              {'label': 'Monthly', 'value': 'monthly'},
+              {'label': 'Yearly', 'value': 'yearly'},
             ])
               ListTile(
                 title: Text(option['label']!),
@@ -1099,71 +1119,6 @@ class _ProfilePageState extends State<ProfilePage> {
               setState(() {});
             },
             child: const Text("Save", style: TextStyle(color: Colors.black)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showJoinFreelanceDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.star, color: Color(0xFFFFB74D)),
-            SizedBox(width: 8),
-            Text("Join as Freelancer"),
-          ],
-        ),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Bergabung sebagai freelancer dan mulai tawarkan jasamu ke sesama mahasiswa!",
-              style: TextStyle(fontSize: 14, color: Colors.black87),
-            ),
-            SizedBox(height: 16),
-            Text("✅  Buat profil freelancer", style: TextStyle(fontSize: 13)),
-            SizedBox(height: 6),
-            Text(
-              "✅  Tawarkan skill & layananmu",
-              style: TextStyle(fontSize: 13),
-            ),
-            SizedBox(height: 6),
-            Text(
-              "✅  Dapatkan penghasilan tambahan",
-              style: TextStyle(fontSize: 13),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text("Nanti Dulu"),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFFB74D),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            onPressed: () {
-              Navigator.pop(ctx);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const RegisterFreelancerPage(),
-                ),
-              );
-            },
-            child: const Text(
-              "Daftar Sekarang",
-              style: TextStyle(color: Colors.black),
-            ),
           ),
         ],
       ),

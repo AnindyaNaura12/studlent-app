@@ -1,6 +1,9 @@
 class Booking {
+  final int id;
   final int freelancerId;
   final int orderId;
+  final int clientId;
+  final int serviceId;
   final String serviceName;
   final String providerName;
   final String total;
@@ -11,8 +14,11 @@ class Booking {
   final String note;
 
   Booking({
+    required this.id,
     required this.freelancerId,
     required this.orderId,
+    required this.clientId,
+    required this.serviceId,
     required this.serviceName,
     required this.providerName,
     required this.total,
@@ -35,8 +41,11 @@ class Booking {
     final double amount = (payment['amount'] as num?)?.toDouble() ?? 0;
 
     return Booking(
-      orderId: json['id_order'] as int? ?? 0,
+      id: json['id'] as int? ?? 0,
       freelancerId: json['id_freelancer'] as int? ?? 0,
+      orderId: json['id_order'] as int? ?? 0,
+      clientId: json['id_client'] as int? ?? 0,
+      serviceId: json['id_service'] as int? ?? 0,
       serviceName:
           service['judul']?.toString() ??
           json['detail_pesanan']?.toString() ??
@@ -52,9 +61,9 @@ class Booking {
   }
 
   static String _formatDate(String? dateStr) {
-    if (dateStr == null) return '-';
+    if (dateStr == null || dateStr.trim().isEmpty) return '-';
     try {
-      final date = DateTime.parse(dateStr);
+      final date = DateTime.parse(dateStr).toLocal();
       const months = [
         'Jan',
         'Feb',
@@ -79,11 +88,13 @@ class Booking {
     final s = price.toInt().toString();
     final buf = StringBuffer();
     int count = 0;
+
     for (int i = s.length - 1; i >= 0; i--) {
       if (count > 0 && count % 3 == 0) buf.write('.');
       buf.write(s[i]);
       count++;
     }
+
     return buf.toString().split('').reversed.join();
   }
 }

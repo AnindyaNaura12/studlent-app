@@ -1,6 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../models/order_model.dart';
 import 'contact_freelancer_page.dart';
 import 'request_revision_page.dart';
@@ -16,6 +18,15 @@ class BookingDetailPage extends StatefulWidget {
 }
 
 class _BookingDetailPageState extends State<BookingDetailPage> {
+  late OrderModel booking;
+
+  @override
+  void initState() {
+    super.initState();
+    booking = widget.booking;
+    _refreshBooking();
+  }
+
   void _showSnackBar(String message, {Color? bgColor}) {
     if (!mounted) return;
 
@@ -31,8 +42,67 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
     );
   }
 
+  Future<void> _refreshBooking() async {
+    try {
+      final supabase = Supabase.instance.client;
+      final orderId = int.tryParse(booking.id) ?? 0;
+
+      final Map<String, dynamic>? res = await supabase
+          .from('orders')
+          .select('''
+            id_order,
+            id_freelancer,
+            id_service,
+            status,
+            catatan,
+            deadline,
+            result_file_url,
+            created_at,
+            freelancer:id_freelancer (nama, foto),
+            service:id_service (judul, thumbnail_url, service_images(image_url)),
+            payment:payments (amount, admin_fee, status, metode)
+          ''')
+          .eq('id_order', orderId)
+          .maybeSingle();
+
+      if (res == null) {
+        if (mounted) {
+          _showSnackBar("Data order tidak ditemukan.");
+        }
+        return;
+      }
+
+      if (res['result_file_url'] == null ||
+          res['result_file_url'].toString().trim().isEmpty) {
+        final Map<String, dynamic>? latestDeliverable = await supabase
+            .from('deliverables')
+            .select('file_url, created_at')
+            .eq('id_order', orderId)
+            .order('created_at', ascending: false)
+            .limit(1)
+            .maybeSingle();
+
+        if (latestDeliverable != null &&
+            latestDeliverable['file_url'] != null &&
+            latestDeliverable['file_url'].toString().trim().isNotEmpty) {
+          res['result_file_url'] = latestDeliverable['file_url'];
+        }
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        booking = OrderModel.fromJson(res);
+      });
+    } catch (e) {
+      if (mounted) {
+        _showSnackBar("Gagal memuat data terbaru.");
+      }
+    }
+  }
+
   Future<void> _openCompletedFile() async {
-    final String? rawUrl = widget.booking.fileUrl;
+    final String? rawUrl = booking.fileUrl;
 
     if (rawUrl == null || rawUrl.trim().isEmpty) {
       _showSnackBar("File hasil kerja belum tersedia.");
@@ -42,8 +112,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
     try {
       final Uri uri = Uri.parse(rawUrl.trim());
 
-      final bool canLaunch = await canLaunchUrl(uri);
-      if (canLaunch) {
+      if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       } else {
         _showSnackBar("Tidak dapat membuka file. Periksa koneksi Anda.");
@@ -59,35 +128,63 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
       case 'menunggu_pembayaran':
       case 'menunggu_verifikasi':
         return 'Pending';
+
       case 'diproses':
-      case 'hasil_dikirim':
-      case 'revisi':
       case 'paid':
-        return 'In Progress';
+      case 'in_progress':
+        return 'Diproses';
+
+      case 'hasil_dikirim':
+        return 'Hasil Dikirim';
+
+      case 'revisi':
+        return 'Revisi';
+
+      case 'done':
       case 'selesai':
         return 'Done';
+
       case 'dibatalkan':
       case 'pembayaran_gagal':
       case 'failed':
       case 'expired':
         return 'Cancelled';
+
       default:
         return 'Pending';
     }
   }
 
-  bool _isDoneStatus(String rawStatus) {
-    final s = rawStatus.trim().toLowerCase();
-    return s == 'selesai';
+  String _uiPaymentStatus(String rawStatus) {
+    switch (rawStatus.trim().toLowerCase()) {
+      case 'pending':
+        return 'Pembayaran Selesai';
+      case 'paid':
+      case 'success':
+      case 'settlement':
+        return 'Pembayaran Selesai';
+      case 'failed':
+      case 'cancel':
+      case 'cancelled':
+      case 'expired':
+        return 'Pembayaran Gagal';
+      default:
+        return rawStatus.isEmpty ? '-' : rawStatus;
+    }
   }
 
   bool _canViewOrderFile(String rawStatus) {
     final s = rawStatus.trim().toLowerCase();
-    return s == 'hasil_dikirim' || s == 'selesai';
+    return s == 'hasil_dikirim' || s == 'done' || s == 'selesai';
+  }
+
+  bool _canClientReview(String rawStatus) {
+    final s = rawStatus.trim().toLowerCase();
+    return s == 'hasil_dikirim' || s == 'done' || s == 'selesai';
   }
 
   Widget _buildServiceImage(double size) {
-    final image = widget.booking.serviceImage;
+    final image = booking.serviceImage;
 
     if (image.isEmpty) {
       return Container(
@@ -189,7 +286,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          widget.booking.serviceName,
+                          booking.serviceName,
                           style: TextStyle(
                             fontSize: s(14),
                             fontWeight: FontWeight.bold,
@@ -197,12 +294,12 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                         ),
                         SizedBox(height: s(4)),
                         Text(
-                          widget.booking.freelancerName,
+                          booking.freelancerName,
                           style: TextStyle(fontSize: s(12), color: Colors.grey),
                         ),
                         SizedBox(height: s(6)),
                         Text(
-                          widget.booking.price,
+                          booking.price,
                           style: TextStyle(
                             fontSize: s(13),
                             fontWeight: FontWeight.bold,
@@ -211,15 +308,17 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                       ],
                     ),
                   ),
-                  _statusBadge(widget.booking.status, s),
+                  _statusBadge(booking.status, s),
                 ],
               ),
             ),
             SizedBox(height: s(18)),
-            if (_canViewOrderFile(widget.booking.status)) ...[
+
+            if (_canViewOrderFile(booking.status)) ...[
               _buildViewOrderSection(s),
               SizedBox(height: s(18)),
             ],
+
             Container(
               padding: EdgeInsets.all(s(14)),
               decoration: BoxDecoration(
@@ -235,19 +334,24 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
               ),
               child: Column(
                 children: [
-                  _item("Order ID", '#${widget.booking.id}', s),
+                  _item("Order ID", '#${booking.id}', s),
                   _divider(s),
-                  _item("Deadline", widget.booking.deadline, s),
+                  _item("Deadline", booking.deadline, s),
                   _divider(s),
-                  _item("Status", _uiStatus(widget.booking.status), s),
+                  _item("Status", _uiStatus(booking.status), s),
                   _divider(s),
-                  _item("Payment Method", widget.booking.paymentMethod, s),
+                  _item("Payment Method", booking.paymentMethod, s),
                   _divider(s),
-                  _item("Payment Status", widget.booking.paymentStatus, s),
+                  _item(
+                    "Payment Status",
+                    _uiPaymentStatus(booking.paymentStatus),
+                    s,
+                  ),
                 ],
               ),
             ),
             SizedBox(height: s(24)),
+
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -256,9 +360,9 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                     context,
                     MaterialPageRoute(
                       builder: (_) => ContactFreelancerPage(
-                        freelancerId: widget.booking.freelancerId,
-                        freelancerName: widget.booking.freelancerName,
-                        image: widget.booking.freelancerAvatar,
+                        freelancerId: booking.freelancerId,
+                        freelancerName: booking.freelancerName,
+                        image: booking.freelancerAvatar,
                       ),
                     ),
                   );
@@ -281,19 +385,23 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                 ),
               ),
             ),
-            if (_isDoneStatus(widget.booking.status)) ...[
+
+            if (_canClientReview(booking.status)) ...[
               SizedBox(height: s(12)),
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
-                  onPressed: () {
-                    Navigator.push(
+                  onPressed: () async {
+                    final result = await Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) =>
-                            RequestRevisionPage(booking: widget.booking),
+                        builder: (_) => RequestRevisionPage(booking: booking),
                       ),
                     );
+
+                    if (result == true) {
+                      await _refreshBooking();
+                    }
                   },
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFFFFA726),
@@ -318,7 +426,8 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                 ),
               ),
             ],
-            if (_isDoneStatus(widget.booking.status)) ...[
+
+            if (_canClientReview(booking.status)) ...[
               SizedBox(height: s(12)),
               SizedBox(
                 width: double.infinity,
@@ -353,24 +462,27 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
-                            onPressed: () {
+                            onPressed: () async {
                               Navigator.pop(ctx);
-                              Navigator.push(
+
+                              final result = await Navigator.push(
                                 context,
                                 MaterialPageRoute(
                                   builder: (_) => RatingReviewPage(
-                                    idOrder:
-                                        int.tryParse(widget.booking.id) ?? 0,
+                                    idOrder: int.tryParse(booking.id) ?? 0,
                                     idClient: 0,
-                                    idFreelancer: widget.booking.freelancerId,
-                                    freelancerName:
-                                        widget.booking.freelancerName,
-                                    freelancerImage:
-                                        widget.booking.freelancerAvatar,
-                                    serviceName: widget.booking.serviceName,
+                                    idFreelancer: booking.freelancerId,
+                                    idService: booking.serviceId,
+                                    freelancerName: booking.freelancerName,
+                                    freelancerImage: booking.freelancerAvatar,
+                                    serviceName: booking.serviceName,
                                   ),
                                 ),
                               );
+
+                              if (result == true) {
+                                await _refreshBooking();
+                              }
                             },
                             child: const Text(
                               "Yes, Done",
@@ -394,7 +506,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                     ),
                   ),
                   child: Text(
-                    "Order complete",
+                    "Order Complete",
                     style: TextStyle(
                       fontSize: s(13),
                       fontWeight: FontWeight.bold,
@@ -404,6 +516,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                 ),
               ),
             ],
+
             SizedBox(height: s(16)),
           ],
         ),
@@ -412,6 +525,9 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
   }
 
   Widget _buildViewOrderSection(double Function(double) s) {
+    final hasFile =
+        booking.fileUrl != null && booking.fileUrl!.trim().isNotEmpty;
+
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(s(14)),
@@ -439,43 +555,65 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
           ),
           SizedBox(height: s(10)),
           GestureDetector(
-            onTap: _openCompletedFile,
-            child: CustomPaint(
-              painter: _DashedBorderPainter(
-                color: const Color(0xFFADB5FF),
-                borderRadius: 14,
-                dashWidth: 6,
-                dashSpace: 4,
-                strokeWidth: 1.5,
-              ),
-              child: Container(
-                width: double.infinity,
-                padding: EdgeInsets.symmetric(
-                  vertical: s(20),
-                  horizontal: s(16),
+            onTap: hasFile ? _openCompletedFile : null,
+            child: Opacity(
+              opacity: hasFile ? 1 : 0.6,
+              child: CustomPaint(
+                painter: _DashedBorderPainter(
+                  color: const Color(0xFFADB5FF),
+                  borderRadius: 14,
+                  dashWidth: 6,
+                  dashSpace: 4,
+                  strokeWidth: 1.5,
                 ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEEF1FF),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.insert_drive_file_rounded,
-                      color: const Color(0xFF6B7AFF),
-                      size: s(22),
-                    ),
-                    SizedBox(width: s(8)),
-                    Text(
-                      "View File",
-                      style: TextStyle(
-                        fontSize: s(13),
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF6B7AFF),
+                child: Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.symmetric(
+                    vertical: s(20),
+                    horizontal: s(16),
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEEF1FF),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.insert_drive_file_rounded,
+                            color: const Color(0xFF6B7AFF),
+                            size: s(22),
+                          ),
+                          SizedBox(width: s(8)),
+                          Text(
+                            hasFile
+                                ? "Lihat File Hasil"
+                                : "File belum tersedia",
+                            style: TextStyle(
+                              fontSize: s(13),
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF6B7AFF),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
+                      if (hasFile) ...[
+                        SizedBox(height: s(8)),
+                        Text(
+                          booking.fileUrl!,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: s(10),
+                            color: Colors.black54,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -525,9 +663,17 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
         bg = Colors.green.withOpacity(0.15);
         text = Colors.green[700]!;
         break;
-      case "In Progress":
+      case "Diproses":
         bg = Colors.blue.withOpacity(0.15);
         text = Colors.blue[700]!;
+        break;
+      case "Hasil Dikirim":
+        bg = Colors.purple.withOpacity(0.15);
+        text = Colors.purple[700]!;
+        break;
+      case "Revisi":
+        bg = Colors.deepOrange.withOpacity(0.15);
+        text = Colors.deepOrange[700]!;
         break;
       case "Pending":
         bg = Colors.orange.withOpacity(0.15);
@@ -601,10 +747,11 @@ class _DashedBorderPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _DashedBorderPainter old) =>
-      old.color != color ||
-      old.dashWidth != dashWidth ||
-      old.dashSpace != dashSpace ||
-      old.strokeWidth != strokeWidth ||
-      old.borderRadius != borderRadius;
+  bool shouldRepaint(covariant _DashedBorderPainter old) {
+    return old.color != color ||
+        old.dashWidth != dashWidth ||
+        old.dashSpace != dashSpace ||
+        old.strokeWidth != strokeWidth ||
+        old.borderRadius != borderRadius;
+  }
 }

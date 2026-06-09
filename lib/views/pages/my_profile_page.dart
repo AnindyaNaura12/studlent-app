@@ -146,13 +146,12 @@ class _EditProfileFreelancerPageState extends State<EditProfileFreelancerPage> {
       if (!mounted) return;
 
       if (saved) {
-        _controller.addCertificateData({
-          'file_url': result['url']!,
-          'file_name': result['name']!,
-        }, () {});
-
+        _controller.addCertificate(
+          fileUrl: result['url']!,
+          fileName: result['name']!,
+          refresh: () => setState(() {}),
+        );
         setState(() => _uploadingCert = false);
-
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Sertifikat berhasil ditambahkan!'),
@@ -175,26 +174,7 @@ class _EditProfileFreelancerPageState extends State<EditProfileFreelancerPage> {
   }
 
   Future<void> _deleteCertificate(int index) async {
-    final cert = _controller.certificateData[index];
-    final idCert = cert['id_certificate'] as int?;
-
-    if (idCert != null) {
-      final authUser = supabase.auth.currentUser;
-      if (authUser == null || authUser.email == null) return;
-
-      final userData = await supabase
-          .from('users')
-          .select('id_user')
-          .eq('email', authUser.email!)
-          .maybeSingle();
-
-      if (userData == null) return;
-      final idUser = userData['id_user'];
-
-      await _portfolioController.deleteCertificate(idCert, idUser: idUser);
-    }
-
-    _controller.removeCertificateData(index, () {
+    await _controller.removeCertificate(index, () {
       if (mounted) setState(() {});
     });
 
@@ -331,7 +311,7 @@ class _EditProfileFreelancerPageState extends State<EditProfileFreelancerPage> {
                                 ),
                                 const SizedBox(height: 8),
                                 const Text(
-                                  'Tap untuk ganti foto',
+                                  'Tap to change photo',
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: Colors.grey,
@@ -613,21 +593,88 @@ class _EditProfileFreelancerPageState extends State<EditProfileFreelancerPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Tambahkan sertifikat, piagam, atau penghargaan\nuntuk meyakinkan klien',
+          'Add certificates or awards to build client trust.',
           style: TextStyle(fontSize: 12, color: Colors.black54, height: 1.5),
         ),
         const SizedBox(height: 12),
-        if (_controller.certificateData.isNotEmpty)
-          Column(
-            children: _controller.certificateData
-                .asMap()
-                .entries
-                .map((entry) => _buildCertificateItem(entry.key, entry.value))
-                .toList(),
+        if (_controller.certificates.isNotEmpty)
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: _controller.certificates.asMap().entries.map((entry) {
+              final cert = entry.value;
+              final fileUrl = cert['file_url'] as String? ?? '';
+              final isNetwork = fileUrl.startsWith('http');
+
+              return Stack(
+                children: [
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: isNetwork
+                          ? Image.network(
+                              fileUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                color: Colors.grey[200],
+                                child: const Icon(
+                                  Icons.workspace_premium,
+                                  color: Colors.orange,
+                                  size: 40,
+                                ),
+                              ),
+                            )
+                          : Image.asset(
+                              fileUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                color: Colors.grey[200],
+                                child: const Icon(
+                                  Icons.workspace_premium,
+                                  color: Colors.orange,
+                                  size: 40,
+                                ),
+                              ),
+                            ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: GestureDetector(
+                      onTap: () async {
+                        await _controller.removeCertificate(
+                          entry.key,
+                          () => setState(() {}),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.close,
+                          size: 14,
+                          color: Colors.black54,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            }).toList(),
           ),
         const SizedBox(height: 12),
         GestureDetector(
-          onTap: _uploadingCert ? null : _addCertificate,
+          onTap: _addCertificate,
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 16),
@@ -636,167 +683,30 @@ class _EditProfileFreelancerPageState extends State<EditProfileFreelancerPage> {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: const Color(0xFFE8D5B7)),
             ),
-            child: Center(
-              child: _uploadingCert
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.workspace_premium,
-                          color: Color(0xFFCCAA66),
-                          size: 18,
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          '+ Tambah Sertifikat',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFFCCAA66),
-                          ),
-                        ),
-                      ],
+            child: const Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.workspace_premium,
+                    color: Color(0xFFCCAA66),
+                    size: 18,
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    '+ Add Certificate',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFFCCAA66),
                     ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildCertificateItem(int index, Map<String, dynamic> cert) {
-    final fileUrl = cert['file_url'] as String? ?? '';
-    final fileName = cert['file_name'] as String? ?? 'Sertifikat';
-    final isPdf =
-        fileName.toLowerCase().endsWith('.pdf') ||
-        fileUrl.toLowerCase().contains('.pdf');
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF5EFE6),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE8D5B7)),
-      ),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: () async {
-              if (fileUrl.isEmpty) return;
-              final uri = Uri.parse(fileUrl);
-              if (await canLaunchUrl(uri)) {
-                await launchUrl(uri, mode: LaunchMode.externalApplication);
-              }
-            },
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: isPdf
-                  ? Container(
-                      width: 56,
-                      height: 56,
-                      color: Colors.red.shade50,
-                      child: const Center(
-                        child: Icon(
-                          Icons.picture_as_pdf,
-                          color: Colors.red,
-                          size: 32,
-                        ),
-                      ),
-                    )
-                  : Image.network(
-                      fileUrl,
-                      width: 56,
-                      height: 56,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        width: 56,
-                        height: 56,
-                        color: Colors.orange.shade50,
-                        child: const Icon(
-                          Icons.workspace_premium,
-                          color: Colors.orange,
-                          size: 32,
-                        ),
-                      ),
-                    ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  fileName,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Tap untuk lihat',
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-                ),
-              ],
-            ),
-          ),
-          GestureDetector(
-            onTap: () => _showDeleteCertDialog(index),
-            child: Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: Colors.red.shade50,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.delete_outline,
-                color: Colors.red,
-                size: 20,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showDeleteCertDialog(int index) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Hapus Sertifikat?'),
-        content: const Text('Sertifikat ini akan dihapus permanen.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            onPressed: () {
-              Navigator.pop(ctx);
-              _deleteCertificate(index);
-            },
-            child: const Text('Hapus', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
     );
   }
 }

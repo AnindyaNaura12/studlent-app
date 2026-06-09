@@ -9,11 +9,16 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config.dart';
 import '../../models/order_model.dart';
 
-/// Model ringan untuk file referensi dari client
+// ── PERUBAHAN 1: class _RefFile diubah ──────────────────────
+// Sebelumnya: hanya punya url + catatan (dari tabel deliverables)
+// Sekarang:   punya fileUrl, fileName, imageUrl, imageName (dari tabel orders)
 class _RefFile {
-  final String url;
-  final String catatan;
-  _RefFile({required this.url, required this.catatan});
+  final String? fileUrl;
+  final String? fileName;
+  final String? imageUrl;
+  final String? imageName;
+
+  _RefFile({this.fileUrl, this.fileName, this.imageUrl, this.imageName});
 }
 
 class FreelancerOrderDetailPage extends StatefulWidget {
@@ -39,7 +44,7 @@ class _FreelancerOrderDetailPageState extends State<FreelancerOrderDetailPage> {
   bool _loadingRef = true;
 
   bool _isSubmitting = false;
-  String? _submittedUrl; // URL setelah berhasil upload
+  String? _submittedUrl;
 
   // Untuk upload file hasil kerja
   String? _pickedFileName;
@@ -52,29 +57,36 @@ class _FreelancerOrderDetailPageState extends State<FreelancerOrderDetailPage> {
     _fetchRefFiles();
   }
 
-  // ── Fetch file referensi client dari Supabase ──────────────
+  // ── PERUBAHAN 2: _fetchRefFiles() diubah total ─────────────
+  // Sebelumnya: query ke tabel 'deliverables' kolom file_url + catatan
+  // Sekarang:   query ke tabel 'orders' kolom requirement_file_url/name + requirement_image_url/name
   Future<void> _fetchRefFiles() async {
     try {
       final orderId = int.tryParse(widget.order.id) ?? 0;
       final res = await _supabase
-          .from('deliverables')
-          .select('file_url, catatan')
-          .eq('id_order', orderId);
-
-      final list = (res as List)
-          .map(
-            (e) => _RefFile(
-              url: e['file_url']?.toString() ?? '',
-              catatan: e['catatan']?.toString() ?? '',
-            ),
+          .from('orders')
+          .select(
+            'requirement_file_url, requirement_file_name, '
+            'requirement_image_url, requirement_image_name',
           )
-          .toList();
+          .eq('id_order', orderId)
+          .maybeSingle();
 
-      if (mounted)
+      if (mounted) {
         setState(() {
-          _refFiles = list;
+          _refFiles = res != null
+              ? [
+                  _RefFile(
+                    fileUrl: res['requirement_file_url']?.toString(),
+                    fileName: res['requirement_file_name']?.toString(),
+                    imageUrl: res['requirement_image_url']?.toString(),
+                    imageName: res['requirement_image_name']?.toString(),
+                  ),
+                ]
+              : [];
           _loadingRef = false;
         });
+      }
     } catch (e) {
       if (mounted) setState(() => _loadingRef = false);
     }
@@ -181,107 +193,99 @@ class _FreelancerOrderDetailPageState extends State<FreelancerOrderDetailPage> {
         ],
       ),
     );
+
     if (confirm != true) return;
 
     setState(() => _isSubmitting = true);
+
     try {
       final orderId = int.tryParse(widget.order.id) ?? 0;
 
-      // Simpan URL hasil ke tabel deliverables dengan flag hasil_kerja
       await _supabase.from('deliverables').insert({
         'id_order': orderId,
         'file_url': _uploadedResultUrl,
         'catatan': 'Hasil kerja freelancer',
       });
 
-      // Update status order ke hasil_dikirim via Laravel
-      final response = await http
-          .post(
-            Uri.parse('${Config.laravelBaseUrl}/order/submit-result'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-            },
-            body: jsonEncode({
-              'id_order': orderId,
-              'file_url': _uploadedResultUrl,
-            }),
-          )
-          .timeout(const Duration(seconds: 30));
+      await _supabase
+          .from('orders')
+          .update({
+            'status': 'hasil_dikirim',
+            'result_file_url': _uploadedResultUrl,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id_order', orderId);
 
       if (!mounted) return;
 
-      if (response.statusCode == 200) {
-        setState(() => _submittedUrl = _uploadedResultUrl);
-        await showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (_) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 70,
-                  height: 70,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFE3F2FD),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.send_rounded,
-                    color: Color(0xFF2196F3),
-                    size: 38,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Hasil Dikirim!',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'File hasil kerja berhasil dikirimkan ke client. '
-                  'Tunggu konfirmasi penyelesaian dari client.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 13, color: Colors.black54),
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  height: 46,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      Navigator.pop(context);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _orange,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                    ),
-                    child: const Text(
-                      'Kembali ke My Orders',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+      setState(() => _submittedUrl = _uploadedResultUrl);
+
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
           ),
-        );
-      } else {
-        final err = jsonDecode(response.body);
-        throw Exception(err['message'] ?? 'Gagal mengirim hasil kerja');
-      }
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 70,
+                height: 70,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFE3F2FD),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.send_rounded,
+                  color: Color(0xFF2196F3),
+                  size: 38,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Hasil Dikirim!',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'File hasil kerja berhasil dikirimkan ke client.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: Colors.black54),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 46,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    Navigator.pop(context, true);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _orange,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                  child: const Text(
+                    'Kembali ke My Orders',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
     } catch (e) {
-      if (mounted) _snack('❌ ${e.toString()}', bg: Colors.red);
+      if (mounted) {
+        _snack('❌ ${e.toString()}', bg: Colors.red);
+      }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -406,7 +410,6 @@ class _FreelancerOrderDetailPageState extends State<FreelancerOrderDetailPage> {
                           const SizedBox(height: 16),
                           const Divider(height: 1, thickness: 0.5),
                           const SizedBox(height: 14),
-                          // Info grid
                           Row(
                             children: [
                               Expanded(
@@ -494,7 +497,15 @@ class _FreelancerOrderDetailPageState extends State<FreelancerOrderDetailPage> {
                             ),
                           ),
                           const SizedBox(height: 12),
-                          if (!_loadingRef && _refFiles.isEmpty)
+
+                          // ── PERUBAHAN 3: render file referensi diubah ──
+                          // Sebelumnya: ..._refFiles.map((f) => _refFileItem(f))
+                          // Sekarang:   cek fileUrl dan imageUrl secara terpisah
+                          if (!_loadingRef &&
+                              (_refFiles.isEmpty ||
+                                  ((_refFiles.first.fileUrl ?? '').isEmpty &&
+                                      (_refFiles.first.imageUrl ?? '')
+                                          .isEmpty)))
                             Container(
                               width: double.infinity,
                               padding: const EdgeInsets.symmetric(vertical: 20),
@@ -521,8 +532,26 @@ class _FreelancerOrderDetailPageState extends State<FreelancerOrderDetailPage> {
                                 ],
                               ),
                             )
-                          else
-                            ..._refFiles.map((f) => _refFileItem(f)),
+                          else if (_refFiles.isNotEmpty) ...[
+                            // Tampilkan dokumen jika ada
+                            if ((_refFiles.first.fileUrl ?? '').isNotEmpty)
+                              _refFileItem(
+                                url: _refFiles.first.fileUrl!,
+                                label:
+                                    _refFiles.first.fileName ??
+                                    'Dokumen referensi',
+                                isImage: false,
+                              ),
+                            // Tampilkan gambar jika ada
+                            if ((_refFiles.first.imageUrl ?? '').isNotEmpty)
+                              _refFileItem(
+                                url: _refFiles.first.imageUrl!,
+                                label:
+                                    _refFiles.first.imageName ??
+                                    'Gambar referensi',
+                                isImage: true,
+                              ),
+                          ],
                         ],
                       ),
                     ),
@@ -552,7 +581,6 @@ class _FreelancerOrderDetailPageState extends State<FreelancerOrderDetailPage> {
                           ),
                           const SizedBox(height: 14),
 
-                          // Status sudah dikirim
                           if (alreadySent)
                             Container(
                               width: double.infinity,
@@ -587,7 +615,6 @@ class _FreelancerOrderDetailPageState extends State<FreelancerOrderDetailPage> {
                               ),
                             ),
 
-                          // Upload area (tampil jika bisa submit / revisi)
                           if (canSubmit || order.status == 'revisi') ...[
                             if (alreadySent) const SizedBox(height: 12),
                             GestureDetector(
@@ -717,7 +744,6 @@ class _FreelancerOrderDetailPageState extends State<FreelancerOrderDetailPage> {
                             ),
                           ],
 
-                          // Jika status selesai
                           if (order.status == 'selesai' && !canSubmit) ...[
                             const SizedBox(height: 10),
                             Container(
@@ -835,14 +861,15 @@ class _FreelancerOrderDetailPageState extends State<FreelancerOrderDetailPage> {
     ],
   );
 
-  Widget _refFileItem(_RefFile f) {
-    final isImage =
-        f.url.contains('.jpg') ||
-        f.url.contains('.jpeg') ||
-        f.url.contains('.png') ||
-        f.url.contains('.gif') ||
-        f.url.contains('.webp');
-    final ext = f.url.split('.').last.split('?').first.toUpperCase();
+  // ── PERUBAHAN 4: _refFileItem() signature diubah ───────────
+  // Sebelumnya: menerima _RefFile object → pakai f.url dan f.catatan
+  // Sekarang:   menerima url, label, isImage secara langsung (named parameters)
+  Widget _refFileItem({
+    required String url,
+    required String label,
+    required bool isImage,
+  }) {
+    final ext = url.split('.').last.split('?').first.toUpperCase();
 
     final extColor =
         const {
@@ -859,7 +886,7 @@ class _FreelancerOrderDetailPageState extends State<FreelancerOrderDetailPage> {
         const Color(0xFF9E9E9E);
 
     return GestureDetector(
-      onTap: () => _openUrl(f.url),
+      onTap: () => _openUrl(url),
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -874,7 +901,7 @@ class _FreelancerOrderDetailPageState extends State<FreelancerOrderDetailPage> {
               ClipRRect(
                 borderRadius: BorderRadius.circular(6),
                 child: Image.network(
-                  f.url,
+                  url,
                   width: 40,
                   height: 40,
                   fit: BoxFit.cover,
@@ -889,7 +916,7 @@ class _FreelancerOrderDetailPageState extends State<FreelancerOrderDetailPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    f.catatan.isEmpty ? 'File referensi' : f.catatan,
+                    label,
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,

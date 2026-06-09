@@ -7,11 +7,16 @@ import '../../controllers/auth_controller.dart';
 import '../../models/services_model.dart';
 import '../pages/home_pages.dart';
 import 'detail_order_page.dart';
+import '../../controllers/profile_controller.dart';
 
 class LoginPage extends StatefulWidget {
   final ServiceModel? redirectToService;
+  final bool isFromFreelancerCover;
 
-  const LoginPage({super.key, this.redirectToService});
+  const LoginPage({
+    super.key, 
+    this.redirectToService,
+    this.isFromFreelancerCover = false,});
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -27,40 +32,45 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  Future<void> _handleLogin() async {
-    setState(() => _isLoading = true);
+Future<void> _handleLogin() async {
+  setState(() => _isLoading = true);
 
-    final error = await _controller.login();
+  final error = await _controller.login();
 
-    setState(() => _isLoading = false);
+  setState(() => _isLoading = false);
 
-    if (!mounted) return;
+  if (!mounted) return;
 
-    if (error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error), backgroundColor: Colors.red),
-      );
-      return;
-    }
-
-    // ── Login sukses ──────────────────────────────────────────
-    if (widget.redirectToService != null) {
-      // Dari "Order Now" → langsung ke DetailOrderPage
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => DetailOrderPage(service: widget.redirectToService!),
-        ),
-      );
-    } else {
-      // Login biasa → ke HomePage, hapus semua stack
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const HomePage()),
-        (route) => false,
-      );
-    }
+  if (error != null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(error), backgroundColor: Colors.red),
+    );
+    return;
   }
+
+  // ── Login sukses ──────────────────────────────────────────
+  if (widget.redirectToService != null) {
+    // Dari "Order Now" → langsung ke DetailOrderPage (gembok tidak diubah)
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DetailOrderPage(service: widget.redirectToService!),
+      ),
+    );
+  } else if (widget.isFromFreelancerCover) {
+    // Dari Cover Freelancer → buka gembok, pop balik ke tab Profile
+    ProfileController.isFreelancerUnlocked = true;
+    Navigator.of(context).popUntil((route) => route.isFirst);
+  } else {
+    // Login normal sebagai Client → pastikan gembok tetap terkunci
+    ProfileController.isFreelancerUnlocked = false;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const HomePage(initialIndex: 4)),
+      (route) => false,
+    );
+  }
+}
 
   @override
   Widget build(BuildContext context) {

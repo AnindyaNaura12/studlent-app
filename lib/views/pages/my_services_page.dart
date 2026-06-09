@@ -96,7 +96,7 @@ class _MyServicesPageState extends State<MyServicesPage> {
                             : _controller.services.isEmpty
                             ? const Center(
                                 child: Text(
-                                  'Belum ada service.\nTambahkan service pertamamu!',
+                                  'No services yet.\nAdd your first service!',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
                                     color: Colors.grey,
@@ -313,15 +313,15 @@ class _MyServicesPageState extends State<MyServicesPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Hapus Service?'),
+        title: const Text('Delete Service?'),
         content: Text(
-          'Apakah kamu yakin ingin menghapus "${service.title}"?',
+          'Are you sure you want to delete "${service.title}"?',
           style: const TextStyle(fontSize: 14),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal'),
+            child: const Text('Cancel'),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -343,20 +343,20 @@ class _MyServicesPageState extends State<MyServicesPage> {
                 await _loadServices();
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Service berhasil dihapus'),
+                    content: Text('The service was successfully deleted'),
                     backgroundColor: Colors.green,
                   ),
                 );
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Gagal menghapus service'),
+                    content: Text('Failed to delete service'),
                     backgroundColor: Colors.red,
                   ),
                 );
               }
             },
-            child: const Text('Hapus', style: TextStyle(color: Colors.white)),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
