@@ -27,7 +27,9 @@ class BookingController {
           .from('orders')
           .select('''
             id_order,
+            id_client,
             id_freelancer,
+            id_service,
             status,
             detail_pesanan,
             catatan,

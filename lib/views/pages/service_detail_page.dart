@@ -195,7 +195,7 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                         const Icon(Icons.star, color: Colors.orange, size: 16),
                         SizedBox(width: s(4)),
                         Text(
-                          "${service.rating} (${service.totalReviews})",
+                          "${service.rating} (${service.totalReviews} reviews)",
                           style: TextStyle(fontSize: s(12)),
                         ),
                         const Spacer(),

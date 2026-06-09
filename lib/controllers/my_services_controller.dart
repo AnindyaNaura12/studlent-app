@@ -142,58 +142,7 @@ class MyServicesController {
     }
   }
 
-  Future<void> _replaceServicePackages({
-    required int idService,
-    String? basicPrice,
-    String? basicDeliveryTime,
-    String? basicShortDescription,
-    String? standardPrice,
-    String? standardDeliveryTime,
-    String? standardShortDescription,
-    String? premiumPrice,
-    String? premiumDeliveryTime,
-    String? premiumShortDescription,
-  }) async {
-    await supabase
-        .from('service_packages')
-        .delete()
-        .eq('id_service', idService);
-
-    final packages = [
-      {
-        'nama': 'basic',
-        'harga': _parsePriceToDouble(basicPrice),
-        'delivery_time': _parseDeliveryToInt(basicDeliveryTime),
-        'deskripsi': basicShortDescription?.trim() ?? '',
-      },
-      {
-        'nama': 'standard',
-        'harga': _parsePriceToDouble(standardPrice),
-        'delivery_time': _parseDeliveryToInt(standardDeliveryTime),
-        'deskripsi': standardShortDescription?.trim() ?? '',
-      },
-      {
-        'nama': 'premium',
-        'harga': _parsePriceToDouble(premiumPrice),
-        'delivery_time': _parseDeliveryToInt(premiumDeliveryTime),
-        'deskripsi': premiumShortDescription?.trim() ?? '',
-      },
-    ];
-
-    final rows = packages
-        .map(
-          (pkg) => {
-            'id_service': idService,
-            'nama': pkg['nama'],
-            'harga': pkg['harga'],
-            'delivery_time': pkg['delivery_time'],
-            'deskripsi': pkg['deskripsi'],
-          },
-        )
-        .toList();
-
-    await supabase.from('service_packages').insert(rows);
-  }
+  // ─── HELPER PARSE ────────────────────────────────────────────────────────────
 
   double _parsePriceToDouble(String? value) {
     if (value == null || value.trim().isEmpty) return 0;
@@ -206,6 +155,85 @@ class MyServicesController {
     final cleaned = value.replaceAll(RegExp(r'[^0-9]'), '');
     return int.tryParse(cleaned) ?? 0;
   }
+
+  // ─── PACKAGES ────────────────────────────────────────────────────────────────
+
+  Future<void> _replaceServicePackages({
+    required int idService,
+    String? basicPrice,
+    String? basicDeliveryTime,
+    String? basicShortDescription,
+    String? standardPrice,
+    String? standardDeliveryTime,
+    String? standardShortDescription,
+    String? premiumPrice,
+    String? premiumDeliveryTime,
+    String? premiumShortDescription,
+  }) async {
+    try {
+      await supabase
+          .from('service_packages')
+          .delete()
+          .eq('id_service', idService);
+
+      debugPrint('DELETE service_packages for id_service=$idService: OK');
+    } on PostgrestException catch (e) {
+      debugPrint('POSTGREST ERROR saat DELETE service_packages:');
+      debugPrint('  message : ${e.message}');
+      debugPrint('  details : ${e.details}');
+      debugPrint('  hint    : ${e.hint}');
+      rethrow;
+    }
+
+    final basicHarga    = _parsePriceToDouble(basicPrice);
+    final basicDeliv    = _parseDeliveryToInt(basicDeliveryTime);
+    final standardHarga = _parsePriceToDouble(standardPrice);
+    final standardDeliv = _parseDeliveryToInt(standardDeliveryTime);
+    final premiumHarga  = _parsePriceToDouble(premiumPrice);
+    final premiumDeliv  = _parseDeliveryToInt(premiumDeliveryTime);
+
+    debugPrint('PARSED PACKAGES:');
+    debugPrint('  basic    -> harga=$basicHarga, delivery=$basicDeliv, desc=$basicShortDescription');
+    debugPrint('  standard -> harga=$standardHarga, delivery=$standardDeliv, desc=$standardShortDescription');
+    debugPrint('  premium  -> harga=$premiumHarga, delivery=$premiumDeliv, desc=$premiumShortDescription');
+
+    final rows = [
+      {
+        'id_service'   : idService,
+        'nama'         : 'basic',
+        'harga'        : basicHarga,
+        'delivery_time': basicDeliv,
+        'deskripsi'    : basicShortDescription?.trim() ?? '',
+      },
+      {
+        'id_service'   : idService,
+        'nama'         : 'standard',
+        'harga'        : standardHarga,
+        'delivery_time': standardDeliv,
+        'deskripsi'    : standardShortDescription?.trim() ?? '',
+      },
+      {
+        'id_service'   : idService,
+        'nama'         : 'premium',
+        'harga'        : premiumHarga,
+        'delivery_time': premiumDeliv,
+        'deskripsi'    : premiumShortDescription?.trim() ?? '',
+      },
+    ];
+
+    try {
+      await supabase.from('service_packages').insert(rows);
+      debugPrint('INSERT service_packages for id_service=$idService: OK');
+    } on PostgrestException catch (e) {
+      debugPrint('POSTGREST ERROR saat INSERT service_packages:');
+      debugPrint('  message : ${e.message}');
+      debugPrint('  details : ${e.details}');
+      debugPrint('  hint    : ${e.hint}');
+      rethrow;
+    }
+  }
+
+  // ─── ADD SERVICE ─────────────────────────────────────────────────────────────
 
   Future<ServiceModel?> addService({
     required int freelancerId,
@@ -226,63 +254,99 @@ class MyServicesController {
     String? premiumShortDescription,
   }) async {
     try {
-      final List<String> finalImages = serviceImages ?? [];
-      final String? finalThumbnail =
+      final List<String> finalImages    = serviceImages ?? [];
+      final String?      finalThumbnail =
           imageUrl ?? (finalImages.isNotEmpty ? finalImages.first : null);
 
-      final serviceResult = await supabase
-          .from('services')
-          .insert({
-            'id_freelancer': freelancerId,
-            'id_category': categoryId,
-            'judul': title,
-            'deskripsi': description,
-            'thumbnail_url': finalThumbnail,
-            'status': status,
-          })
-          .select()
-          .single();
+      late final Map<String, dynamic> serviceResult;
+      try {
+        serviceResult = await supabase
+            .from('services')
+            .insert({
+              'id_freelancer' : freelancerId,
+              'id_category'   : categoryId,
+              'judul'         : title,
+              'deskripsi'     : description,
+              'thumbnail_url' : finalThumbnail,
+              'status'        : status,
+            })
+            .select()
+            .single();
+
+        debugPrint('INSERT services: OK -> id_service=${serviceResult['id_service']}');
+      } on PostgrestException catch (e) {
+        debugPrint('POSTGREST ERROR saat INSERT services:');
+        debugPrint('  message : ${e.message}');
+        debugPrint('  details : ${e.details}');
+        debugPrint('  hint    : ${e.hint}');
+        return null;
+      }
 
       final int idService = serviceResult['id_service'] as int;
 
       if (finalImages.isNotEmpty) {
-        final imageRows = finalImages
-            .map((url) => {'id_service': idService, 'image_url': url})
-            .toList();
-
-        await supabase.from('service_images').insert(imageRows);
+        try {
+          final imageRows = finalImages
+              .map((url) => {'id_service': idService, 'image_url': url})
+              .toList();
+          await supabase.from('service_images').insert(imageRows);
+          debugPrint('INSERT service_images: OK');
+        } on PostgrestException catch (e) {
+          debugPrint('POSTGREST ERROR saat INSERT service_images:');
+          debugPrint('  message : ${e.message}');
+          debugPrint('  details : ${e.details}');
+          debugPrint('  hint    : ${e.hint}');
+          // Tidak return null — service sudah terbuat, lanjut ke packages
+        }
       }
 
-      await _replaceServicePackages(
-        idService: idService,
-        basicPrice: basicPrice,
-        basicDeliveryTime: basicDeliveryTime,
-        basicShortDescription: basicShortDescription,
-        standardPrice: standardPrice,
-        standardDeliveryTime: standardDeliveryTime,
-        standardShortDescription: standardShortDescription,
-        premiumPrice: premiumPrice,
-        premiumDeliveryTime: premiumDeliveryTime,
-        premiumShortDescription: premiumShortDescription,
-      );
+      try {
+        await _replaceServicePackages(
+          idService               : idService,
+          basicPrice              : basicPrice,
+          basicDeliveryTime       : basicDeliveryTime,
+          basicShortDescription   : basicShortDescription,
+          standardPrice           : standardPrice,
+          standardDeliveryTime    : standardDeliveryTime,
+          standardShortDescription: standardShortDescription,
+          premiumPrice            : premiumPrice,
+          premiumDeliveryTime     : premiumDeliveryTime,
+          premiumShortDescription : premiumShortDescription,
+        );
+      } on PostgrestException catch (e) {
+        debugPrint('addService: gagal insert packages untuk id_service=$idService');
+        debugPrint('  message : ${e.message}');
+        return null;
+      }
 
-      final detail = await supabase
-          .from('service_detail')
-          .select()
-          .eq('id_service', idService)
-          .single();
+      try {
+        final detail = await supabase
+            .from('service_detail')
+            .select()
+            .eq('id_service', idService)
+            .single();
 
-      final newService = ServiceModel.fromJson(
-        Map<String, dynamic>.from(detail),
-      );
+        final newService = ServiceModel.fromJson(
+          Map<String, dynamic>.from(detail),
+        );
 
-      services.insert(0, newService);
-      return newService;
+        services.insert(0, newService);
+        debugPrint('addService: SELESAI, service berhasil ditambahkan');
+        return newService;
+      } on PostgrestException catch (e) {
+        debugPrint('POSTGREST ERROR saat fetch service_detail:');
+        debugPrint('  message : ${e.message}');
+        debugPrint('  details : ${e.details}');
+        debugPrint('  hint    : ${e.hint}');
+        return null;
+      }
     } catch (e) {
-      debugPrint('ERROR ADD SERVICE: $e');
+      debugPrint('ERROR TIDAK TERDUGA di addService: $e');
       return null;
     }
   }
+
+  // ─── UPDATE SERVICE ───────────────────────────────────────────────────────────
 
   Future<bool> updateService({
     required int idService,
@@ -341,16 +405,16 @@ class MyServicesController {
       }
 
       await _replaceServicePackages(
-        idService: idService,
-        basicPrice: basicPrice,
-        basicDeliveryTime: basicDeliveryTime,
-        basicShortDescription: basicShortDescription,
-        standardPrice: standardPrice,
-        standardDeliveryTime: standardDeliveryTime,
+        idService               : idService,
+        basicPrice              : basicPrice,
+        basicDeliveryTime       : basicDeliveryTime,
+        basicShortDescription   : basicShortDescription,
+        standardPrice           : standardPrice,
+        standardDeliveryTime    : standardDeliveryTime,
         standardShortDescription: standardShortDescription,
-        premiumPrice: premiumPrice,
-        premiumDeliveryTime: premiumDeliveryTime,
-        premiumShortDescription: premiumShortDescription,
+        premiumPrice            : premiumPrice,
+        premiumDeliveryTime     : premiumDeliveryTime,
+        premiumShortDescription : premiumShortDescription,
       );
 
       final detail = await supabase
@@ -376,6 +440,8 @@ class MyServicesController {
     }
   }
 
+  // ─── DELETE SERVICE ───────────────────────────────────────────────────────────
+
   Future<bool> deleteService(int idService) async {
     try {
       await supabase.from('services').delete().eq('id_service', idService);
@@ -387,6 +453,8 @@ class MyServicesController {
       return false;
     }
   }
+
+  // ─── CATEGORY HELPERS ─────────────────────────────────────────────────────────
 
   ServiceCategory? findCategoryById(int id) {
     try {

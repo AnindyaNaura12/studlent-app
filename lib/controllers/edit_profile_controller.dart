@@ -12,25 +12,28 @@ class EditProfileController {
   late TextEditingController skillInputController;
 
   List<String> skills = [];
-  List<String> certificates = []; // DIUBAH: sekarang menyimpan URL dari supabase
-  // DITAMBAH: menyimpan data sertifikat lengkap {id, url, name}
-  List<Map<String, dynamic>> certificateData = [];
+  List<Map<String, dynamic>> certificates = [];
 
   EditProfileController({FreelancerProfileModel? initialModel})
-      : model = initialModel ?? FreelancerProfileModel() {
+    : model = initialModel ?? FreelancerProfileModel() {
     nameController = TextEditingController(text: model.name);
-    professionalStatusController =
-        TextEditingController(text: model.professionalStatus);
+    professionalStatusController = TextEditingController(
+      text: model.professionalStatus,
+    );
     aboutMeController = TextEditingController(text: model.aboutMe);
     skillInputController = TextEditingController();
     skills = List<String>.from(model.skills);
-    certificates = List<String>.from(model.certificates);
   }
 
   Future<void> loadFromSupabase() async {
     try {
       final authUser = supabase.auth.currentUser;
-      if (authUser == null) return;
+      if (authUser == null) {
+        debugPrint(
+          '[EditProfileController] loadFromSupabase: user belum login',
+        );
+        return;
+      }
 
       final user = await supabase
           .from('users')
@@ -49,8 +52,9 @@ class EditProfileController {
       if ((profiles as List).isNotEmpty) {
         final profile = profiles[0];
         professionalStatusController.text =
-            profile['professional_status'] ?? '';
-        aboutMeController.text = profile['bio'] ?? '';
+            (profile['professional_status'] ?? '').toString();
+        aboutMeController.text = (profile['bio'] ?? profile['about_me'] ?? '')
+            .toString();
       }
 
       final skillsResult = await supabase
@@ -59,29 +63,51 @@ class EditProfileController {
           .eq('id_user', idUser);
 
       skills = (skillsResult as List)
-          .map((s) => s['skill_name'] as String)
+          .map((s) => (s['skill_name'] ?? '').toString())
+          .where((s) => s.trim().isNotEmpty)
           .toList();
 
-      // DITAMBAH: load sertifikat dari supabase
       final certsResult = await supabase
           .from('freelancer_certificates')
-          .select()
+          .select('id_certificate, file_url, file_name')
           .eq('id_user', idUser)
-          .order('created_at', ascending: false);
+          .order('created_at');
 
-      certificateData = List<Map<String, dynamic>>.from(certsResult);
-      certificates = certificateData
-          .map((c) => c['file_url'] as String)
-          .toList();
-    } catch (e) {
-      debugPrint('loadFromSupabase error: $e');
+      certificates = (certsResult as List).map<Map<String, dynamic>>((c) {
+        return {
+          'id_certificate': c['id_certificate'],
+          'file_url': c['file_url'] ?? '',
+          'file_name': c['file_name'] ?? '',
+          'is_existing': true,
+        };
+      }).toList();
+
+      debugPrint(
+        '[EditProfileController] Load berhasil: '
+        '${skills.length} skills, ${certificates.length} sertifikat',
+      );
+    } on PostgrestException catch (e) {
+      debugPrint(
+        '[EditProfileController] loadFromSupabase PostgrestException: '
+        'code=${e.code} | message=${e.message} | hint=${e.hint}',
+      );
+      debugPrint(
+        '  → Kemungkinan RLS memblokir SELECT. '
+        'Pastikan policy SELECT sudah aktif untuk tabel terkait.',
+      );
+    } catch (e, stack) {
+      debugPrint('[EditProfileController] loadFromSupabase error: $e');
+      debugPrint(stack.toString());
     }
   }
 
   Future<bool> saveToSupabase() async {
     try {
       final authUser = supabase.auth.currentUser;
-      if (authUser == null) return false;
+      if (authUser == null || authUser.email == null) {
+        debugPrint('[EditProfileController] saveToSupabase: user belum login');
+        return false;
+      }
 
       final user = await supabase
           .from('users')
@@ -90,39 +116,103 @@ class EditProfileController {
           .single();
 
       final idUser = user['id_user'] as int;
+      final now = DateTime.now().toIso8601String();
 
-      await supabase.from('users').update({
-        'nama': nameController.text.trim(),
-        'professional_status': professionalStatusController.text.trim(),
-        'updated_at': DateTime.now().toIso8601String(),
-      }).eq('id_user', idUser);
+      await supabase
+          .from('users')
+          .update({'nama': nameController.text.trim(), 'updated_at': now})
+          .eq('id_user', idUser);
+
+      debugPrint('[EditProfileController] Step 1 ✓ users updated');
 
       await supabase.from('freelancer_profiles').upsert({
         'id_user': idUser,
         'professional_status': professionalStatusController.text.trim(),
         'bio': aboutMeController.text.trim(),
-        'updated_at': DateTime.now().toIso8601String(),
-      });
+        'updated_at': now,
+      }, onConflict: 'id_user');
 
-      await supabase
-          .from('freelancer_skills')
-          .delete()
-          .eq('id_user', idUser);
+      debugPrint(
+        '[EditProfileController] Step 2 ✓ freelancer_profiles upserted',
+      );
 
-      for (final skill in skills) {
-        await supabase.from('freelancer_skills').insert({
-          'id_user': idUser,
-          'skill_name': skill,
-          'created_at': DateTime.now().toIso8601String(),
-        });
+      await supabase.from('freelancer_skills').delete().eq('id_user', idUser);
+
+      if (skills.isNotEmpty) {
+        final skillRows = skills
+            .map(
+              (skill) => {
+                'id_user': idUser,
+                'skill_name': skill.trim(),
+                'created_at': now,
+                'updated_at': now,
+              },
+            )
+            .toList();
+
+        await supabase.from('freelancer_skills').insert(skillRows);
       }
 
-      // NOTE: sertifikat di-handle langsung di page via PortfolioController
-      // tidak perlu save ulang di sini karena sudah langsung insert/delete
+      debugPrint(
+        '[EditProfileController] Step 3 ✓ ${skills.length} skills synced',
+      );
+
+      final newCerts = certificates
+          .where((c) => c['is_existing'] != true)
+          .toList();
+
+      if (newCerts.isNotEmpty) {
+        final certRows = newCerts
+            .map(
+              (c) => {
+                'id_user': idUser,
+                'file_url': c['file_url'] ?? '',
+                'file_name': c['file_name'] ?? '',
+                'created_at': now,
+                'updated_at': now,
+              },
+            )
+            .toList();
+
+        await supabase.from('freelancer_certificates').insert(certRows);
+
+        for (final cert in newCerts) {
+          cert['is_existing'] = true;
+        }
+
+        debugPrint(
+          '[EditProfileController] Step 4 ✓ '
+          '${newCerts.length} sertifikat baru disimpan',
+        );
+      } else {
+        debugPrint(
+          '[EditProfileController] Step 4 ✓ '
+          'Tidak ada sertifikat baru untuk disimpan',
+        );
+      }
 
       return true;
-    } catch (e) {
-      debugPrint('saveToSupabase error: $e');
+    } on PostgrestException catch (e) {
+      debugPrint('══════════════════════════════════════════');
+      debugPrint('[EditProfileController] ⛔ SUPABASE ERROR saat save:');
+      debugPrint('  code    : ${e.code}');
+      debugPrint('  message : ${e.message}');
+      debugPrint('  hint    : ${e.hint}');
+      debugPrint('  details : ${e.details}');
+      if (e.code == '42501' || ((e.message).contains('policy'))) {
+        debugPrint('  → ⚠️  KEMUNGKINAN MASALAH RLS (Row Level Security)!');
+        debugPrint('  → Cek Supabase Dashboard > Authentication > Policies');
+        debugPrint('  → Pastikan policy UPDATE/INSERT/DELETE sudah aktif');
+        debugPrint('  → untuk tabel: users, freelancer_profiles,');
+        debugPrint('     freelancer_skills, freelancer_certificates');
+      }
+      debugPrint('══════════════════════════════════════════');
+      return false;
+    } catch (e, stack) {
+      debugPrint(
+        '[EditProfileController] ⛔ saveToSupabase unexpected error: $e',
+      );
+      debugPrint(stack.toString());
       return false;
     }
   }
@@ -141,29 +231,44 @@ class EditProfileController {
     refresh();
   }
 
-  // DIUBAH: addCertificate sekarang menerima data lengkap
-  void addCertificateData(Map<String, dynamic> certData, VoidCallback refresh) {
-    certificateData.add(certData);
-    certificates.add(certData['file_url'] as String);
+  void addCertificate({
+    required String fileUrl,
+    required String fileName,
+    required VoidCallback refresh,
+  }) {
+    certificates.add({
+      'file_url': fileUrl,
+      'file_name': fileName,
+      'is_existing': false,
+    });
     refresh();
   }
 
-  // DIUBAH: removeCertificate menggunakan index dari certificateData
-  void removeCertificateData(int index, VoidCallback refresh) {
-    if (index < certificateData.length) {
-      certificateData.removeAt(index);
-      certificates.removeAt(index);
+  Future<void> removeCertificate(int index, VoidCallback refresh) async {
+    final cert = certificates[index];
+
+    if (cert['is_existing'] == true && cert['id_certificate'] != null) {
+      try {
+        await supabase
+            .from('freelancer_certificates')
+            .delete()
+            .eq('id_certificate', cert['id_certificate']);
+        debugPrint(
+          '[EditProfileController] Sertifikat id=${cert['id_certificate']} dihapus dari DB',
+        );
+      } on PostgrestException catch (e) {
+        debugPrint(
+          '[EditProfileController] ⛔ Gagal hapus sertifikat dari DB: '
+          'code=${e.code} | ${e.message}',
+        );
+        if (e.code == '42501') {
+          debugPrint('  → ⚠️  RLS memblokir DELETE di freelancer_certificates');
+        }
+      } catch (e) {
+        debugPrint('[EditProfileController] ⛔ removeCertificate error: $e');
+      }
     }
-    refresh();
-  }
 
-  // Keep backward compat
-  void addCertificate(String path, VoidCallback refresh) {
-    certificates.add(path);
-    refresh();
-  }
-
-  void removeCertificate(int index, VoidCallback refresh) {
     certificates.removeAt(index);
     refresh();
   }

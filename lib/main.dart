@@ -3,23 +3,30 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'views/pages/home_pages.dart';
 import 'config.dart';
 
-final ValueNotifier<String> globalUsername = ValueNotifier<String>(
-  '',
-); // ✅ aman
+final ValueNotifier<String> globalUsername = ValueNotifier<String>('');
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Supabase.initialize(
-    url: Config.supabaseUrl,
-    anonKey: Config.supabaseAnonKey,
-  );
+  String? startupError;
 
-  runApp(const MyApp());
+  try {
+    await Supabase.initialize(
+      url: Config.supabaseUrl,
+      anonKey: Config.supabaseAnonKey,
+    );
+  } catch (e) {
+    startupError = e.toString();
+    debugPrint('Supabase init error: $e');
+  }
+
+  runApp(MyApp(startupError: startupError));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final String? startupError;
+
+  const MyApp({super.key, this.startupError});
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +36,32 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const HomePage(),
+      home: startupError == null
+          ? const HomePage()
+          : StartupErrorPage(message: startupError!),
+    );
+  }
+}
+
+class StartupErrorPage extends StatelessWidget {
+  final String message;
+
+  const StartupErrorPage({super.key, required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFFFF8EE),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            'Aplikasi gagal mulai:\n\n$message',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 16),
+          ),
+        ),
+      ),
     );
   }
 }

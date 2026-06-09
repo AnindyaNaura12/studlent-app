@@ -74,7 +74,10 @@ class PortfolioController {
           .uploadBinary(
             fileName,
             bytes,
-            fileOptions: FileOptions(upsert: true, contentType: 'image/$fileExt'),
+            fileOptions: FileOptions(
+              upsert: true,
+              contentType: 'image/$fileExt',
+            ),
           );
 
       return supabase.storage.from('Portofolios').getPublicUrl(fileName);
@@ -99,7 +102,8 @@ class PortfolioController {
         'judul': title,
         'deskripsi': description,
         'jobdesk': jobdesk, // DIUBAH
-        'category': jobdesk, // DITAMBAH: isi juga category untuk backward compat
+        'category':
+            jobdesk, // DITAMBAH: isi juga category untuk backward compat
         'file_url': imageUrl,
         'thumbnail_url': imageUrl,
         'created_at': DateTime.now().toIso8601String(),
@@ -180,74 +184,75 @@ class PortfolioController {
 
   // Upload sertifikat (PDF / gambar) ke storage
   Future<Map<String, String>?> uploadCertificate() async {
-  debugPrint('=== uploadCertificate DIPANGGIL ==='); // TAMBAH PALING ATAS
+    debugPrint('=== uploadCertificate DIPANGGIL ==='); // TAMBAH PALING ATAS
 
-  try {
-    // Cek bucket dulu sebelum pick file
-    final buckets = await supabase.storage.listBuckets();
-    debugPrint('BUCKETS: ${buckets.map((b) => '${b.id}|${b.name}').toList()}');
+    try {
+      // Cek bucket dulu sebelum pick file
+      final buckets = await supabase.storage.listBuckets();
+      debugPrint(
+        'BUCKETS: ${buckets.map((b) => '${b.id}|${b.name}').toList()}',
+      );
 
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
-      withData: true,
-    );
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+        withData: true,
+      );
 
-    if (result == null || result.files.isEmpty) {
-      debugPrint('FILE PICKER: user cancel atau tidak ada file');
+      if (result == null || result.files.isEmpty) {
+        debugPrint('FILE PICKER: user cancel atau tidak ada file');
+        return null;
+      }
+
+      final file = result.files.first;
+      debugPrint(
+        'FILE DIPILIH: ${file.name}, ext: ${file.extension}, bytes: ${file.bytes?.length}',
+      );
+
+      final bytes = file.bytes;
+      if (bytes == null) {
+        debugPrint('BYTES NULL');
+        return null;
+      }
+
+      final ext = file.extension?.toLowerCase() ?? 'pdf';
+      final fileName = 'cert_${DateTime.now().millisecondsSinceEpoch}.$ext';
+      final mimeType = ext == 'pdf' ? 'application/pdf' : 'image/$ext';
+
+      debugPrint('UPLOAD KE BUCKET: certificates, fileName: $fileName');
+
+      await supabase.storage
+          .from('certificates')
+          .uploadBinary(
+            fileName,
+            bytes,
+            fileOptions: FileOptions(upsert: true, contentType: mimeType),
+          );
+
+      debugPrint('UPLOAD SUKSES');
+
+      final url = supabase.storage.from('certificates').getPublicUrl(fileName);
+      debugPrint('URL: $url');
+
+      return {'url': url, 'name': file.name};
+    } catch (e) {
+      debugPrint('uploadCertificate error DETAIL: $e');
       return null;
     }
-
-    final file = result.files.first;
-    debugPrint('FILE DIPILIH: ${file.name}, ext: ${file.extension}, bytes: ${file.bytes?.length}');
-
-    final bytes = file.bytes;
-    if (bytes == null) {
-      debugPrint('BYTES NULL');
-      return null;
-    }
-
-    final ext = file.extension?.toLowerCase() ?? 'pdf';
-    final fileName = 'cert_${DateTime.now().millisecondsSinceEpoch}.$ext';
-    final mimeType = ext == 'pdf' ? 'application/pdf' : 'image/$ext';
-
-    debugPrint('UPLOAD KE BUCKET: certificates, fileName: $fileName');
-
-    await supabase.storage
-        .from('certificates')
-        .uploadBinary(
-          fileName,
-          bytes,
-          fileOptions: FileOptions(upsert: true, contentType: mimeType),
-        );
-
-    debugPrint('UPLOAD SUKSES');
-
-    final url = supabase.storage.from('certificates').getPublicUrl(fileName);
-    debugPrint('URL: $url');
-
-    return {'url': url, 'name': file.name};
-  } catch (e) {
-    debugPrint('uploadCertificate error DETAIL: $e');
-    return null;
   }
-}
 
   Future<bool> addCertificate({
     required String fileUrl,
     required String fileName,
+    required int idUser,
   }) async {
     try {
-      final idUser = await _getCurrentUserId();
-      if (idUser == null) return false;
-
       await supabase.from('freelancer_certificates').insert({
         'id_user': idUser,
         'file_url': fileUrl,
         'file_name': fileName,
         'created_at': DateTime.now().toIso8601String(),
       });
-
       return true;
     } catch (e) {
       debugPrint('addCertificate error: $e');
@@ -255,16 +260,15 @@ class PortfolioController {
     }
   }
 
-  Future<bool> deleteCertificate(int idCertificate) async {
+  Future<void> deleteCertificate(int idCert, {required int idUser}) async {
     try {
       await supabase
           .from('freelancer_certificates')
           .delete()
-          .eq('id_certificate', idCertificate);
-      return true;
+          .eq('id_certificate', idCert)
+          .eq('id_user', idUser);
     } catch (e) {
       debugPrint('deleteCertificate error: $e');
-      return false;
     }
   }
 }

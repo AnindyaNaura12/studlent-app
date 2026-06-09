@@ -1,26 +1,3 @@
-// ============================================================
-// request_revision_page.dart
-// Studlent App — Request Revision Feature
-//
-// pubspec.yaml dependencies yang dibutuhkan:
-//   url_launcher: ^6.3.0
-//   image_picker: ^1.1.2
-//   file_picker: ^8.0.0+1
-//
-// Android — android/app/src/main/AndroidManifest.xml:
-//   Tambahkan di dalam <manifest>:
-//   <queries>
-//     <intent>
-//       <action android:name="android.intent.action.VIEW" />
-//       <data android:scheme="https" />
-//     </intent>
-//   </queries>
-//
-// iOS — ios/Runner/Info.plist:
-//   <key>NSPhotoLibraryUsageDescription</key>
-//   <string>Dibutuhkan untuk melampirkan gambar pada revisi.</string>
-// ============================================================
-
 import 'dart:io';
 import 'dart:ui';
 
@@ -29,11 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../models/booking_model.dart';
+import '../../models/order_model.dart';
 
-// ============================================================
-// Internal model untuk menyimpan data lampiran
-// ============================================================
 class _AttachmentItem {
   final File file;
   final String name;
@@ -46,11 +20,8 @@ class _AttachmentItem {
   });
 }
 
-// ============================================================
-// Widget utama
-// ============================================================
 class RequestRevisionPage extends StatefulWidget {
-  final Booking booking;
+  final OrderModel booking;
 
   const RequestRevisionPage({super.key, required this.booking});
 
@@ -59,12 +30,10 @@ class RequestRevisionPage extends StatefulWidget {
 }
 
 class _RequestRevisionPageState extends State<RequestRevisionPage> {
-  // ── State ──────────────────────────────────────────────────
   final TextEditingController _revisionController = TextEditingController();
   final List<_AttachmentItem> _attachments = [];
   bool _isLoading = false;
 
-  // ── Helpers ────────────────────────────────────────────────
   void _showSnackBar(String message, {Color? bgColor}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -79,17 +48,11 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
     );
   }
 
-  // ── View File (url_launcher) ───────────────────────────────
-  /// Membuka URL file hasil kerja freelancer di browser eksternal.
-  /// Jika field `fileUrl` belum ada di model Booking, gunakan fallback SnackBar.
   Future<void> _openCompletedFile() async {
-    // Ambil URL dari model. Sesuaikan field name ketika sudah tersedia di Booking model.
-    // Contoh: final rawUrl = widget.booking.fileUrl;
-    // Untuk sekarang, gunakan fallback karena field belum ada di model.
-    final String? rawUrl = null; // TODO: ganti dengan widget.booking.fileUrl
+    final String? rawUrl = widget.booking.fileUrl;
 
     if (rawUrl == null || rawUrl.isEmpty) {
-      _showSnackBar("Membuka file hasil kerja...");
+      _showSnackBar("File hasil kerja belum tersedia.");
       return;
     }
 
@@ -106,7 +69,6 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
     }
   }
 
-  // ── Image Picker ───────────────────────────────────────────
   Future<void> _handleImagePick() async {
     if (_isLoading) return;
 
@@ -114,13 +76,12 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
       final ImagePicker picker = ImagePicker();
       final List<XFile> pickedFiles = await picker.pickMultiImage(
         imageQuality: 80,
-        limit: 5, // max 5 gambar sekaligus
+        limit: 5,
       );
 
       if (!mounted) return;
       if (pickedFiles.isEmpty) return;
 
-      // Cegah total lampiran melebihi 5
       final int remaining = 5 - _attachments.length;
       if (remaining <= 0) {
         _showSnackBar("Maksimal 5 lampiran.");
@@ -142,7 +103,7 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
       });
 
       if (pickedFiles.length > remaining) {
-        _showSnackBar("Hanya ${remaining} gambar yang ditambahkan (batas 5).");
+        _showSnackBar("Hanya $remaining gambar yang ditambahkan (batas 5).");
       }
     } catch (e) {
       if (!mounted) return;
@@ -150,7 +111,6 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
     }
   }
 
-  // ── File Picker ────────────────────────────────────────────
   Future<void> _handleAttachment() async {
     if (_isLoading) return;
 
@@ -175,8 +135,7 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
       final List<_AttachmentItem> newItems = [];
       for (final PlatformFile pf in toAdd) {
         final String? path = pf.path;
-        if (path == null || path.isEmpty)
-          continue; // path null hanya di web, aman di-skip
+        if (path == null || path.isEmpty) continue;
         newItems.add(
           _AttachmentItem(file: File(path), name: pf.name, isImage: false),
         );
@@ -195,18 +154,13 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
     }
   }
 
-  // ── Remove Attachment ──────────────────────────────────────
   void _removeAttachment(int index) {
     setState(() => _attachments.removeAt(index));
   }
 
-  // ── Submit Revision ────────────────────────────────────────
-  /// Struktur siap dihubungkan ke Supabase.
-  /// Uncomment blok Supabase ketika client sudah dikonfigurasi.
   Future<void> _submitRevision() async {
     final String revisionText = _revisionController.text.trim();
 
-    // ── Validasi ────────────────────────────────────────────
     if (revisionText.isEmpty) {
       _showSnackBar("Mohon deskripsikan permintaan revisi Anda.");
       return;
@@ -215,51 +169,9 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
     setState(() => _isLoading = true);
 
     try {
-      // ── Simulasi loading (hapus ketika Supabase sudah terhubung) ──
       await Future.delayed(const Duration(seconds: 2));
 
-      // ──────────────────────────────────────────────────────
-      // SUPABASE INTEGRATION — uncomment & sesuaikan ketika siap
-      // ──────────────────────────────────────────────────────
-      //
-      // import 'package:supabase_flutter/supabase_flutter.dart';
-      // final supabase = Supabase.instance.client;
-      //
-      // // 1. Upload setiap file lampiran ke Supabase Storage
-      // final List<String> uploadedUrls = [];
-      // for (final _AttachmentItem item in _attachments) {
-      //   final String storagePath =
-      //       'revisions/${widget.booking.id}/${DateTime.now().millisecondsSinceEpoch}_${item.name}';
-      //   await supabase.storage
-      //       .from('revision-files')
-      //       .upload(storagePath, item.file);
-      //   final String publicUrl = supabase.storage
-      //       .from('revision-files')
-      //       .getPublicUrl(storagePath);
-      //   uploadedUrls.add(publicUrl);
-      // }
-      //
-      // // 2. Insert record revisi ke tabel 'revisions'
-      // await supabase.from('revisions').insert({
-      //   'booking_id': widget.booking.id,
-      //   'freelancer_id': widget.booking.freelancerId,
-      //   'revision_note': revisionText,
-      //   'file_urls': uploadedUrls,
-      //   'status': 'revision_requested',
-      //   'created_at': DateTime.now().toIso8601String(),
-      // });
-      //
-      // // 3. Update status booking menjadi 'Revision'
-      // await supabase
-      //     .from('bookings')
-      //     .update({'status': 'Revision'})
-      //     .eq('id', widget.booking.id);
-      //
-      // ──────────────────────────────────────────────────────
-
       if (!mounted) return;
-
-      // Pop dengan nilai true agar halaman sebelumnya bisa refresh
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
@@ -272,14 +184,80 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
     }
   }
 
-  // ── Dispose ────────────────────────────────────────────────
+  Widget _buildFreelancerAvatar(double Function(double) s) {
+    final avatar = widget.booking.freelancerAvatar;
+
+    if (avatar.isEmpty) {
+      return Container(
+        width: s(56),
+        height: s(56),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFE0B2),
+          borderRadius: BorderRadius.circular(s(12)),
+        ),
+        child: Icon(
+          Icons.person_rounded,
+          color: const Color(0xFFFFA726),
+          size: s(28),
+        ),
+      );
+    }
+
+    if (avatar.startsWith('http')) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(s(12)),
+        child: Image.network(
+          avatar,
+          width: s(56),
+          height: s(56),
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Container(
+            width: s(56),
+            height: s(56),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFE0B2),
+              borderRadius: BorderRadius.circular(s(12)),
+            ),
+            child: Icon(
+              Icons.person_rounded,
+              color: const Color(0xFFFFA726),
+              size: s(28),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(s(12)),
+      child: Image.asset(
+        avatar,
+        width: s(56),
+        height: s(56),
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Container(
+          width: s(56),
+          height: s(56),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFE0B2),
+            borderRadius: BorderRadius.circular(s(12)),
+          ),
+          child: Icon(
+            Icons.person_rounded,
+            color: const Color(0xFFFFA726),
+            size: s(28),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _revisionController.dispose();
     super.dispose();
   }
 
-  // ── Build ──────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final double screenWidth = MediaQuery.of(context).size.width;
@@ -289,7 +267,6 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFFFF8EE),
-      // ── Fixed bottom button ──────────────────────────────
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: EdgeInsets.fromLTRB(s(20), s(8), s(20), s(16)),
@@ -330,10 +307,8 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
           ),
         ),
       ),
-      // ── Scrollable body ──────────────────────────────────
       body: CustomScrollView(
         slivers: [
-          // ── Custom gradient SliverAppBar ───────────────
           SliverAppBar(
             backgroundColor: Colors.transparent,
             elevation: 0,
@@ -351,7 +326,6 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
             ),
             title: Row(
               children: [
-                // ── Plain back button, sama persis seperti Booking Detail ──
                 GestureDetector(
                   onTap: () => Navigator.pop(context),
                   child: Icon(
@@ -372,13 +346,10 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
                     ),
                   ),
                 ),
-                // Balance placeholder agar title tetap center
                 SizedBox(width: s(22)),
               ],
             ),
           ),
-
-          // ── Page content ───────────────────────────────
           SliverToBoxAdapter(
             child: Padding(
               padding: EdgeInsets.fromLTRB(s(16), s(8), s(16), s(24)),
@@ -387,7 +358,7 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
                 children: [
                   _buildFreelancerCard(s),
                   SizedBox(height: s(20)),
-                  // _buildViewOrderSection(s),
+                  _buildViewOrderSection(s),
                   SizedBox(height: s(20)),
                   _buildRevisionInputSection(s),
                 ],
@@ -399,11 +370,6 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
     );
   }
 
-  // ============================================================
-  // SECTION BUILDERS
-  // ============================================================
-
-  // ── Freelancer Info Card ───────────────────────────────────
   Widget _buildFreelancerCard(double Function(double) s) {
     return Container(
       padding: EdgeInsets.all(s(14)),
@@ -420,35 +386,14 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
       ),
       child: Row(
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(s(12)),
-            child: Image.asset(
-              widget.booking.image,
-              width: s(56),
-              height: s(56),
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                width: s(56),
-                height: s(56),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFE0B2),
-                  borderRadius: BorderRadius.circular(s(12)),
-                ),
-                child: Icon(
-                  Icons.person_rounded,
-                  color: const Color(0xFFFFA726),
-                  size: s(28),
-                ),
-              ),
-            ),
-          ),
+          _buildFreelancerAvatar(s),
           SizedBox(width: s(12)),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  widget.booking.providerName,
+                  widget.booking.freelancerName,
                   style: TextStyle(
                     fontSize: s(14),
                     fontWeight: FontWeight.bold,
@@ -472,7 +417,6 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
     );
   }
 
-  // ── View Order / View File Section ────────────────────────
   Widget _buildViewOrderSection(double Function(double) s) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -529,7 +473,6 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
     );
   }
 
-  // ── Revision Input + Attachment Section ───────────────────
   Widget _buildRevisionInputSection(double Function(double) s) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -543,7 +486,6 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
           ),
         ),
         SizedBox(height: s(10)),
-        // ── Input container ────────────────────────────────
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
@@ -563,7 +505,6 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // TextField
               Padding(
                 padding: EdgeInsets.fromLTRB(s(14), s(12), s(14), s(4)),
                 child: TextField(
@@ -582,8 +523,6 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
                   ),
                 ),
               ),
-
-              // ── Attachment preview area ──────────────────
               if (_attachments.isNotEmpty) ...[
                 Padding(
                   padding: EdgeInsets.fromLTRB(s(12), 0, s(12), s(8)),
@@ -597,8 +536,6 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
                   ),
                 ),
               ],
-
-              // ── Bottom toolbar ───────────────────────────
               Padding(
                 padding: EdgeInsets.fromLTRB(s(10), s(4), s(10), s(10)),
                 child: Row(
@@ -617,7 +554,6 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
                       tooltip: "Tambah gambar",
                     ),
                     const Spacer(),
-                    // Counter indikator lampiran
                     if (_attachments.isNotEmpty)
                       Text(
                         "${_attachments.length}/5",
@@ -636,7 +572,6 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
     );
   }
 
-  // ── Single Attachment Preview Chip ────────────────────────
   Widget _buildAttachmentPreview(int index, double Function(double) s) {
     final _AttachmentItem item = _attachments[index];
 
@@ -664,7 +599,6 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
                 )
               : _fileChipContent(item.name, s),
         ),
-        // ── Remove (X) button ──────────────────────────────
         Positioned(
           top: s(-6),
           right: s(-6),
@@ -685,7 +619,6 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
     );
   }
 
-  /// Placeholder icon untuk thumbnail gambar yang gagal load
   Widget _fileIconPlaceholder(double Function(double) s) {
     return Container(
       width: s(70),
@@ -702,7 +635,6 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
     );
   }
 
-  /// Konten chip untuk file non-gambar (PDF, DOCX, dll)
   Widget _fileChipContent(String name, double Function(double) s) {
     return Padding(
       padding: EdgeInsets.all(s(6)),
@@ -727,7 +659,6 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
     );
   }
 
-  // ── Toolbar icon button ────────────────────────────────────
   Widget _toolbarIconButton({
     required IconData icon,
     required double Function(double) s,
@@ -751,9 +682,6 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
   }
 }
 
-// ============================================================
-// Custom Painter — Dashed Border
-// ============================================================
 class _DashedBorderPainter extends CustomPainter {
   final Color color;
   final double borderRadius;
