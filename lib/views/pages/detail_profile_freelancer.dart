@@ -9,14 +9,14 @@ import '../../models/services_model.dart';
 import 'service_detail_page.dart';
 
 class _C {
-  static const primary     = Color(0xFFFFB74D);
+  static const primary = Color(0xFFFFB74D);
   static const primaryDeep = Color(0xFFFF9800);
-  static const bg          = Color(0xFFFFF9F2);
-  static const textDark    = Color(0xFF1A1207);
-  static const textMid     = Color(0xFF6B5B45);
-  static const textSoft    = Color(0xFFAA9880);
-  static const chipBg      = Color(0xFFFFE5B4);
-  static const shadow      = Color(0x14FF9800);
+  static const bg = Color(0xFFFFF9F2);
+  static const textDark = Color(0xFF1A1207);
+  static const textMid = Color(0xFF6B5B45);
+  static const textSoft = Color(0xFFAA9880);
+  static const chipBg = Color(0xFFFFE5B4);
+  static const shadow = Color(0x14FF9800);
 }
 
 class DetailProfileFreelancer extends StatefulWidget {
@@ -41,7 +41,8 @@ class _DetailProfileFreelancerState extends State<DetailProfileFreelancer> {
   List<String> _skills = [];
   List<Map<String, dynamic>> _portfolios = [];
   List<ServiceModel> _services = [];
-  List<Map<String, dynamic>> _certificates = []; // DITAMBAH: sertifikat freelancer
+  List<Map<String, dynamic>> _certificates =
+      []; // DITAMBAH: sertifikat freelancer
 
   @override
   void initState() {
@@ -56,84 +57,105 @@ class _DetailProfileFreelancerState extends State<DetailProfileFreelancer> {
       return;
     }
 
+    Map<String, dynamic>? fp;
+    Map<String, dynamic>? user;
+    List skills = [];
+    List portfolios = [];
+    List servicesData = [];
+    List certsData = [];
+
+    // ── freelancer_profiles ──
     try {
-      // DIUBAH: tambah query sertifikat di Future.wait
-      final results = await Future.wait<dynamic>([
-        _supabase
-            .from('freelancer_profiles')
-            .select('bio, universitas, professional_status, foto_freelancer')
-            .eq('id_user', freelancerId)
-            .maybeSingle(),
-        _supabase
-            .from('users')
-            .select('foto')
-            .eq('id_user', freelancerId)
-            .maybeSingle(),
-        _supabase
-            .from('freelancer_skills')
-            .select('skill_name')
-            .eq('id_user', freelancerId),
-        _supabase
-            .from('portfolios')
-            .select('id_portfolio, judul, deskripsi, thumbnail_url, file_url, jobdesk, category')
-            // DIUBAH: tambah id_portfolio, jobdesk, category di select
-            .eq('id_user', freelancerId)
-            .order('created_at', ascending: false),
-        _supabase
-            .from('service_detail')
-            .select()
-            .eq('id_freelancer', freelancerId)
-            .eq('status', 'active'),
-        // DITAMBAH: query sertifikat
-        _supabase
-            .from('freelancer_certificates')
-            .select()
-            .eq('id_user', freelancerId)
-            .order('created_at', ascending: false),
-      ]);
-
-      final fp         = results[0] as Map<String, dynamic>?;
-      final user       = results[1] as Map<String, dynamic>?;
-      final skills     = results[2] as List;
-      final portfolios = results[3] as List;
-      final servicesData  = results[4] as List;
-      final certsData  = results[5] as List; // DITAMBAH
-
-      // DIUBAH: foto PP pakai foto_freelancer dari freelancer_profiles,
-      // fallback ke users.foto (sebelumnya salah ambil foto client)
-      String? photoUrl;
-      if (fp?['foto_freelancer'] != null &&
-          (fp!['foto_freelancer'] as String).isNotEmpty) {
-        photoUrl = fp['foto_freelancer'] as String;
-      } else if (user?['foto'] != null &&
-          (user!['foto'] as String).isNotEmpty) {
-        photoUrl = user['foto'] as String;
-      }
-
-      if (mounted) {
-        setState(() {
-          _photoUrl           = photoUrl;
-          _bio                = fp?['bio'] ?? '';
-          _university         = fp?['universitas'] ?? widget.service.university;
-          _professionalStatus = fp?['professional_status'] ?? '';
-          _skills = skills
-              .map((s) => s['skill_name'] as String)
-              .toList();
-          _portfolios = portfolios
-              .map((p) => Map<String, dynamic>.from(p))
-              .toList();
-          _services = servicesData
-              .map((e) => ServiceModel.fromJson(e))
-              .toList();
-          _certificates = certsData // DITAMBAH
-              .map((c) => Map<String, dynamic>.from(c))
-              .toList();
-          _loading = false;
-        });
-      }
+      fp = await _supabase
+          .from('freelancer_profiles')
+          .select('bio, universitas, professional_status, foto_freelancer')
+          .eq('id_user', freelancerId)
+          .maybeSingle();
     } catch (e) {
-      debugPrint('loadAllData error: $e');
-      if (mounted) setState(() => _loading = false);
+      debugPrint('freelancer_profiles error: $e');
+    }
+
+    // ── users ──
+    try {
+      user = await _supabase
+          .from('users')
+          .select('foto')
+          .eq('id_user', freelancerId)
+          .maybeSingle();
+    } catch (e) {
+      debugPrint('users error: $e');
+    }
+
+    // ── freelancer_skills ──
+    try {
+      skills = await _supabase
+          .from('freelancer_skills')
+          .select('skill_name')
+          .eq('id_user', freelancerId);
+    } catch (e) {
+      debugPrint('freelancer_skills error: $e');
+    }
+
+    // ── portfolios ──
+    try {
+      portfolios = await _supabase
+          .from('portfolios')
+          .select(
+            'id_portfolio, judul, deskripsi, thumbnail_url, file_url, jobdesk, category',
+          )
+          .eq('id_user', freelancerId)
+          .order('created_at', ascending: false);
+    } catch (e) {
+      debugPrint('portfolios error: $e');
+    }
+
+    // ── service_detail ──
+    try {
+      servicesData = await _supabase
+          .from('service_detail')
+          .select()
+          .eq('id_freelancer', freelancerId)
+          .eq('status', 'active');
+    } catch (e) {
+      debugPrint('service_detail error: $e');
+    }
+
+    // ── freelancer_certificates ──
+    try {
+      certsData = await _supabase
+          .from('freelancer_certificates')
+          .select()
+          .eq('id_user', freelancerId)
+          .order('created_at', ascending: false);
+    } catch (e) {
+      debugPrint('freelancer_certificates error: $e');
+    }
+
+    // ── Foto PP: foto_freelancer → fallback users.foto ──
+    String? photoUrl;
+    if (fp?['foto_freelancer'] != null &&
+        (fp!['foto_freelancer'] as String).isNotEmpty) {
+      photoUrl = fp['foto_freelancer'] as String;
+    } else if (user?['foto'] != null && (user!['foto'] as String).isNotEmpty) {
+      photoUrl = user['foto'] as String;
+    }
+
+    if (mounted) {
+      setState(() {
+        _photoUrl = photoUrl;
+        _bio = fp?['bio'] ?? '';
+        _university = fp?['universitas'] ?? widget.service.university;
+        _professionalStatus = fp?['professional_status'] ?? '';
+        _skills = skills.map((s) => s['skill_name'] as String).toList();
+        _portfolios = portfolios
+            .map((p) => Map<String, dynamic>.from(p))
+            .toList();
+        _services = servicesData.map((e) => ServiceModel.fromJson(e)).toList();
+        _certificates = certsData
+            .map((c) => Map<String, dynamic>.from(c))
+            .toList();
+        _loading = false;
+      });
     }
   }
 
@@ -166,9 +188,7 @@ class _DetailProfileFreelancerState extends State<DetailProfileFreelancer> {
                           _SectionLabel(text: "About Me", s: s),
                           SizedBox(height: s(10)),
                           Text(
-                            _bio.isNotEmpty
-                                ? _bio
-                                : 'Belum ada deskripsi.',
+                            _bio.isNotEmpty ? _bio : 'Belum ada deskripsi.',
                             style: TextStyle(
                               fontSize: s(14),
                               height: 1.75,
@@ -179,55 +199,53 @@ class _DetailProfileFreelancerState extends State<DetailProfileFreelancer> {
                           SizedBox(height: s(28)),
 
                           // Skills
-                          _SectionLabel(
-                              text: "Skills & Expertise", s: s),
+                          _SectionLabel(text: "Skills & Expertise", s: s),
                           SizedBox(height: s(14)),
                           _skills.isNotEmpty
                               ? Wrap(
                                   spacing: s(10),
                                   runSpacing: s(10),
                                   children: _skills
-                                      .map((sk) =>
-                                          _SkillChip(label: sk))
+                                      .map((sk) => _SkillChip(label: sk))
                                       .toList(),
                                 )
                               : Text(
                                   'Belum ada skill.',
                                   style: TextStyle(
-                                      color: _C.textSoft,
-                                      fontSize: s(13)),
+                                    color: _C.textSoft,
+                                    fontSize: s(13),
+                                  ),
                                 ),
 
                           SizedBox(height: s(30)),
 
                           // Services Offered
-                          _SectionLabel(
-                              text: "Services Offered", s: s),
+                          _SectionLabel(text: "Services Offered", s: s),
                           SizedBox(height: s(14)),
                           _services.isNotEmpty
                               ? SizedBox(
                                   height: s(320),
                                   child: ListView.separated(
                                     scrollDirection: Axis.horizontal,
-                                    physics:
-                                        const BouncingScrollPhysics(),
+                                    physics: const BouncingScrollPhysics(),
                                     itemCount: _services.length,
                                     separatorBuilder: (_, __) =>
                                         SizedBox(width: s(14)),
-                                    itemBuilder: (ctx, i) =>
-                                        ServiceCard(
+                                    itemBuilder: (ctx, i) => ServiceCard(
                                       service: _services[i],
-                                      onTap: () =>
-                                          controller.goToServiceDetail(
-                                              context, _services[i]),
+                                      onTap: () => controller.goToServiceDetail(
+                                        context,
+                                        _services[i],
+                                      ),
                                     ),
                                   ),
                                 )
                               : Text(
                                   'Belum ada service aktif.',
                                   style: TextStyle(
-                                      color: _C.textSoft,
-                                      fontSize: s(13)),
+                                    color: _C.textSoft,
+                                    fontSize: s(13),
+                                  ),
                                 ),
 
                           SizedBox(height: s(30)),
@@ -241,27 +259,28 @@ class _DetailProfileFreelancerState extends State<DetailProfileFreelancer> {
                                   // DIUBAH: height sedikit lebih besar untuk jobdesk label
                                   child: ListView.separated(
                                     scrollDirection: Axis.horizontal,
-                                    physics:
-                                        const BouncingScrollPhysics(),
+                                    physics: const BouncingScrollPhysics(),
                                     itemCount: _portfolios.length,
                                     separatorBuilder: (_, __) =>
                                         SizedBox(width: s(12)),
                                     itemBuilder: (ctx, i) =>
                                         // DIUBAH: _PortfolioCard sekarang bisa di-tap
                                         _PortfolioCard(
-                                      portfolio: _portfolios[i],
-                                      s: s,
-                                      onTap: () =>
-                                          _showPortfolioDetail(
-                                              _portfolios[i], s),
-                                    ),
+                                          portfolio: _portfolios[i],
+                                          s: s,
+                                          onTap: () => _showPortfolioDetail(
+                                            _portfolios[i],
+                                            s,
+                                          ),
+                                        ),
                                   ),
                                 )
                               : Text(
                                   'Belum ada portfolio.',
                                   style: TextStyle(
-                                      color: _C.textSoft,
-                                      fontSize: s(13)),
+                                    color: _C.textSoft,
+                                    fontSize: s(13),
+                                  ),
                                 ),
 
                           SizedBox(height: s(30)),
@@ -274,19 +293,21 @@ class _DetailProfileFreelancerState extends State<DetailProfileFreelancer> {
                                   spacing: s(12),
                                   runSpacing: s(12),
                                   children: _certificates
-                                      .map((cert) => _CertificateItem(
-                                            cert: cert,
-                                            s: s,
-                                            onTap: () =>
-                                                _showCertificate(cert),
-                                          ))
+                                      .map(
+                                        (cert) => _CertificateItem(
+                                          cert: cert,
+                                          s: s,
+                                          onTap: () => _showCertificate(cert),
+                                        ),
+                                      )
                                       .toList(),
                                 )
                               : Text(
                                   'Belum ada sertifikat.',
                                   style: TextStyle(
-                                      color: _C.textSoft,
-                                      fontSize: s(13)),
+                                    color: _C.textSoft,
+                                    fontSize: s(13),
+                                  ),
                                 ),
 
                           SizedBox(height: s(40)),
@@ -302,11 +323,16 @@ class _DetailProfileFreelancerState extends State<DetailProfileFreelancer> {
 
   // DITAMBAH: tampilkan detail portfolio dalam bottom sheet
   void _showPortfolioDetail(
-      Map<String, dynamic> portfolio, double Function(double) s) {
-    final thumbUrl = portfolio['thumbnail_url'] as String? ??
+    Map<String, dynamic> portfolio,
+    double Function(double) s,
+  ) {
+    final thumbUrl =
+        portfolio['thumbnail_url'] as String? ??
         portfolio['file_url'] as String?;
-    final jobdesk = portfolio['jobdesk'] as String? ??
-        portfolio['category'] as String? ?? '';
+    final jobdesk =
+        portfolio['jobdesk'] as String? ??
+        portfolio['category'] as String? ??
+        '';
 
     showModalBottomSheet(
       context: context,
@@ -319,8 +345,7 @@ class _DetailProfileFreelancerState extends State<DetailProfileFreelancer> {
         builder: (_, scrollController) => Container(
           decoration: const BoxDecoration(
             color: Colors.white,
-            borderRadius:
-                BorderRadius.vertical(top: Radius.circular(24)),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: ListView(
             controller: scrollController,
@@ -352,8 +377,7 @@ class _DetailProfileFreelancerState extends State<DetailProfileFreelancer> {
                       height: 200,
                       color: Colors.grey.shade100,
                       child: const Center(
-                        child: Icon(Icons.image,
-                            color: Colors.grey, size: 48),
+                        child: Icon(Icons.image, color: Colors.grey, size: 48),
                       ),
                     ),
                   ),
@@ -376,12 +400,15 @@ class _DetailProfileFreelancerState extends State<DetailProfileFreelancer> {
               if (jobdesk.isNotEmpty)
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 6),
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFFFE5B4),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                        color: const Color(0xFFFFB74D).withOpacity(0.4)),
+                      color: const Color(0xFFFFB74D).withOpacity(0.4),
+                    ),
                   ),
                   child: Text(
                     jobdesk,
@@ -415,9 +442,9 @@ class _DetailProfileFreelancerState extends State<DetailProfileFreelancer> {
   // DITAMBAH: tampilkan sertifikat
   void _showCertificate(Map<String, dynamic> cert) {
     final fileUrl = cert['file_url'] as String? ?? '';
-    final fileName =
-        cert['file_name'] as String? ?? 'Sertifikat';
-    final isPdf = fileName.toLowerCase().endsWith('.pdf') ||
+    final fileName = cert['file_name'] as String? ?? 'Sertifikat';
+    final isPdf =
+        fileName.toLowerCase().endsWith('.pdf') ||
         fileUrl.toLowerCase().contains('.pdf');
 
     if (isPdf) {
@@ -439,8 +466,11 @@ class _DetailProfileFreelancerState extends State<DetailProfileFreelancer> {
                     fileUrl,
                     fit: BoxFit.contain,
                     errorBuilder: (_, __, ___) => const Center(
-                      child: Icon(Icons.broken_image,
-                          color: Colors.white, size: 60),
+                      child: Icon(
+                        Icons.broken_image,
+                        color: Colors.white,
+                        size: 60,
+                      ),
                     ),
                   ),
                 ),
@@ -456,8 +486,11 @@ class _DetailProfileFreelancerState extends State<DetailProfileFreelancer> {
                       color: Colors.black.withOpacity(0.5),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.close,
-                        color: Colors.white, size: 20),
+                    child: const Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                   ),
                 ),
               ),
@@ -491,8 +524,7 @@ class _DetailProfileFreelancerState extends State<DetailProfileFreelancer> {
               children: [
                 Align(
                   alignment: Alignment.centerLeft,
-                  child: CustomBackButton(
-                      onTap: () => Navigator.pop(context)),
+                  child: CustomBackButton(onTap: () => Navigator.pop(context)),
                 ),
                 Text(
                   "Freelancer Profile",
@@ -515,21 +547,21 @@ class _DetailProfileFreelancerState extends State<DetailProfileFreelancer> {
                 color: Colors.white,
                 boxShadow: [
                   BoxShadow(
-                      color: _C.shadow,
-                      blurRadius: 20,
-                      offset: Offset(0, 8)),
+                    color: _C.shadow,
+                    blurRadius: 20,
+                    offset: Offset(0, 8),
+                  ),
                 ],
               ),
               child: CircleAvatar(
                 radius: s(56),
                 backgroundColor: Colors.grey.shade200,
-                backgroundImage: _photoUrl != null &&
-                        _photoUrl!.startsWith('http')
+                backgroundImage:
+                    _photoUrl != null && _photoUrl!.startsWith('http')
                     ? NetworkImage(_photoUrl!)
                     : null,
                 child: _photoUrl == null
-                    ? Icon(Icons.person,
-                        size: s(50), color: Colors.grey)
+                    ? Icon(Icons.person, size: s(50), color: Colors.grey)
                     : null,
               ),
             ),
@@ -562,31 +594,33 @@ class _DetailProfileFreelancerState extends State<DetailProfileFreelancer> {
               SizedBox(height: s(4)),
               Text(
                 _university,
-                style: TextStyle(
-                    fontSize: s(12), color: _C.textSoft),
+                style: TextStyle(fontSize: s(12), color: _C.textSoft),
               ),
             ],
 
             SizedBox(height: s(14)),
 
             Container(
-              padding: EdgeInsets.symmetric(
-                  horizontal: s(16), vertical: s(8)),
+              padding: EdgeInsets.symmetric(horizontal: s(16), vertical: s(8)),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(30),
                 boxShadow: const [
                   BoxShadow(
-                      color: _C.shadow,
-                      blurRadius: 10,
-                      offset: Offset(0, 4)),
+                    color: _C.shadow,
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
+                  ),
                 ],
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.star_rounded,
-                      color: _C.primaryDeep, size: 18),
+                  const Icon(
+                    Icons.star_rounded,
+                    color: _C.primaryDeep,
+                    size: 18,
+                  ),
                   SizedBox(width: s(6)),
                   Text(
                     "${widget.service.rating}",
@@ -599,8 +633,7 @@ class _DetailProfileFreelancerState extends State<DetailProfileFreelancer> {
                   SizedBox(width: s(4)),
                   Text(
                     "(${widget.service.totalReviews} reviews)",
-                    style: TextStyle(
-                        fontSize: s(13), color: _C.textSoft),
+                    style: TextStyle(fontSize: s(13), color: _C.textSoft),
                   ),
                 ],
               ),
@@ -654,13 +687,11 @@ class _SkillChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
       decoration: BoxDecoration(
         color: _C.chipBg,
         borderRadius: BorderRadius.circular(30),
-        border: Border.all(
-            color: _C.primary.withOpacity(0.4), width: 1.2),
+        border: Border.all(color: _C.primary.withOpacity(0.4), width: 1.2),
       ),
       child: Text(
         label,
@@ -689,11 +720,14 @@ class _PortfolioCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final thumbUrl = portfolio['thumbnail_url'] as String? ??
+    final thumbUrl =
+        portfolio['thumbnail_url'] as String? ??
         portfolio['file_url'] as String?;
     // DITAMBAH: ambil jobdesk, fallback ke category untuk data lama
-    final jobdesk = portfolio['jobdesk'] as String? ??
-        portfolio['category'] as String? ?? '';
+    final jobdesk =
+        portfolio['jobdesk'] as String? ??
+        portfolio['category'] as String? ??
+        '';
 
     return GestureDetector(
       onTap: onTap, // DITAMBAH
@@ -702,10 +736,7 @@ class _PortfolioCard extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(s(20)),
           boxShadow: const [
-            BoxShadow(
-                color: _C.shadow,
-                blurRadius: 14,
-                offset: Offset(0, 6)),
+            BoxShadow(color: _C.shadow, blurRadius: 14, offset: Offset(0, 6)),
           ],
         ),
         child: Column(
@@ -724,8 +755,7 @@ class _PortfolioCard extends StatelessWidget {
                     ? Radius.circular(s(20))
                     : Radius.zero,
               ),
-              child: thumbUrl != null &&
-                      thumbUrl.startsWith('http')
+              child: thumbUrl != null && thumbUrl.startsWith('http')
                   ? Image.network(
                       thumbUrl,
                       width: s(160),
@@ -741,7 +771,9 @@ class _PortfolioCard extends StatelessWidget {
               Container(
                 width: s(160),
                 padding: EdgeInsets.symmetric(
-                    horizontal: s(10), vertical: s(8)),
+                  horizontal: s(10),
+                  vertical: s(8),
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.only(
@@ -794,9 +826,9 @@ class _CertificateItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fileUrl = cert['file_url'] as String? ?? '';
-    final fileName =
-        cert['file_name'] as String? ?? 'Sertifikat';
-    final isPdf = fileName.toLowerCase().endsWith('.pdf') ||
+    final fileName = cert['file_name'] as String? ?? 'Sertifikat';
+    final isPdf =
+        fileName.toLowerCase().endsWith('.pdf') ||
         fileUrl.toLowerCase().contains('.pdf');
 
     return GestureDetector(
@@ -807,13 +839,9 @@ class _CertificateItem extends StatelessWidget {
         decoration: BoxDecoration(
           color: const Color(0xFFFFF0D6),
           borderRadius: BorderRadius.circular(s(12)),
-          border: Border.all(
-              color: const Color(0xFFFFB74D).withOpacity(0.4)),
+          border: Border.all(color: const Color(0xFFFFB74D).withOpacity(0.4)),
           boxShadow: const [
-            BoxShadow(
-                color: _C.shadow,
-                blurRadius: 8,
-                offset: Offset(0, 3)),
+            BoxShadow(color: _C.shadow, blurRadius: 8, offset: Offset(0, 3)),
           ],
         ),
         child: Column(
@@ -828,8 +856,11 @@ class _CertificateItem extends StatelessWidget {
                       height: s(80),
                       color: Colors.red.shade50,
                       child: const Center(
-                        child: Icon(Icons.picture_as_pdf,
-                            color: Colors.red, size: 36),
+                        child: Icon(
+                          Icons.picture_as_pdf,
+                          color: Colors.red,
+                          size: 36,
+                        ),
                       ),
                     )
                   : Image.network(
@@ -842,9 +873,10 @@ class _CertificateItem extends StatelessWidget {
                         height: s(80),
                         color: Colors.orange.shade50,
                         child: const Icon(
-                            Icons.workspace_premium,
-                            color: Colors.orange,
-                            size: 36),
+                          Icons.workspace_premium,
+                          color: Colors.orange,
+                          size: 36,
+                        ),
                       ),
                     ),
             ),
@@ -854,14 +886,12 @@ class _CertificateItem extends StatelessWidget {
               maxLines: 2,
               textAlign: TextAlign.center,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                  fontSize: s(11), color: _C.textMid),
+              style: TextStyle(fontSize: s(11), color: _C.textMid),
             ),
             SizedBox(height: s(4)),
             Text(
               isPdf ? 'Tap untuk buka' : 'Tap untuk lihat',
-              style: TextStyle(
-                  fontSize: s(10), color: _C.textSoft),
+              style: TextStyle(fontSize: s(10), color: _C.textSoft),
             ),
           ],
         ),

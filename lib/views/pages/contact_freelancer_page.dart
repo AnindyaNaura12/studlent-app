@@ -87,7 +87,9 @@ class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
   }
 
   String _formatTime(DateTime time) {
-    return "${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}";
+    final localTime = time.toLocal(); 
+    
+    return "${localTime.hour.toString().padLeft(2, '0')}:${localTime.minute.toString().padLeft(2, '0')}";
   }
 
   @override
@@ -129,7 +131,7 @@ class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
                       ),
                     ),
                     child: _messagesStream == null
-                        ? const Center(child: Text("Gagal memuat room chat."))
+                        ? const Center(child: Text("Unable to load the chat room."))
                         : StreamBuilder<List<Message>>(
                             stream: _messagesStream,
                             builder: (context, snapshot) {
@@ -219,8 +221,6 @@ class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
                   color: Colors.white,
                   child: Row(
                     children: [
-                      const Icon(Icons.add, color: Colors.grey),
-                      const SizedBox(width: 8),
                       Expanded(
                         child: TextField(
                           controller: _controller,

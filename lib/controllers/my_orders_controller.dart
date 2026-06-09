@@ -7,21 +7,23 @@ class MyOrdersController {
 
   Future<List<OrderModel>> fetchUserOrders() async {
     try {
-      // Ambil email dari Supabase Auth
       final email = _supabase.auth.currentUser?.email;
-      if (email == null) throw Exception('User belum login');
+      if (email == null) {
+        throw Exception('User belum login');
+      }
 
-      // Ambil id_user dari tabel users berdasarkan email
       final userData = await _supabase
           .from('users')
           .select('id_user')
           .eq('email', email)
           .maybeSingle();
 
-      if (userData == null) throw Exception('Data user tidak ditemukan');
+      if (userData == null) {
+        throw Exception('Data user tidak ditemukan');
+      }
+
       final int clientId = userData['id_user'] as int;
 
-      // Fetch orders milik client
       final response = await _supabase
           .from('orders')
           .select('''
@@ -40,14 +42,40 @@ class MyOrdersController {
             ),
             payment:payments (
               amount,
-              admin_fee
+              admin_fee,
+              status,
+              metode
             )
           ''')
           .eq('id_client', clientId)
           .order('created_at', ascending: false);
 
       final List<dynamic> data = response;
-      return data.map((json) => OrderModel.fromJson(json)).toList();
+
+      final normalized = data.map((item) {
+        final Map<String, dynamic> json = Map<String, dynamic>.from(item);
+
+        final rawStatus = (json['status'] ?? '')
+            .toString()
+            .trim()
+            .toLowerCase();
+        json['status'] = rawStatus;
+
+        final paymentRaw = json['payment'];
+        if (paymentRaw is List) {
+          json['payment'] = paymentRaw.isNotEmpty
+              ? Map<String, dynamic>.from(paymentRaw.first)
+              : null;
+        } else if (paymentRaw is Map) {
+          json['payment'] = Map<String, dynamic>.from(paymentRaw);
+        } else {
+          json['payment'] = null;
+        }
+
+        return json;
+      }).toList();
+
+      return normalized.map((json) => OrderModel.fromJson(json)).toList();
     } catch (e) {
       debugPrint('Error fetch orders: $e');
       rethrow;
@@ -56,39 +84,79 @@ class MyOrdersController {
 
   List<OrderModel> getOrdersByTab(List<OrderModel> allOrders, String tabName) {
     if (tabName == 'All') return allOrders;
+
     if (tabName == 'Active') {
-      const activeStatuses = ['paid', 'diproses', 'hasil_dikirim', 'revisi'];
-      return allOrders.where((o) => activeStatuses.contains(o.status)).toList();
+      const activeStatuses = ['diproses', 'hasil_dikirim', 'revisi', 'paid'];
+
+      return allOrders.where((o) {
+        final status = o.status.trim().toLowerCase();
+        return activeStatuses.contains(status);
+      }).toList();
     }
+
     if (tabName == 'Done') {
-      return allOrders.where((o) => o.status == 'selesai').toList();
+      return allOrders.where((o) {
+        final status = o.status.trim().toLowerCase();
+        return status == 'selesai';
+      }).toList();
     }
+
     return [];
   }
 
   Color getStatusColor(String status) {
-    switch (status) {
-      case 'menunggu_pembayaran': return const Color(0xFFFFA726);
+    switch (status.trim().toLowerCase()) {
+      case 'menunggu_pembayaran':
+      case 'pending':
+        return const Color(0xFFFFA726);
+
       case 'paid':
-      case 'diproses':            return const Color(0xFF42A5F5);
+      case 'diproses':
+        return const Color(0xFF42A5F5);
+
       case 'hasil_dikirim':
-      case 'revisi':              return const Color(0xFFAB47BC);
-      case 'selesai':             return const Color(0xFF66BB6A);
-      case 'dibatalkan':          return const Color(0xFFEF5350);
-      default:                    return const Color(0xFF90CAF9);
+      case 'revisi':
+        return const Color(0xFFAB47BC);
+
+      case 'selesai':
+        return const Color(0xFF66BB6A);
+
+      case 'dibatalkan':
+      case 'pembayaran_gagal':
+      case 'failed':
+      case 'expired':
+        return const Color(0xFFEF5350);
+
+      default:
+        return const Color(0xFF90CAF9);
     }
   }
 
   String formatDisplayStatus(String status) {
-    const map = {
-      'menunggu_pembayaran': 'Menunggu Pembayaran',
-      'paid':                'Dibayar',
-      'diproses':            'Diproses',
-      'hasil_dikirim':       'Hasil Dikirim',
-      'revisi':              'Revisi',
-      'selesai':             'Selesai',
-      'dibatalkan':          'Dibatalkan',
-    };
-    return map[status] ?? status;
+    switch (status.trim().toLowerCase()) {
+      case 'menunggu_pembayaran':
+        return 'Menunggu Pembayaran';
+      case 'pending':
+        return 'Pending';
+      case 'paid':
+        return 'Dibayar';
+      case 'diproses':
+        return 'Diproses';
+      case 'hasil_dikirim':
+        return 'Hasil Dikirim';
+      case 'revisi':
+        return 'Revisi';
+      case 'selesai':
+        return 'Selesai';
+      case 'dibatalkan':
+        return 'Dibatalkan';
+      case 'pembayaran_gagal':
+      case 'failed':
+        return 'Pembayaran Gagal';
+      case 'expired':
+        return 'Expired';
+      default:
+        return status;
+    }
   }
 }

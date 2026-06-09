@@ -5,7 +5,7 @@ import '../models/services_model.dart';
 import '../models/service_category_model.dart';
 
 class MyServicesController {
-  final SupabaseClient supabase = Supabase.instance.client;
+  final supabase = Supabase.instance.client;
 
   List<ServiceModel> services = [];
   List<ServiceCategory> categories = [];
