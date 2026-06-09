@@ -8,6 +8,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config.dart';
 import '../../models/order_model.dart';
+import '../../controllers/my_orders_controller.dart';
 
 // ── PERUBAHAN 1: class _RefFile diubah ──────────────────────
 // Sebelumnya: hanya punya url + catatan (dari tabel deliverables)
@@ -38,10 +39,16 @@ class _FreelancerOrderDetailPageState extends State<FreelancerOrderDetailPage> {
   static const Color _purple = Color(0xFF6B7AFF);
 
   final _supabase = Supabase.instance.client;
+  final _ordersController = MyOrdersController();
 
   // ── State ──────────────────────────────────────────────────
   List<_RefFile> _refFiles = [];
   bool _loadingRef = true;
+
+  int _revisionCount = 0;
+  String? _revisionNote;
+  String? _revisionFileUrl;
+  String _currentStatus = '';
 
   bool _isSubmitting = false;
   String? _submittedUrl;
@@ -54,6 +61,8 @@ class _FreelancerOrderDetailPageState extends State<FreelancerOrderDetailPage> {
   @override
   void initState() {
     super.initState();
+    _revisionCount = widget.order.revisionCount;
+    _currentStatus = widget.order.status;
     _fetchRefFiles();
   }
 
@@ -61,36 +70,68 @@ class _FreelancerOrderDetailPageState extends State<FreelancerOrderDetailPage> {
   // Sebelumnya: query ke tabel 'deliverables' kolom file_url + catatan
   // Sekarang:   query ke tabel 'orders' kolom requirement_file_url/name + requirement_image_url/name
   Future<void> _fetchRefFiles() async {
-    try {
-      final orderId = int.tryParse(widget.order.id) ?? 0;
-      final res = await _supabase
-          .from('orders')
-          .select(
-            'requirement_file_url, requirement_file_name, '
-            'requirement_image_url, requirement_image_name',
-          )
-          .eq('id_order', orderId)
-          .maybeSingle();
+  try {
+    final orderId = int.tryParse(widget.order.id) ?? 0;
+    final res = await _supabase
+        .from('orders')
+        .select(
+          'requirement_file_url, requirement_file_name, '
+          'requirement_image_url, requirement_image_name, '
+          'revision_count, revision_note, revision_file_url, status',
+        )
+        .eq('id_order', orderId)
+        .maybeSingle();
 
-      if (mounted) {
-        setState(() {
-          _refFiles = res != null
-              ? [
-                  _RefFile(
-                    fileUrl: res['requirement_file_url']?.toString(),
-                    fileName: res['requirement_file_name']?.toString(),
-                    imageUrl: res['requirement_image_url']?.toString(),
-                    imageName: res['requirement_image_name']?.toString(),
-                  ),
-                ]
-              : [];
-          _loadingRef = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) setState(() => _loadingRef = false);
+    debugPrint('=== _fetchRefFiles result: $res');
+
+    if (mounted) {
+      setState(() {
+        _refFiles = res != null
+            ? [
+                _RefFile(
+                  fileUrl: res['requirement_file_url']?.toString(),
+                  fileName: res['requirement_file_name']?.toString(),
+                  imageUrl: res['requirement_image_url']?.toString(),
+                  imageName: res['requirement_image_name']?.toString(),
+                ),
+              ]
+            : [];
+
+        if (res != null) {
+          _revisionCount =
+              (res['revision_count'] as num?)?.toInt() ?? _revisionCount;
+          _revisionNote = res['revision_note']?.toString().trim();
+          _revisionFileUrl = res['revision_file_url']?.toString().trim();
+          _currentStatus =
+              res['status']?.toString().trim().toLowerCase() ??
+              _currentStatus;
+        }
+
+        debugPrint('=== _revisionNote: $_revisionNote');
+        debugPrint('=== _revisionFileUrl: $_revisionFileUrl');
+        debugPrint('=== _revisionCount: $_revisionCount');
+
+        _loadingRef = false;
+      });
+    }
+  } catch (e, stack) {
+    debugPrint('Error fetch revisi: $e');
+    debugPrint('Stack: $stack');
+    if (mounted) {
+      setState(() => _loadingRef = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Debug error: $e'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          duration: const Duration(seconds: 6),
+        ),
+      );
     }
   }
+}
 
   // ── Open URL ───────────────────────────────────────────────
   Future<void> _openUrl(String url) async {
@@ -201,20 +242,12 @@ class _FreelancerOrderDetailPageState extends State<FreelancerOrderDetailPage> {
     try {
       final orderId = int.tryParse(widget.order.id) ?? 0;
 
-      await _supabase.from('deliverables').insert({
-        'id_order': orderId,
-        'file_url': _uploadedResultUrl,
-        'catatan': 'Hasil kerja freelancer',
-      });
-
-      await _supabase
-          .from('orders')
-          .update({
-            'status': 'hasil_dikirim',
-            'result_file_url': _uploadedResultUrl,
-            'updated_at': DateTime.now().toIso8601String(),
-          })
-          .eq('id_order', orderId);
+      await _ordersController.submitResultWithRevisionCheck(
+        orderId: orderId,
+        resultFileUrl: _uploadedResultUrl!,
+        currentRevisionCount: widget.order.revisionCount,
+      );
+          
 
       if (!mounted) return;
 
@@ -308,11 +341,11 @@ class _FreelancerOrderDetailPageState extends State<FreelancerOrderDetailPage> {
   @override
   Widget build(BuildContext context) {
     final order = widget.order;
-    final bool canSubmit = ['paid', 'diproses'].contains(order.status);
+    final bool canSubmit = ['paid', 'diproses'].contains(_currentStatus);
     final bool alreadySent =
-        order.status == 'hasil_dikirim' ||
-        order.status == 'revisi' ||
-        order.status == 'selesai';
+        _currentStatus == 'hasil_dikirim' ||
+        _currentStatus == 'revisi' ||
+        _currentStatus == 'selesai';
 
     return Scaffold(
       backgroundColor: _bg,
@@ -435,31 +468,53 @@ class _FreelancerOrderDetailPageState extends State<FreelancerOrderDetailPage> {
                     const SizedBox(height: 14),
 
                     // ── NOTE ──────────────────────────────────
-                    if (order.note.trim().isNotEmpty)
+                    if (order.note.trim().isNotEmpty ||
+                        (_revisionNote != null && _revisionNote!.trim().isNotEmpty))
                       _card(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
                               'Catatan dari Client',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 8),
-                            Text(
-                              order.note,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                height: 1.5,
-                                color: Colors.black87,
+                        
+                            if (order.note.trim().isNotEmpty)
+                              Text(
+                                order.note,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  height: 1.5,
+                                  color: Colors.black87,
+                                ),
                               ),
-                            ),
+                            
+                            if (_revisionNote != null && _revisionNote!.trim().isNotEmpty) ...[
+                              if (order.note.trim().isNotEmpty) ...[
+                                const SizedBox(height: 10),
+                                const Divider(height: 1, thickness: 0.5),
+                                const SizedBox(height: 10),
+                              ],
+                              const Text(
+                                'Catatan Revisi:',
+                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _revisionNote!,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  height: 1.5,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
-                    if (order.note.trim().isNotEmpty)
+                    if (order.note.trim().isNotEmpty ||
+                        (_revisionNote != null && _revisionNote!.trim().isNotEmpty))
                       const SizedBox(height: 14),
 
                     // ── FILE REFERENSI CLIENT ──────────────────
@@ -498,6 +553,7 @@ class _FreelancerOrderDetailPageState extends State<FreelancerOrderDetailPage> {
                           ),
                           const SizedBox(height: 12),
 
+
                           // ── PERUBAHAN 3: render file referensi diubah ──
                           // Sebelumnya: ..._refFiles.map((f) => _refFileItem(f))
                           // Sekarang:   cek fileUrl dan imageUrl secara terpisah
@@ -533,7 +589,6 @@ class _FreelancerOrderDetailPageState extends State<FreelancerOrderDetailPage> {
                               ),
                             )
                           else if (_refFiles.isNotEmpty) ...[
-                            // Tampilkan dokumen jika ada
                             if ((_refFiles.first.fileUrl ?? '').isNotEmpty)
                               _refFileItem(
                                 url: _refFiles.first.fileUrl!,
@@ -542,7 +597,6 @@ class _FreelancerOrderDetailPageState extends State<FreelancerOrderDetailPage> {
                                     'Dokumen referensi',
                                 isImage: false,
                               ),
-                            // Tampilkan gambar jika ada
                             if ((_refFiles.first.imageUrl ?? '').isNotEmpty)
                               _refFileItem(
                                 url: _refFiles.first.imageUrl!,
@@ -552,10 +606,149 @@ class _FreelancerOrderDetailPageState extends State<FreelancerOrderDetailPage> {
                                 isImage: true,
                               ),
                           ],
+                          
                         ],
                       ),
                     ),
                     const SizedBox(height: 14),
+                    
+                    // ── DETAIL REVISI ─────────────────────────
+                    if (_currentStatus == 'revisi' || _revisionCount > 0) ...[
+                      _card(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Header
+                            const Text(
+                              'Detail Revisi dari Client',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Indikator — selalu tampil
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _revisionCount >= 3
+                                    ? Colors.red.shade50
+                                    : Colors.orange.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: _revisionCount >= 3
+                                      ? Colors.red.shade200
+                                      : Colors.orange.shade200,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.refresh_rounded,
+                                    size: 16,
+                                    color: _revisionCount >= 3
+                                        ? Colors.red.shade600
+                                        : Colors.orange.shade700,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Revisi ke-$_revisionCount dari 3',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: _revisionCount >= 3
+                                          ? Colors.red.shade700
+                                          : Colors.orange.shade800,
+                                    ),
+                                  ),
+                                  if (_revisionCount >= 3) ...[
+                                    const Spacer(),
+                                    Text(
+                                      'Batas tercapai',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.red.shade600,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Area Catatan — selalu tampil
+                            const Text(
+                              'Catatan:',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            if (_revisionNote != null &&
+                                _revisionNote!.trim().isNotEmpty)
+                              Text(
+                                _revisionNote!,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  height: 1.5,
+                                  color: Colors.black87,
+                                ),
+                              )
+                            else
+                              const Text(
+                                'Tidak ada catatan revisi.',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            const SizedBox(height: 12),
+
+                            // Area File — selalu tampil
+                            const Text(
+                              'File Revisi:',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            if (_revisionFileUrl != null &&
+                                _revisionFileUrl!.trim().isNotEmpty)
+                              _refFileItem(
+                                url: _revisionFileUrl!,
+                                label: 'File Revisi Client',
+                                isImage: _revisionFileUrl!
+                                    .split('.')
+                                    .last
+                                    .split('?')
+                                    .first
+                                    .toLowerCase()
+                                    .contains(RegExp(r'jpg|jpeg|png|gif|webp')),
+                              )
+                            else
+                              const Text(
+                                'Tidak ada file revisi.',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                    ],
 
                     // ── PENYERAHAN HASIL KERJA ─────────────────
                     _card(
@@ -599,11 +792,11 @@ class _FreelancerOrderDetailPageState extends State<FreelancerOrderDetailPage> {
                                   const SizedBox(width: 10),
                                   Expanded(
                                     child: Text(
-                                      order.status == 'selesai'
-                                          ? 'Pesanan selesai. Dana telah dicairkan.'
-                                          : order.status == 'revisi'
-                                          ? 'Client meminta revisi. Upload ulang di bawah.'
-                                          : 'Hasil kerja sudah terkirim. Menunggu konfirmasi client.',
+                                      _currentStatus == 'selesai'
+                                        ? 'Pesanan selesai. Dana telah dicairkan.'
+                                        : _currentStatus == 'revisi'
+                                        ? 'Client meminta revisi. Upload ulang di bawah.'
+                                        : 'Hasil kerja sudah terkirim. Menunggu konfirmasi client.',
                                       style: const TextStyle(
                                         fontSize: 12,
                                         color: Color(0xFF388E3C),
@@ -731,9 +924,10 @@ class _FreelancerOrderDetailPageState extends State<FreelancerOrderDetailPage> {
                                 label: Text(
                                   _isSubmitting
                                       ? 'Mengirim...'
-                                      : order.status == 'revisi'
+                                      : _currentStatus == 'revisi'
                                       ? 'Kirim Ulang Hasil Revisi'
                                       : 'Kirim Hasil ke Client',
+
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
@@ -744,7 +938,7 @@ class _FreelancerOrderDetailPageState extends State<FreelancerOrderDetailPage> {
                             ),
                           ],
 
-                          if (order.status == 'selesai' && !canSubmit) ...[
+                          if (_currentStatus == 'selesai' && !canSubmit) ...[
                             const SizedBox(height: 10),
                             Container(
                               width: double.infinity,
@@ -868,6 +1062,7 @@ class _FreelancerOrderDetailPageState extends State<FreelancerOrderDetailPage> {
     required String url,
     required String label,
     required bool isImage,
+    String? subtitle,
   }) {
     final ext = url.split('.').last.split('?').first.toUpperCase();
 
@@ -926,7 +1121,7 @@ class _FreelancerOrderDetailPageState extends State<FreelancerOrderDetailPage> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    isImage ? 'Gambar referensi' : 'Dokumen referensi',
+                    subtitle ?? (isImage ? 'Gambar referensi' : 'Dokumen referensi'),
                     style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
                   ),
                 ],

@@ -18,6 +18,7 @@ class OrderModel {
   final String paymentMethod;
   final DateTime? createdAt;
   final String? fileUrl;
+  final int revisionCount;
 
   OrderModel({
     required this.id,
@@ -37,6 +38,7 @@ class OrderModel {
     this.paymentMethod = '-',
     this.createdAt,
     this.fileUrl,
+    this.revisionCount = 0,
   });
 
   double get packagePrice => amount;
@@ -102,6 +104,7 @@ class OrderModel {
       paymentMethod: paymentMethod ?? this.paymentMethod,
       createdAt: createdAt ?? this.createdAt,
       fileUrl: fileUrl ?? this.fileUrl,
+      revisionCount: revisionCount ?? this.revisionCount,
     );
   }
 
