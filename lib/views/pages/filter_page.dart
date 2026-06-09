@@ -25,15 +25,11 @@ class _FilterSheetState extends State<FilterSheet> {
   int? _selectedPriceIndex;
 
   final List<String> _priceRanges = [
-    'Rp 0 - 50.000',
-    'Rp 51.000 - 100.000',
-    'Rp 101.000 - 150.000',
-    'Rp 151.000 - 200.000',
-    'Rp 201.000 - 250.000',
-    'Rp 251.000 - 300.000',
-    'Rp 301.000 - 350.000',
-    'Rp 351.000 - 400.000',
-    'Rp 401.000 - 450.000',
+    '< Rp 100.0000',
+    'Rp 100.000 - 250.000',
+    'Rp 250.000 - 500.000',
+    'Rp 500.000 - 1.000.000',
+    '> Rp 1.000.0000',
   ];
 
   @override

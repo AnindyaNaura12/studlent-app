@@ -63,6 +63,18 @@ class ServiceCard extends StatelessWidget {
 
                   SizedBox(height: s(2)),
 
+                  // ================= CATEGORY =================
+                  Text(
+                    service.category.isNotEmpty ?  service.category : 'General',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: s(10),
+                      color: Colors.grey,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+
                   // ================= NAME + RATING =================
                   Row(
                     children: [
@@ -96,7 +108,7 @@ class ServiceCard extends StatelessWidget {
 
                   // ================= SHORT DESCRIPTION =================
                   Text(
-                    service.basicPackage.shortDescription,
+                    service.description,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(

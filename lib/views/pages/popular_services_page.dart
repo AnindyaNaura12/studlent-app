@@ -24,8 +24,6 @@ class _PopularServicesPageState extends State<PopularServicesPage> {
   void initState() {
     super.initState();
 
-    // Sementara ambil semua services dulu sebagai popular services.
-    // Nanti bisa diganti kalau kamu sudah punya field rating / popular / totalOrder.
     _allPopularServices = List<ServiceModel>.from(_servicesController.services);
     _filteredPopularServices = _allPopularServices;
   }

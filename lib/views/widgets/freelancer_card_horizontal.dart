@@ -93,7 +93,7 @@ class FreelancerCardHorizontal extends StatelessWidget {
 
                   // ===== SHORT DESCRIPTION (baru, ganti skills) =====
                   Text(
-                    service.basicPackage.shortDescription,
+                    service.description,
                     style: TextStyle(fontSize: scale(10), color: Colors.grey),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,

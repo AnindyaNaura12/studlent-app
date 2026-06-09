@@ -46,15 +46,11 @@ class _ServicesPageState extends State<ServicesPage> {
   List<ServiceModel> _popularPreviewServices = [];
 
   final List<Map<String, dynamic>> _priceRanges = [
-    {'label': 'Rp 0 - 50.000', 'min': 0.0, 'max': 50000.0},
-    {'label': 'Rp 51.000 - 100.000', 'min': 51000.0, 'max': 100000.0},
-    {'label': 'Rp 101.000 - 150.000', 'min': 101000.0, 'max': 150000.0},
-    {'label': 'Rp 151.000 - 200.000', 'min': 151000.0, 'max': 200000.0},
-    {'label': 'Rp 201.000 - 250.000', 'min': 201000.0, 'max': 250000.0},
-    {'label': 'Rp 251.000 - 300.000', 'min': 251000.0, 'max': 300000.0},
-    {'label': 'Rp 301.000 - 350.000', 'min': 301000.0, 'max': 350000.0},
-    {'label': 'Rp 351.000 - 400.000', 'min': 351000.0, 'max': 400000.0},
-    {'label': 'Rp 401.000 - 450.000', 'min': 401000.0, 'max': 450000.0},
+    {'label': '< Rp 100.000', 'min': 0.0, 'max': 100000.0},
+    {'label': 'Rp 100.000 - 250.000', 'min': 100000.0, 'max': 250000.0},
+    {'label': 'Rp 250.000 - 500.000', 'min': 250000.0, 'max': 500000.0},
+    {'label': 'Rp 500.000 - 1.000.000', 'min': 500000.0, 'max': 1000000.0},
+    {'label': '> Rp 1.000.000', 'min': 1000000.0, 'max': double.infinity},
   ];
 
   @override
@@ -165,16 +161,12 @@ class _ServicesPageState extends State<ServicesPage> {
     final filtered = all.where((service) {
       bool matchCategory = true;
       if (widget.initialCategory != null) {
-        final cat = widget.initialCategory!.toLowerCase();
-        matchCategory =
-            service.category.toLowerCase().contains(cat) ||
-            service.title.toLowerCase().contains(cat);
+        final cat = widget.initialCategory!.toLowerCase().trim();
+        matchCategory = service.category.toLowerCase().trim() == cat;
       } else if (_activeCategoryIndex != null &&
           _activeCategoryIndex! < categories.length) {
-        final cat = categories[_activeCategoryIndex!].title.toLowerCase();
-        matchCategory =
-            service.category.toLowerCase().contains(cat) ||
-            service.title.toLowerCase().contains(cat);
+        final cat = categories[_activeCategoryIndex!].title.toLowerCase().trim();
+        matchCategory = service.category.toLowerCase().trim() == cat;
       }
 
       bool matchPrice = true;
