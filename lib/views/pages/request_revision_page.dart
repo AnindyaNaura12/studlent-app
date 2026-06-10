@@ -6,8 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../models/order_model.dart';
 import '../../controllers/my_orders_controller.dart';
+import '../../models/order_model.dart';
 
 class _AttachmentItem {
   final File file;
@@ -35,6 +35,14 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
   final List<_AttachmentItem> _attachments = [];
   bool _isLoading = false;
   final _ordersController = MyOrdersController();
+
+  static const int _maxAttachments = 3;
+
+  double _s(double size) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final scale = (screenWidth / 375).clamp(0.85, 1.25);
+    return size * scale;
+  }
 
   void _showSnackBar(String message, {Color? bgColor}) {
     if (!mounted) return;
@@ -74,26 +82,33 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
   Future<void> _handleImagePick() async {
     if (_isLoading) return;
 
+    if (_attachments.length >= _maxAttachments) {
+      _showSnackBar("Maksimal $_maxAttachments lampiran.");
+      return;
+    }
+
     try {
       final ImagePicker picker = ImagePicker();
+
+      // tanpa limit native, limit di Dart saja
       final List<XFile> pickedFiles = await picker.pickMultiImage(
         imageQuality: 80,
-        limit: 5,
       );
 
       if (!mounted) return;
       if (pickedFiles.isEmpty) return;
 
-      final int remaining = 5 - _attachments.length;
-      if (remaining <= 0) {
-        _showSnackBar("Maksimal 5 lampiran.");
+      final int remaining = _maxAttachments - _attachments.length;
+      final List<XFile> toAdd = pickedFiles.take(remaining).toList();
+
+      if (toAdd.isEmpty) {
+        _showSnackBar("Maksimal $_maxAttachments lampiran.");
         return;
       }
 
-      final List<XFile> toAdd = pickedFiles.take(remaining).toList();
-
       setState(() {
-        for (final XFile xfile in toAdd) {
+        for (final xfile in toAdd) {
+          if (xfile.path.trim().isEmpty) continue;
           _attachments.add(
             _AttachmentItem(
               file: File(xfile.path),
@@ -105,7 +120,9 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
       });
 
       if (pickedFiles.length > remaining) {
-        _showSnackBar("Hanya $remaining gambar yang ditambahkan (batas 5).");
+        _showSnackBar(
+          "Hanya $remaining gambar yang ditambahkan (batas $_maxAttachments).",
+        );
       }
     } catch (e) {
       if (!mounted) return;
@@ -116,8 +133,8 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
   Future<void> _handleAttachment() async {
     if (_isLoading) return;
 
-    if (_attachments.length >= 5) {
-      _showSnackBar("Maksimal 5 lampiran.");
+    if (_attachments.length >= _maxAttachments) {
+      _showSnackBar("Maksimal $_maxAttachments lampiran.");
       return;
     }
 
@@ -131,7 +148,7 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
       if (!mounted) return;
       if (result == null || result.files.isEmpty) return;
 
-      final int remaining = 5 - _attachments.length;
+      final int remaining = _maxAttachments - _attachments.length;
       final List<PlatformFile> toAdd = result.files.take(remaining).toList();
 
       final List<_AttachmentItem> newItems = [];
@@ -148,7 +165,9 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
       }
 
       if (result.files.length > remaining) {
-        _showSnackBar("Hanya $remaining file yang ditambahkan (batas 5).");
+        _showSnackBar(
+          "Hanya $remaining file yang ditambahkan (batas $_maxAttachments).",
+        );
       }
     } catch (e) {
       if (!mounted) return;
@@ -161,83 +180,82 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
   }
 
   Future<void> _submitRevision() async {
-  final String revisionText = _revisionController.text.trim();
+    final String revisionText = _revisionController.text.trim();
 
-  if (revisionText.isEmpty) {
-    _showSnackBar("Mohon deskripsikan permintaan revisi Anda.");
-    return;
+    if (revisionText.isEmpty) {
+      _showSnackBar("Mohon deskripsikan permintaan revisi Anda.");
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final orderId = int.tryParse(widget.booking.id) ?? 0;
+      final currentCount = widget.booking.revisionCount;
+
+      final List<File> files = _attachments.map((a) => a.file).toList();
+      final List<String> names = _attachments.map((a) => a.name).toList();
+
+      await _ordersController.submitRequestRevision(
+        orderId: orderId,
+        currentRevisionCount: currentCount,
+        revisionNote: revisionText,
+        attachmentFiles: files,
+        attachmentNames: names,
+      );
+
+      if (!mounted) return;
+      _showSnackBar('Revisi ke-${currentCount + 1} berhasil diajukan.');
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      _showSnackBar(
+        "Gagal mengirim revisi: ${e.toString()}",
+        bgColor: Colors.red[600],
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
-  setState(() => _isLoading = true);
-
-  try {
-    final orderId = int.tryParse(widget.booking.id) ?? 0;
-    final currentCount = widget.booking.revisionCount;
-
-    // Pisahkan file dan gambar dari _attachments
-    final List<File> files = _attachments.map((a) => a.file).toList();
-    final List<String> names = _attachments.map((a) => a.name).toList();
-
-    await _ordersController.submitRequestRevision(
-      orderId: orderId,
-      currentRevisionCount: currentCount,
-      revisionNote: revisionText,
-      attachmentFiles: files,
-      attachmentNames: names,
-    );
-
-    if (!mounted) return;
-    _showSnackBar('Revisi ke-${currentCount + 1} berhasil diajukan.');
-    Navigator.pop(context, true);
-  } catch (e) {
-    if (!mounted) return;
-    _showSnackBar(
-      "Gagal mengirim revisi: ${e.toString()}",
-      bgColor: Colors.red[600],
-    );
-  } finally {
-    if (mounted) setState(() => _isLoading = false);
-  }
-}
-
-  Widget _buildFreelancerAvatar(double Function(double) s) {
+  Widget _buildFreelancerAvatar() {
     final avatar = widget.booking.freelancerAvatar;
 
     if (avatar.isEmpty) {
       return Container(
-        width: s(56),
-        height: s(56),
+        width: _s(56),
+        height: _s(56),
         decoration: BoxDecoration(
           color: const Color(0xFFFFE0B2),
-          borderRadius: BorderRadius.circular(s(12)),
+          borderRadius: BorderRadius.circular(_s(12)),
         ),
         child: Icon(
           Icons.person_rounded,
           color: const Color(0xFFFFA726),
-          size: s(28),
+          size: _s(28),
         ),
       );
     }
 
     if (avatar.startsWith('http')) {
       return ClipRRect(
-        borderRadius: BorderRadius.circular(s(12)),
+        borderRadius: BorderRadius.circular(_s(12)),
         child: Image.network(
           avatar,
-          width: s(56),
-          height: s(56),
+          width: _s(56),
+          height: _s(56),
           fit: BoxFit.cover,
           errorBuilder: (_, __, ___) => Container(
-            width: s(56),
-            height: s(56),
+            width: _s(56),
+            height: _s(56),
             decoration: BoxDecoration(
               color: const Color(0xFFFFE0B2),
-              borderRadius: BorderRadius.circular(s(12)),
+              borderRadius: BorderRadius.circular(_s(12)),
             ),
             child: Icon(
               Icons.person_rounded,
               color: const Color(0xFFFFA726),
-              size: s(28),
+              size: _s(28),
             ),
           ),
         ),
@@ -245,23 +263,23 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
     }
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(s(12)),
+      borderRadius: BorderRadius.circular(_s(12)),
       child: Image.asset(
         avatar,
-        width: s(56),
-        height: s(56),
+        width: _s(56),
+        height: _s(56),
         fit: BoxFit.cover,
         errorBuilder: (_, __, ___) => Container(
-          width: s(56),
-          height: s(56),
+          width: _s(56),
+          height: _s(56),
           decoration: BoxDecoration(
             color: const Color(0xFFFFE0B2),
-            borderRadius: BorderRadius.circular(s(12)),
+            borderRadius: BorderRadius.circular(_s(12)),
           ),
           child: Icon(
             Icons.person_rounded,
             color: const Color(0xFFFFA726),
-            size: s(28),
+            size: _s(28),
           ),
         ),
       ),
@@ -276,19 +294,16 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
 
   @override
   Widget build(BuildContext context) {
-    final double screenWidth = MediaQuery.of(context).size.width;
-
-    double s(double size) =>
-        (size * (screenWidth / 375)).clamp(size * 0.75, size * 1.3);
+    final bool isMaxAttachments = _attachments.length >= _maxAttachments;
 
     return Scaffold(
       backgroundColor: const Color(0xFFFFF8EE),
       bottomNavigationBar: SafeArea(
         child: Padding(
-          padding: EdgeInsets.fromLTRB(s(20), s(8), s(20), s(16)),
+          padding: EdgeInsets.fromLTRB(_s(20), _s(8), _s(20), _s(16)),
           child: SizedBox(
             width: double.infinity,
-            height: s(52),
+            height: _s(52),
             child: ElevatedButton(
               onPressed: _isLoading ? null : _submitRevision,
               style: ElevatedButton.styleFrom(
@@ -297,13 +312,13 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
                 foregroundColor: Colors.black,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(s(30)),
+                  borderRadius: BorderRadius.circular(_s(30)),
                 ),
               ),
               child: _isLoading
                   ? SizedBox(
-                      width: s(22),
-                      height: s(22),
+                      width: _s(22),
+                      height: _s(22),
                       child: const CircularProgressIndicator(
                         strokeWidth: 2.5,
                         valueColor: AlwaysStoppedAnimation<Color>(
@@ -314,7 +329,7 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
                   : Text(
                       "Submit your Revision",
                       style: TextStyle(
-                        fontSize: s(14),
+                        fontSize: _s(14),
                         fontWeight: FontWeight.bold,
                         color: Colors.black,
                       ),
@@ -329,7 +344,7 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
             backgroundColor: Colors.transparent,
             elevation: 0,
             pinned: true,
-            expandedHeight: s(60),
+            expandedHeight: _s(60),
             automaticallyImplyLeading: false,
             flexibleSpace: Container(
               decoration: const BoxDecoration(
@@ -347,7 +362,7 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
                   child: Icon(
                     Icons.arrow_back,
                     color: Colors.black,
-                    size: s(22),
+                    size: _s(22),
                   ),
                 ),
                 Expanded(
@@ -355,28 +370,28 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
                     child: Text(
                       "Request Revisions",
                       style: TextStyle(
-                        fontSize: s(16),
+                        fontSize: _s(16),
                         fontWeight: FontWeight.bold,
                         color: Colors.black,
                       ),
                     ),
                   ),
                 ),
-                SizedBox(width: s(22)),
+                SizedBox(width: _s(22)),
               ],
             ),
           ),
           SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.fromLTRB(s(16), s(8), s(16), s(24)),
+              padding: EdgeInsets.fromLTRB(_s(16), _s(8), _s(16), _s(24)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildFreelancerCard(s),
-                  SizedBox(height: s(20)),
-                  _buildViewOrderSection(s),
-                  SizedBox(height: s(20)),
-                  _buildRevisionInputSection(s),
+                  _buildFreelancerCard(),
+                  SizedBox(height: _s(20)),
+                  _buildViewOrderSection(),
+                  SizedBox(height: _s(20)),
+                  _buildRevisionInputSection(isMaxAttachments),
                 ],
               ),
             ),
@@ -386,24 +401,24 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
     );
   }
 
-  Widget _buildFreelancerCard(double Function(double) s) {
+  Widget _buildFreelancerCard() {
     return Container(
-      padding: EdgeInsets.all(s(14)),
+      padding: EdgeInsets.all(_s(14)),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(s(18)),
+        borderRadius: BorderRadius.circular(_s(18)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.06),
-            blurRadius: s(12),
-            offset: Offset(0, s(4)),
+            blurRadius: _s(12),
+            offset: Offset(0, _s(4)),
           ),
         ],
       ),
       child: Row(
         children: [
-          _buildFreelancerAvatar(s),
-          SizedBox(width: s(12)),
+          _buildFreelancerAvatar(),
+          SizedBox(width: _s(12)),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -411,17 +426,17 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
                 Text(
                   widget.booking.freelancerName,
                   style: TextStyle(
-                    fontSize: s(14),
+                    fontSize: _s(14),
                     fontWeight: FontWeight.bold,
                     color: Colors.black,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                SizedBox(height: s(3)),
+                SizedBox(height: _s(3)),
                 Text(
                   widget.booking.serviceName,
-                  style: TextStyle(fontSize: s(12), color: Colors.grey[500]),
+                  style: TextStyle(fontSize: _s(12), color: Colors.grey[500]),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -433,19 +448,19 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
     );
   }
 
-  Widget _buildViewOrderSection(double Function(double) s) {
+  Widget _buildViewOrderSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           "View Order",
           style: TextStyle(
-            fontSize: s(14),
+            fontSize: _s(14),
             fontWeight: FontWeight.bold,
             color: Colors.black,
           ),
         ),
-        SizedBox(height: s(10)),
+        SizedBox(height: _s(10)),
         GestureDetector(
           onTap: _openCompletedFile,
           child: CustomPaint(
@@ -458,7 +473,10 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
             ),
             child: Container(
               width: double.infinity,
-              padding: EdgeInsets.symmetric(vertical: s(20), horizontal: s(16)),
+              padding: EdgeInsets.symmetric(
+                vertical: _s(20),
+                horizontal: _s(16),
+              ),
               decoration: BoxDecoration(
                 color: const Color(0xFFEEF1FF),
                 borderRadius: BorderRadius.circular(14),
@@ -469,13 +487,13 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
                   Icon(
                     Icons.insert_drive_file_rounded,
                     color: const Color(0xFF6B7AFF),
-                    size: s(22),
+                    size: _s(22),
                   ),
-                  SizedBox(width: s(8)),
+                  SizedBox(width: _s(8)),
                   Text(
                     "View File",
                     style: TextStyle(
-                      fontSize: s(13),
+                      fontSize: _s(13),
                       fontWeight: FontWeight.w600,
                       color: const Color(0xFF6B7AFF),
                     ),
@@ -489,23 +507,23 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
     );
   }
 
-  Widget _buildRevisionInputSection(double Function(double) s) {
+  Widget _buildRevisionInputSection(bool isMaxAttachments) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           "Request Revisions",
           style: TextStyle(
-            fontSize: s(14),
+            fontSize: _s(14),
             fontWeight: FontWeight.bold,
             color: Colors.black,
           ),
         ),
-        SizedBox(height: s(10)),
+        SizedBox(height: _s(10)),
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(s(16)),
+            borderRadius: BorderRadius.circular(_s(16)),
             border: Border.all(
               color: Colors.grey.withOpacity(0.25),
               width: 1.2,
@@ -513,8 +531,8 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.03),
-                blurRadius: s(8),
-                offset: Offset(0, s(2)),
+                blurRadius: _s(8),
+                offset: Offset(0, _s(2)),
               ),
             ],
           ),
@@ -522,15 +540,15 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
-                padding: EdgeInsets.fromLTRB(s(14), s(12), s(14), s(4)),
+                padding: EdgeInsets.fromLTRB(_s(14), _s(12), _s(14), _s(4)),
                 child: TextField(
                   controller: _revisionController,
                   maxLines: 6,
-                  style: TextStyle(fontSize: s(13), color: Colors.black87),
+                  style: TextStyle(fontSize: _s(13), color: Colors.black87),
                   decoration: InputDecoration(
                     hintText: "Type here...",
                     hintStyle: TextStyle(
-                      fontSize: s(13),
+                      fontSize: _s(13),
                       color: Colors.grey[400],
                     ),
                     border: InputBorder.none,
@@ -541,43 +559,55 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
               ),
               if (_attachments.isNotEmpty) ...[
                 Padding(
-                  padding: EdgeInsets.fromLTRB(s(12), 0, s(12), s(8)),
+                  padding: EdgeInsets.fromLTRB(_s(12), 0, _s(12), _s(8)),
                   child: Wrap(
-                    spacing: s(8),
-                    runSpacing: s(8),
+                    spacing: _s(8),
+                    runSpacing: _s(8),
                     children: List.generate(
                       _attachments.length,
-                      (index) => _buildAttachmentPreview(index, s),
+                      (index) => _buildAttachmentPreview(index),
                     ),
                   ),
                 ),
               ],
               Padding(
-                padding: EdgeInsets.fromLTRB(s(10), s(4), s(10), s(10)),
+                padding: EdgeInsets.fromLTRB(_s(10), _s(4), _s(10), _s(10)),
                 child: Row(
                   children: [
                     _toolbarIconButton(
                       icon: Icons.attach_file_rounded,
-                      s: s,
-                      onTap: _handleAttachment,
+                      onTap: isMaxAttachments
+                          ? () => _showSnackBar(
+                              "Maksimal $_maxAttachments lampiran.",
+                            )
+                          : _handleAttachment,
                       tooltip: "Lampirkan file",
+                      disabled: isMaxAttachments,
                     ),
-                    SizedBox(width: s(4)),
+                    SizedBox(width: _s(4)),
                     _toolbarIconButton(
                       icon: Icons.image_outlined,
-                      s: s,
-                      onTap: _handleImagePick,
+                      onTap: isMaxAttachments
+                          ? () => _showSnackBar(
+                              "Maksimal $_maxAttachments lampiran.",
+                            )
+                          : _handleImagePick,
                       tooltip: "Tambah gambar",
+                      disabled: isMaxAttachments,
                     ),
                     const Spacer(),
-                    if (_attachments.isNotEmpty)
-                      Text(
-                        "${_attachments.length}/5",
-                        style: TextStyle(
-                          fontSize: s(11),
-                          color: Colors.grey[400],
-                        ),
+                    Text(
+                      "${_attachments.length}/$_maxAttachments",
+                      style: TextStyle(
+                        fontSize: _s(11),
+                        fontWeight: isMaxAttachments
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                        color: isMaxAttachments
+                            ? Colors.red[400]
+                            : Colors.grey[400],
                       ),
+                    ),
                   ],
                 ),
               ),
@@ -588,84 +618,88 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
     );
   }
 
-  Widget _buildAttachmentPreview(int index, double Function(double) s) {
+  Widget _buildAttachmentPreview(int index) {
     final _AttachmentItem item = _attachments[index];
 
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          width: s(70),
-          height: s(70),
-          decoration: BoxDecoration(
-            color: item.isImage ? Colors.transparent : const Color(0xFFF5F5F5),
-            borderRadius: BorderRadius.circular(s(10)),
-            border: Border.all(color: Colors.grey.withOpacity(0.2), width: 1),
-          ),
-          child: item.isImage
-              ? ClipRRect(
-                  borderRadius: BorderRadius.circular(s(10)),
-                  child: Image.file(
-                    item.file,
-                    width: s(70),
-                    height: s(70),
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _fileIconPlaceholder(s),
-                  ),
-                )
-              : _fileChipContent(item.name, s),
-        ),
-        Positioned(
-          top: s(-6),
-          right: s(-6),
-          child: GestureDetector(
-            onTap: () => _removeAttachment(index),
+    return SizedBox(
+      width: _s(76),
+      height: _s(76),
+      child: Stack(
+        children: [
+          Positioned.fill(
             child: Container(
-              width: s(18),
-              height: s(18),
-              decoration: const BoxDecoration(
-                color: Color(0xFF2D2D2D),
-                shape: BoxShape.circle,
+              decoration: BoxDecoration(
+                color: item.isImage
+                    ? Colors.transparent
+                    : const Color(0xFFF5F5F5),
+                borderRadius: BorderRadius.circular(_s(10)),
+                border: Border.all(
+                  color: Colors.grey.withOpacity(0.2),
+                  width: 1,
+                ),
               ),
-              child: Icon(Icons.close, size: s(11), color: Colors.white),
+              child: item.isImage
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(_s(10)),
+                      child: Image.file(
+                        item.file,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _fileIconPlaceholder(),
+                      ),
+                    )
+                  : _fileChipContent(item.name),
             ),
           ),
-        ),
-      ],
+          Positioned(
+            top: 0,
+            right: 0,
+            child: GestureDetector(
+              onTap: () => _removeAttachment(index),
+              child: Container(
+                width: _s(18),
+                height: _s(18),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF2D2D2D),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.close, size: _s(11), color: Colors.white),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _fileIconPlaceholder(double Function(double) s) {
+  Widget _fileIconPlaceholder() {
     return Container(
-      width: s(70),
-      height: s(70),
       decoration: BoxDecoration(
         color: const Color(0xFFF5F5F5),
-        borderRadius: BorderRadius.circular(s(10)),
+        borderRadius: BorderRadius.circular(_s(10)),
       ),
       child: Icon(
         Icons.broken_image_outlined,
-        size: s(28),
+        size: _s(28),
         color: Colors.grey[400],
       ),
     );
   }
 
-  Widget _fileChipContent(String name, double Function(double) s) {
+  Widget _fileChipContent(String name) {
     return Padding(
-      padding: EdgeInsets.all(s(6)),
+      padding: EdgeInsets.all(_s(6)),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
             Icons.insert_drive_file_rounded,
             color: const Color(0xFF6B7AFF),
-            size: s(24),
+            size: _s(24),
           ),
-          SizedBox(height: s(3)),
+          SizedBox(height: _s(3)),
           Text(
             name,
-            style: TextStyle(fontSize: s(9), color: Colors.grey[600]),
+            style: TextStyle(fontSize: _s(9), color: Colors.grey[600]),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
@@ -677,21 +711,27 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
 
   Widget _toolbarIconButton({
     required IconData icon,
-    required double Function(double) s,
     required VoidCallback onTap,
     required String tooltip,
+    bool disabled = false,
   }) {
     return Tooltip(
       message: tooltip,
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          padding: EdgeInsets.all(s(6)),
+          padding: EdgeInsets.all(_s(6)),
           decoration: BoxDecoration(
-            color: Colors.grey.withOpacity(0.08),
-            borderRadius: BorderRadius.circular(s(8)),
+            color: disabled
+                ? Colors.grey.withOpacity(0.04)
+                : Colors.grey.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(_s(8)),
           ),
-          child: Icon(icon, size: s(18), color: const Color(0xFF2D2D2D)),
+          child: Icon(
+            icon,
+            size: _s(18),
+            color: disabled ? Colors.grey[350] : const Color(0xFF2D2D2D),
+          ),
         ),
       ),
     );
@@ -743,5 +783,6 @@ class _DashedBorderPainter extends CustomPainter {
       old.color != color ||
       old.dashWidth != dashWidth ||
       old.dashSpace != dashSpace ||
-      old.strokeWidth != strokeWidth;
+      old.strokeWidth != strokeWidth ||
+      old.borderRadius != borderRadius;
 }

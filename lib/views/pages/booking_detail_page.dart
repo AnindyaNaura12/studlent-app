@@ -23,7 +23,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
 
   final _ordersController = MyOrdersController();
   bool _isRequestingRevision = false;
-  int _revisionCount = 0; 
+  int _revisionCount = 0;
   String? _revisionNote;
   String? _revisionFileUrl;
 
@@ -35,17 +35,15 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
   }
 
   Future<void> _handleRequestRevision() async {
-  final result = await Navigator.push<bool>(
-    context,
-    MaterialPageRoute(
-      builder: (_) => RequestRevisionPage(booking: booking),
-    ),
-  );
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => RequestRevisionPage(booking: booking)),
+    );
 
-  if (result == true) {
-    await _refreshBooking();
+    if (result == true) {
+      await _refreshBooking();
+    }
   }
-}
 
   void _showSnackBar(String message, {Color? bgColor}) {
     if (!mounted) return;
@@ -63,69 +61,69 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
   }
 
   Future<void> _refreshBooking() async {
-  try {
-    final supabase = Supabase.instance.client;
-    final orderId = int.tryParse(booking.id) ?? 0;
+    try {
+      final supabase = Supabase.instance.client;
+      final orderId = int.tryParse(booking.id) ?? 0;
 
-    final Map<String, dynamic>? res = await supabase
-        .from('orders')
-        .select('''
-          id_order,
-          id_freelancer,
-          id_service,
-          status,
-          catatan,
-          deadline,
-          result_file_url,
-          revision_count,
-          revision_note,
-          revision_file_url,
-          created_at,
-          freelancer:id_freelancer (nama, foto),
-          service:id_service (judul, thumbnail_url, service_images(image_url)),
-          payment:payments (amount, admin_fee, status, metode)
-        ''')
-        .eq('id_order', orderId)
-        .maybeSingle();
-
-    if (res == null) {
-      if (mounted) {
-        _showSnackBar("Data order tidak ditemukan.");
-      }
-      return;
-    }
-
-    if (res['result_file_url'] == null ||
-        res['result_file_url'].toString().trim().isEmpty) {
-      final Map<String, dynamic>? latestDeliverable = await supabase
-          .from('deliverables')
-          .select('file_url, created_at')
+      final Map<String, dynamic>? res = await supabase
+          .from('orders')
+          .select('''
+            id_order,
+            id_freelancer,
+            id_service,
+            status,
+            catatan,
+            deadline,
+            result_file_url,
+            revision_count,
+            revision_note,
+            revision_file_url,
+            created_at,
+            freelancer:id_freelancer (nama, foto),
+            service:id_service (judul, thumbnail_url, service_images(image_url)),
+            payment:payments (amount, admin_fee, status, metode)
+          ''')
           .eq('id_order', orderId)
-          .order('created_at', ascending: false)
-          .limit(1)
           .maybeSingle();
 
-      if (latestDeliverable != null &&
-          latestDeliverable['file_url'] != null &&
-          latestDeliverable['file_url'].toString().trim().isNotEmpty) {
-        res['result_file_url'] = latestDeliverable['file_url'];
+      if (res == null) {
+        if (mounted) {
+          _showSnackBar("Data order tidak ditemukan.");
+        }
+        return;
+      }
+
+      if (res['result_file_url'] == null ||
+          res['result_file_url'].toString().trim().isEmpty) {
+        final Map<String, dynamic>? latestDeliverable = await supabase
+            .from('deliverables')
+            .select('file_url, created_at')
+            .eq('id_order', orderId)
+            .order('created_at', ascending: false)
+            .limit(1)
+            .maybeSingle();
+
+        if (latestDeliverable != null &&
+            latestDeliverable['file_url'] != null &&
+            latestDeliverable['file_url'].toString().trim().isNotEmpty) {
+          res['result_file_url'] = latestDeliverable['file_url'];
+        }
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        booking = OrderModel.fromJson(res);
+        _revisionCount = (res['revision_count'] as num?)?.toInt() ?? 0;
+        _revisionNote = res['revision_note']?.toString().trim();
+        _revisionFileUrl = res['revision_file_url']?.toString().trim();
+      });
+    } catch (e) {
+      if (mounted) {
+        _showSnackBar("Gagal memuat data terbaru.");
       }
     }
-
-    if (!mounted) return;
-
-    setState(() {
-      booking = OrderModel.fromJson(res);
-      _revisionCount = (res['revision_count'] as num?)?.toInt() ?? 0;
-      _revisionNote = res['revision_note']?.toString().trim();
-      _revisionFileUrl = res['revision_file_url']?.toString().trim();
-    });
-  } catch (e) {
-    if (mounted) {
-      _showSnackBar("Gagal memuat data terbaru.");
-    }
   }
-}
 
   Future<void> _openCompletedFile() async {
     final String? rawUrl = booking.fileUrl;
@@ -344,12 +342,10 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
               ),
             ),
             SizedBox(height: s(18)),
-
             if (_canViewOrderFile(booking.status)) ...[
               _buildViewOrderSection(s),
               SizedBox(height: s(18)),
             ],
-
             Container(
               padding: EdgeInsets.all(s(14)),
               decoration: BoxDecoration(
@@ -381,7 +377,6 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                 ],
               ),
             ),
-
             if (_revisionCount > 0 || booking.status == 'revisi') ...[
               SizedBox(height: s(14)),
               Container(
@@ -434,8 +429,6 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                   ],
                 ),
               ),
-
-              // --- Catatan Revisi ---
               SizedBox(height: s(10)),
               Container(
                 width: double.infinity,
@@ -457,7 +450,8 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                       ),
                     ),
                     SizedBox(height: s(6)),
-                    if (_revisionNote != null && _revisionNote!.trim().isNotEmpty)
+                    if (_revisionNote != null &&
+                        _revisionNote!.trim().isNotEmpty)
                       Text(
                         _revisionNote!,
                         style: TextStyle(
@@ -478,15 +472,17 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                   ],
                 ),
               ),
-
-              // --- File Lampiran Revisi ---
               SizedBox(height: s(8)),
-              if (_revisionFileUrl != null && _revisionFileUrl!.trim().isNotEmpty)
+              if (_revisionFileUrl != null &&
+                  _revisionFileUrl!.trim().isNotEmpty)
                 GestureDetector(
                   onTap: () async {
                     final uri = Uri.tryParse(_revisionFileUrl!);
                     if (uri != null && await canLaunchUrl(uri)) {
-                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      await launchUrl(
+                        uri,
+                        mode: LaunchMode.externalApplication,
+                      );
                     } else {
                       _showSnackBar('Tidak dapat membuka lampiran.');
                     }
@@ -542,9 +538,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                   ),
                 ),
             ],
-
             SizedBox(height: s(24)),
-
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -578,16 +572,20 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                 ),
               ),
             ),
-
             if (_canRequestRevision(booking.status)) ...[
               SizedBox(height: s(12)),
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
-                  onPressed: _isRequestingRevision ? null : _handleRequestRevision,
+                  onPressed: _isRequestingRevision
+                      ? null
+                      : _handleRequestRevision,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFFFFA726),
-                    side: const BorderSide(color: Color(0xFFFFA726), width: 1.5),
+                    side: const BorderSide(
+                      color: Color(0xFFFFA726),
+                      width: 1.5,
+                    ),
                     padding: EdgeInsets.symmetric(vertical: s(14)),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(s(25)),
@@ -614,7 +612,6 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                 ),
               ),
             ],
-
             if (_canClientReview(booking.status)) ...[
               SizedBox(height: s(12)),
               SizedBox(
@@ -658,7 +655,6 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                                 MaterialPageRoute(
                                   builder: (_) => RatingReviewPage(
                                     idOrder: int.tryParse(booking.id) ?? 0,
-                                    idClient: 0,
                                     idFreelancer: booking.freelancerId,
                                     idService: booking.serviceId,
                                     freelancerName: booking.freelancerName,
@@ -704,7 +700,6 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                 ),
               ),
             ],
-
             SizedBox(height: s(16)),
           ],
         ),
