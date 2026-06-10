@@ -58,8 +58,8 @@ class OrderModel {
         return 'Done';
       case 'revisi':
         return 'Revisi';
-      case 'selesai':
-        return 'Selesai';
+      case 'Done':
+        return 'Done';
       case 'dibatalkan':
         return 'Dibatalkan';
       default:

@@ -92,36 +92,6 @@ class ServicesController {
     }
   }
 
-  // ── Dummy fallback ────────────────────────────────────────
-  List<ServiceModel> services = [
-    ServiceModel(
-      id: '11',
-      title: 'App Design - StudyBuddy',
-      category: 'Design',
-      description: 'Modern UI for study group organization',
-      imagePath: null,
-      serviceImages: [],
-      basicPackage: PackageModel(
-        price: 'Rp. 180.000',
-        deliveryTime: '3 days',
-        shortDescription: '2 Modern Concepts + Vector Files + Favicon',
-      ),
-    ),
-    ServiceModel(
-      id: '2',
-      title: 'Web Design - Organization',
-      category: 'Design Web',
-      description: 'Custom shopify store design + ecommerce development',
-      imagePath: 'assets/images/portfolio_sample.png',
-      serviceImages: [],
-      basicPackage: PackageModel(
-        price: 'Rp. 180.000',
-        deliveryTime: '3 days',
-        shortDescription: '2 Modern Concepts + Vector Files + Favicon',
-      ),
-    ),
-  ];
-
   // ── Package helpers ───────────────────────────────────────
   String getPackageTitle(int selectedTab) {
     switch (selectedTab) {

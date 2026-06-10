@@ -46,7 +46,7 @@ class _RatingReviewPageState extends State<RatingReviewPage> {
     final authUser = supabase.auth.currentUser;
 
     if (authUser == null || authUser.email == null || authUser.email!.isEmpty) {
-      throw Exception('User login tidak ditemukan.');
+      throw Exception('Logged-in user not found.');
     }
 
     final userRow = await supabase
@@ -56,7 +56,7 @@ class _RatingReviewPageState extends State<RatingReviewPage> {
         .maybeSingle();
 
     if (userRow == null || userRow['id_user'] == null) {
-      throw Exception('Data client tidak ditemukan di tabel users.');
+      throw Exception('Client data was not found in users table.');
     }
 
     return userRow['id_user'] as int;
@@ -103,14 +103,6 @@ class _RatingReviewPageState extends State<RatingReviewPage> {
         if (ratings.isNotEmpty) {
           final avg = ratings.reduce((a, b) => a + b) / ratings.length;
           final avgRounded = double.parse(avg.toStringAsFixed(1));
-
-          await supabase
-              .from('service_detail')
-              .update({
-                'rating_avg': avgRounded,
-                'total_reviews': ratings.length,
-              })
-              .eq('id_service', widget.idService);
 
           await supabase
               .from('services')
@@ -161,7 +153,7 @@ class _RatingReviewPageState extends State<RatingReviewPage> {
     } on PostgrestException catch (e) {
       if (e.code == '42501') {
         _showSnackBar(
-          "Akses ditolak oleh database. Periksa policy reviews di Supabase.",
+          "Database access denied. Please check the reviews policy in Supabase.",
         );
       } else {
         _showSnackBar("Failed to submit rating: ${e.message}");

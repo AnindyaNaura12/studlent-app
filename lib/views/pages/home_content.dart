@@ -33,19 +33,19 @@ class _HomeContentState extends State<HomeContent> {
   final _supabase = Supabase.instance.client;
   final TextEditingController _searchController = TextEditingController();
 
-  List<ServiceModel> _filteredServices = [];
+  List<ServiceModel> _allServices = [];
+  List<ServiceModel> _recommendedServices = [];
   List<Map<String, dynamic>> _searchResults = [];
   String? _profileImageUrl;
   bool _isLoggedIn = false;
-  bool _isLoadingRecommend = true;
+  bool _isLoading = true;
   String _searchQuery = '';
   String? _userInterest;
 
   @override
   void initState() {
     super.initState();
-    _filteredServices = _servicesController.services;
-     _loadUserData();
+    _loadAll();
   }
 
   @override
@@ -54,7 +54,20 @@ class _HomeContentState extends State<HomeContent> {
     super.dispose();
   }
 
-  Future<void> _loadUserData() async {
+  Future<void> _loadAll() async {
+    setState(() => _isLoading = true);
+
+    await _servicesController.fetchServices();
+    _allServices = _servicesController.services;
+
+    await _loadUserProfileAndRecommendations();
+
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadUserProfileAndRecommendations() async {
     final user = _supabase.auth.currentUser;
 
     if (user == null) {
@@ -62,13 +75,13 @@ class _HomeContentState extends State<HomeContent> {
       setState(() {
         _isLoggedIn = false;
         _profileImageUrl = null;
-        _isLoadingRecommend = false;
+        _recommendedServices = _allServices;
       });
       return;
     }
 
     try {
-      final data = await _supabase
+      final userData = await _supabase
           .from('users')
           .select('id_user, email, foto, product_interest')
           .eq('email', user.email!)
@@ -76,31 +89,61 @@ class _HomeContentState extends State<HomeContent> {
 
       if (!mounted) return;
 
-      final imageUrl = data?['foto'] as String?;
-      final interest = data?['product_interest'] as String?;
+      final imageUrl = userData?['foto'] as String?;
+      final rawInterest = userData?['product_interest'] as String?;
 
-      // Fetch services berdasarkan interest
-      if (interest != null && interest.trim().isNotEmpty) {
-        await _servicesController.fetchServices(category: interest);
+      List<String> interests = [];
+      if (rawInterest != null && rawInterest.trim().isNotEmpty) {
+        interests = rawInterest
+            .split(',')
+            .map((e) => e.toLowerCase().trim())
+            .where((e) => e.isNotEmpty)
+            .toList();
+      }
+
+      List<ServiceModel> recommended;
+      if (interests.isEmpty) {
+        recommended = _allServices;
       } else {
-        await _servicesController.fetchServices();
+        recommended = _allServices.where((svc) {
+          final category = svc.category.toLowerCase().trim();
+          final categoryNorm = category
+              .replaceAll('&', 'and')
+              .replaceAll(RegExp(r'[^\w\s]'), '')
+              .replaceAll(RegExp(r'\s+'), ' ')
+              .trim();
+
+          return interests.any((interest) {
+            final interestNorm = interest
+                .replaceAll('&', 'and')
+                .replaceAll(RegExp(r'[^\w\s]'), '')
+                .replaceAll(RegExp(r'\s+'), ' ')
+                .trim();
+
+            return categoryNorm.contains(interestNorm) ||
+                interestNorm.contains(categoryNorm);
+          });
+        }).toList();
+
+        if (recommended.isEmpty) {
+          recommended = _allServices;
+        }
       }
 
       setState(() {
         _isLoggedIn = true;
-        _userInterest = interest;
+        _userInterest = rawInterest;
         _profileImageUrl = imageUrl != null && imageUrl.trim().isNotEmpty
             ? imageUrl
             : null;
-        _filteredServices = List<ServiceModel>.from(_servicesController.services);
-        _isLoadingRecommend = false;
+        _recommendedServices = recommended;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _isLoggedIn = true;
         _profileImageUrl = null;
-        _isLoadingRecommend = false;
+        _recommendedServices = _allServices;
       });
     }
   }
@@ -110,7 +153,6 @@ class _HomeContentState extends State<HomeContent> {
       _controllerAuth.goToRegisterCover(context);
       return;
     }
-
     widget.onProfileTap?.call();
   }
 
@@ -155,9 +197,7 @@ class _HomeContentState extends State<HomeContent> {
       if (title == 'graphic design') {
         return 'assets/images/icons/graphic_design.png';
       }
-      if (title == 'photography') {
-        return 'assets/images/icons/photography.png';
-      }
+      if (title == 'photography') return 'assets/images/icons/photography.png';
       if (title == 'video editing') {
         return 'assets/images/icons/video_editing.png';
       }
@@ -168,7 +208,6 @@ class _HomeContentState extends State<HomeContent> {
           title == 'writing translation') {
         return 'assets/images/icons/writing_translation.png';
       }
-
       return 'assets/images/icons/services.png';
     }
 
@@ -178,32 +217,26 @@ class _HomeContentState extends State<HomeContent> {
           combined.contains('web development')) {
         return 'assets/images/icons/website_development.png';
       }
-
       if (combined.contains('graphic design') ||
           combined.contains('graphic') ||
           combined.contains('design')) {
         return 'assets/images/icons/graphic_design.png';
       }
-
       if (combined.contains('photography') || combined.contains('photo')) {
         return 'assets/images/icons/photography.png';
       }
-
       if (combined.contains('video editing') || combined.contains('video')) {
         return 'assets/images/icons/video_editing.png';
       }
-
       if (combined.contains('image editing') || combined.contains('image')) {
         return 'assets/images/icons/image_editing.png';
       }
-
       if (combined.contains('writing and translation') ||
           combined.contains('writing translation') ||
           combined.contains('writing') ||
           combined.contains('translation')) {
         return 'assets/images/icons/writing_translation.png';
       }
-
       return 'assets/images/icons/services.png';
     }
 
@@ -272,7 +305,7 @@ class _HomeContentState extends State<HomeContent> {
         };
       }).toList();
 
-      final serviceTargets = _servicesController.services.map((service) {
+      final serviceTargets = _allServices.map((service) {
         final extraKeywords = [
           _safe(service.title),
           _safe(service.category),
@@ -364,9 +397,8 @@ class _HomeContentState extends State<HomeContent> {
                   width: s(44),
                   height: s(44),
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) {
-                    return Icon(Icons.person, size: s(22), color: Colors.grey);
-                  },
+                  errorBuilder: (_, __, ___) =>
+                      Icon(Icons.person, size: s(22), color: Colors.grey),
                 ),
               )
             : Icon(Icons.person, size: s(22), color: Colors.grey),
@@ -460,7 +492,6 @@ class _HomeContentState extends State<HomeContent> {
                       _buildProfileAvatar(s),
                     ],
                   ),
-
                   if (_searchResults.isNotEmpty) ...[
                     SizedBox(height: s(10)),
                     Container(
@@ -521,12 +552,11 @@ class _HomeContentState extends State<HomeContent> {
                                       child: Image.asset(
                                         imagePath,
                                         fit: BoxFit.contain,
-                                        errorBuilder: (_, __, ___) {
-                                          return Image.asset(
-                                            'assets/images/icons/services.png',
-                                            fit: BoxFit.contain,
-                                          );
-                                        },
+                                        errorBuilder: (_, __, ___) =>
+                                            Image.asset(
+                                              'assets/images/icons/services.png',
+                                              fit: BoxFit.contain,
+                                            ),
                                       ),
                                     ),
                                     SizedBox(width: s(12)),
@@ -572,9 +602,7 @@ class _HomeContentState extends State<HomeContent> {
                   ],
                 ],
               ),
-
               SizedBox(height: s(28)),
-
               Center(
                 child: RichText(
                   textAlign: TextAlign.center,
@@ -595,9 +623,7 @@ class _HomeContentState extends State<HomeContent> {
                   ),
                 ),
               ),
-
               SizedBox(height: s(10)),
-
               Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 500),
@@ -612,9 +638,7 @@ class _HomeContentState extends State<HomeContent> {
                   ),
                 ),
               ),
-
               SizedBox(height: s(20)),
-
               ClipRRect(
                 borderRadius: BorderRadius.circular(s(20)),
                 child: Image.asset(
@@ -637,9 +661,7 @@ class _HomeContentState extends State<HomeContent> {
                   ),
                 ),
               ),
-
               SizedBox(height: s(24)),
-
               Center(
                 child: Text(
                   "Why Choose Student Talent?",
@@ -650,9 +672,7 @@ class _HomeContentState extends State<HomeContent> {
                   ),
                 ),
               ),
-
               SizedBox(height: s(16)),
-
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: const [
@@ -674,9 +694,7 @@ class _HomeContentState extends State<HomeContent> {
                   ),
                 ],
               ),
-
               SizedBox(height: s(28)),
-
               Center(
                 child: Text(
                   "Service Categories",
@@ -687,9 +705,7 @@ class _HomeContentState extends State<HomeContent> {
                   ),
                 ),
               ),
-
               SizedBox(height: s(16)),
-
               GridView.count(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -700,17 +716,12 @@ class _HomeContentState extends State<HomeContent> {
                 children: categories.map((cat) {
                   return CategoryCard(
                     category: cat,
-                    onTap: () {
-                      widget.onCategoryTap?.call(cat.title);
-                    },
+                    onTap: () => widget.onCategoryTap?.call(cat.title),
                   );
                 }).toList(),
               ),
-
               SizedBox(height: s(28)),
-
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     "Recommend For You",
@@ -720,21 +731,38 @@ class _HomeContentState extends State<HomeContent> {
                       color: Colors.black87,
                     ),
                   ),
-                  if (_userInterest != null)
-                    Text(
-                      _userInterest!,
-                      style: TextStyle(
-                        fontSize: s(12),
-                        color: Colors.orange,
-                        fontWeight: FontWeight.w500,
+                  const Spacer(),
+                  if (_recommendedServices.isNotEmpty &&
+                      (_recommendedServices.length < _allServices.length))
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: s(8),
+                        vertical: s(3),
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(s(20)),
+                      ),
+                      child: Text(
+                        '${_recommendedServices.length} matched',
+                        style: TextStyle(
+                          fontSize: s(11),
+                          color: Colors.orange[800],
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                 ],
               ),
-
               SizedBox(height: s(12)),
-
-              if (_filteredServices.isEmpty)
+              if (_isLoading)
+                Padding(
+                  padding: EdgeInsets.symmetric(vertical: s(24)),
+                  child: const Center(
+                    child: CircularProgressIndicator(color: Colors.orange),
+                  ),
+                )
+              else if (_recommendedServices.isEmpty)
                 Padding(
                   padding: EdgeInsets.symmetric(vertical: s(24)),
                   child: Center(
@@ -749,7 +777,7 @@ class _HomeContentState extends State<HomeContent> {
                   scrollDirection: Axis.horizontal,
                   physics: const ClampingScrollPhysics(),
                   child: Row(
-                    children: _filteredServices.map((svc) {
+                    children: _recommendedServices.map((svc) {
                       return ServiceCard(
                         service: svc,
                         onTap: () {
@@ -765,7 +793,6 @@ class _HomeContentState extends State<HomeContent> {
                     }).toList(),
                   ),
                 ),
-
               SizedBox(height: s(16)),
             ],
           ),
