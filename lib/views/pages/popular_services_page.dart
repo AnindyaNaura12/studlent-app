@@ -4,6 +4,7 @@ import '/controllers/home_controller.dart';
 import '/models/services_model.dart';
 import '../pages/service_detail_page.dart';
 import '../widgets/freelancer_card_horizontal.dart';
+import '../../models/category_model.dart';
 
 class PopularServicesPage extends StatefulWidget {
   const PopularServicesPage({super.key});
@@ -18,6 +19,7 @@ class _PopularServicesPageState extends State<PopularServicesPage> {
 
   List<ServiceModel> _allPopularServices = [];
   List<ServiceModel> _filteredPopularServices = [];
+  List<CategoryModel> _categories = [];
   String _selectedCategory = 'All';
   bool _isLoading = true;
 
@@ -27,12 +29,14 @@ class _PopularServicesPageState extends State<PopularServicesPage> {
     _loadServices();
   }
 
-   Future<void> _loadServices() async {
-    await _servicesController.fetchServices(); // fetch dulu dari Supabase
+  Future<void> _loadServices() async {
+    await _servicesController.fetchServices();
+    final cats = await _homeController.getCategories(); // ← tambah ini
     if (mounted) {
       setState(() {
         _allPopularServices = List<ServiceModel>.from(_servicesController.services);
         _filteredPopularServices = _allPopularServices;
+        _categories = cats; // ← tambah ini
         _isLoading = false;
       });
     }
@@ -61,8 +65,6 @@ class _PopularServicesPageState extends State<PopularServicesPage> {
     final screenWidth = MediaQuery.of(context).size.width;
     double s(double size) =>
         (size * (screenWidth / 375)).clamp(size * 0.75, size * 1.3);
-
-    final categories = _homeController.getCategories();
 
     return Scaffold(
       backgroundColor: const Color(0xFFFFF8EE),
@@ -104,7 +106,7 @@ class _PopularServicesPageState extends State<PopularServicesPage> {
                       ),
                     ),
                   ),
-                  ...categories.map((category) {
+                  ..._categories.map((category) {
                     final isSelected = _selectedCategory == category.title;
                     return Padding(
                       padding: EdgeInsets.only(right: s(8)),

@@ -90,7 +90,6 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
     try {
       final ImagePicker picker = ImagePicker();
 
-      // tanpa limit native, limit di Dart saja
       final List<XFile> pickedFiles = await picker.pickMultiImage(
         imageQuality: 80,
       );
@@ -191,21 +190,23 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
 
     try {
       final orderId = int.tryParse(widget.booking.id) ?? 0;
-      final currentCount = widget.booking.revisionCount;
+
+      if (orderId <= 0) {
+        throw Exception('ID order tidak valid.');
+      }
 
       final List<File> files = _attachments.map((a) => a.file).toList();
       final List<String> names = _attachments.map((a) => a.name).toList();
 
-      await _ordersController.submitRequestRevision(
+      final int newCount = await _ordersController.submitRequestRevision(
         orderId: orderId,
-        currentRevisionCount: currentCount,
         revisionNote: revisionText,
         attachmentFiles: files,
         attachmentNames: names,
       );
 
       if (!mounted) return;
-      _showSnackBar('Revisi ke-${currentCount + 1} berhasil diajukan.');
+      _showSnackBar('Revisi ke-$newCount berhasil diajukan.');
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;

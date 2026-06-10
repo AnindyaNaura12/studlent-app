@@ -5,12 +5,14 @@ class CategoryCard extends StatelessWidget {
   final CategoryModel category;
   final bool isSelected;
   final VoidCallback? onTap;
+  final bool showIcon;
 
   const CategoryCard({
     super.key,
     required this.category,
     this.isSelected = false,
     this.onTap,
+    this.showIcon = true, // ← default true supaya home tetap tampil icon
   });
 
   @override
@@ -60,27 +62,28 @@ class CategoryCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 // ================= ICON =================
-                Container(
-                  padding: EdgeInsets.all(s(8)),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? Colors.white.withOpacity(0.3)
-                        : Colors.white.withOpacity(0.6),
-                    borderRadius: BorderRadius.circular(s(10)),
-                  ),
-                  child: Image.asset(
-                    category.iconPath,
-                    width: s(26),
-                    height: s(26),
-                    errorBuilder: (_, __, ___) => Icon(
-                      Icons.category_outlined,
-                      size: s(26),
-                      color: isSelected ? Colors.white : Colors.orange,
+                if (showIcon) ...[
+                  Container(
+                    padding: EdgeInsets.all(s(8)),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? Colors.white.withOpacity(0.3)
+                          : Colors.white.withOpacity(0.6),
+                      borderRadius: BorderRadius.circular(s(10)),
+                    ),
+                    child: Image.asset(
+                      category.iconPath,
+                      width: s(26),
+                      height: s(26),
+                      errorBuilder: (_, __, ___) => Icon(
+                        Icons.category_outlined,
+                        size: s(26),
+                        color: isSelected ? Colors.white : Colors.orange,
+                      ),
                     ),
                   ),
-                ),
-
-                SizedBox(height: s(6)),
+                  SizedBox(height: s(6)),
+                ],
 
                 // ================= TITLE =================
                 Padding(

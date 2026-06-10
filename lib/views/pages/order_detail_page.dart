@@ -237,17 +237,16 @@ class _FreelancerOrderDetailPageState extends State<FreelancerOrderDetailPage> {
       await _ordersController.submitResultWithRevisionCheck(
         orderId: orderId,
         resultFileUrl: _uploadedResultUrl!,
-        currentRevisionCount: _revisionCount,
       );
 
       if (!mounted) return;
 
       setState(() => _submittedUrl = _uploadedResultUrl);
 
-      await showDialog(
+      final dialogResult = await showDialog<bool>(
         context: context,
         barrierDismissible: false,
-        builder: (_) => AlertDialog(
+        builder: (dialogContext) => AlertDialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
@@ -284,8 +283,7 @@ class _FreelancerOrderDetailPageState extends State<FreelancerOrderDetailPage> {
                 height: 46,
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.pop(context);
-                    Navigator.pop(context, true);
+                    Navigator.of(dialogContext).pop(true);
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _orange,
@@ -306,6 +304,10 @@ class _FreelancerOrderDetailPageState extends State<FreelancerOrderDetailPage> {
           ),
         ),
       );
+
+      if (dialogResult == true && mounted) {
+        Navigator.pop(context, true);
+      }
     } catch (e) {
       if (mounted) {
         _snack('❌ ${e.toString()}', bg: Colors.red);

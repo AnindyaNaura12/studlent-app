@@ -14,6 +14,7 @@ import '../pages/filter_page.dart';
 import '../pages/all_services_page.dart';
 import '../pages/popular_services_page.dart';
 import '../../main.dart';
+import '../../models/category_model.dart';
 
 class ServicesPage extends StatefulWidget {
   final String? initialCategory;
@@ -44,6 +45,7 @@ class _ServicesPageState extends State<ServicesPage> {
   List<ServiceModel> _filteredServices = [];
   List<ServiceModel> _randomSuggestedServices = [];
   List<ServiceModel> _popularPreviewServices = [];
+  List<CategoryModel> _categories = [];
 
   final List<Map<String, dynamic>> _priceRanges = [
     {'label': '< Rp 100.000', 'min': 0.0, 'max': 100000.0},
@@ -56,6 +58,7 @@ class _ServicesPageState extends State<ServicesPage> {
   @override
   void initState() {
     super.initState();
+    _loadCategories();
     _loadUserName();
     _fetchServicesFromDB();
     _authSubscription = _supabase.auth.onAuthStateChange.listen((_) {
@@ -86,6 +89,11 @@ class _ServicesPageState extends State<ServicesPage> {
     _searchController.dispose();
     _debounce?.cancel();
     super.dispose();
+  }
+
+  Future<void> _loadCategories() async {
+    final cats = await _homeController.getCategories();
+    if (mounted) setState(() => _categories = cats);
   }
 
   Future<void> _fetchServicesFromDB() async {
@@ -155,7 +163,6 @@ class _ServicesPageState extends State<ServicesPage> {
 
   void _applyAllFilters() {
     final all = _allServices;
-    final categories = _homeController.getCategories();
     final query = _searchQuery.trim().toLowerCase();
 
     final filtered = all.where((service) {
@@ -164,8 +171,10 @@ class _ServicesPageState extends State<ServicesPage> {
         final cat = widget.initialCategory!.toLowerCase().trim();
         matchCategory = service.category.toLowerCase().trim() == cat;
       } else if (_activeCategoryIndex != null &&
-          _activeCategoryIndex! < categories.length) {
-        final cat = categories[_activeCategoryIndex!].title.toLowerCase().trim();
+          _activeCategoryIndex! < _categories.length) {
+        final cat = _categories[_activeCategoryIndex!].title
+            .toLowerCase()
+            .trim();
         matchCategory = service.category.toLowerCase().trim() == cat;
       }
 
@@ -245,9 +254,8 @@ class _ServicesPageState extends State<ServicesPage> {
     if (widget.initialCategory != null) return widget.initialCategory;
 
     if (_activeCategoryIndex != null) {
-      final cats = _homeController.getCategories();
-      if (_activeCategoryIndex! < cats.length) {
-        return cats[_activeCategoryIndex!].title;
+      if (_activeCategoryIndex! < _categories.length) {
+        return _categories[_activeCategoryIndex!].title;
       }
     }
     return null;

@@ -27,6 +27,10 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
   String? _revisionNote;
   String? _revisionFileUrl;
 
+  bool get _hasOrderFileUpdate {
+    return booking.fileUrl != null && booking.fileUrl!.trim().isNotEmpty;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -35,13 +39,25 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
   }
 
   Future<void> _handleRequestRevision() async {
-    final result = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(builder: (_) => RequestRevisionPage(booking: booking)),
-    );
+    if (_isRequestingRevision) return;
 
-    if (result == true) {
-      await _refreshBooking();
+    setState(() => _isRequestingRevision = true);
+
+    try {
+      final result = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RequestRevisionPage(booking: booking),
+        ),
+      );
+
+      if (result == true) {
+        await _refreshBooking();
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isRequestingRevision = false);
+      }
     }
   }
 
@@ -118,11 +134,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
         _revisionNote = res['revision_note']?.toString().trim();
         _revisionFileUrl = res['revision_file_url']?.toString().trim();
       });
-    } catch (e) {
-      if (mounted) {
-        _showSnackBar("Gagal memuat data terbaru.");
-      }
-    }
+    } catch (_) {}
   }
 
   Future<void> _openCompletedFile() async {
@@ -152,28 +164,22 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
       case 'menunggu_pembayaran':
       case 'menunggu_verifikasi':
         return 'Pending';
-
       case 'diproses':
       case 'paid':
       case 'in_progress':
         return 'Diproses';
-
       case 'hasil_dikirim':
         return 'Hasil Dikirim';
-
       case 'revisi':
         return 'Revisi';
-
       case 'done':
       case 'selesai':
         return 'Done';
-
       case 'dibatalkan':
       case 'pembayaran_gagal':
       case 'failed':
       case 'expired':
         return 'Cancelled';
-
       default:
         return 'Pending';
     }
@@ -204,7 +210,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
 
   bool _canClientReview(String rawStatus) {
     final s = rawStatus.trim().toLowerCase();
-    return s == 'hasil_dikirim' || s == 'done' || s == 'selesai';
+    return s == 'hasil_dikirim';
   }
 
   bool _canRequestRevision(String rawStatus) {
@@ -407,7 +413,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                     ),
                     SizedBox(width: s(8)),
                     Text(
-                      'Revisi ke-$_revisionCount dari 3',
+                      'Revision $_revisionCount of 3',
                       style: TextStyle(
                         fontSize: s(12),
                         fontWeight: FontWeight.w600,
@@ -419,7 +425,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                     if (_revisionCount >= 3) ...[
                       const Spacer(),
                       Text(
-                        'Batas tercapai',
+                        'Limit Reached',
                         style: TextStyle(
                           fontSize: s(11),
                           color: Colors.red.shade600,
@@ -442,7 +448,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Catatan Revisi Anda:',
+                      'Revision Notes:',
                       style: TextStyle(
                         fontSize: s(12),
                         fontWeight: FontWeight.bold,
@@ -462,7 +468,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                       )
                     else
                       Text(
-                        'Tidak ada catatan revisi.',
+                        'No revision notes available.',
                         style: TextStyle(
                           fontSize: s(12),
                           color: Colors.grey,
@@ -508,7 +514,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                         SizedBox(width: s(10)),
                         Expanded(
                           child: Text(
-                            'Lihat Lampiran Revisi',
+                            'View Revision Attachment',
                             style: TextStyle(
                               fontSize: s(13),
                               fontWeight: FontWeight.w600,
@@ -529,7 +535,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                 Padding(
                   padding: EdgeInsets.only(left: s(4)),
                   child: Text(
-                    'Tidak ada lampiran file revisi.',
+                    'No revision attachment available.',
                     style: TextStyle(
                       fontSize: s(12),
                       color: Colors.grey,
@@ -650,7 +656,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                             onPressed: () async {
                               Navigator.pop(ctx);
 
-                              final result = await Navigator.push(
+                              final bool? result = await Navigator.push<bool>(
                                 context,
                                 MaterialPageRoute(
                                   builder: (_) => RatingReviewPage(
@@ -728,13 +734,38 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            "View Order",
-            style: TextStyle(
-              fontSize: s(14),
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
-            ),
+          Row(
+            children: [
+              Text(
+                "View Order",
+                style: TextStyle(
+                  fontSize: s(14),
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+              ),
+              const Spacer(),
+              if (_hasOrderFileUpdate)
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: s(10),
+                    vertical: s(4),
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF3CD),
+                    borderRadius: BorderRadius.circular(s(20)),
+                    border: Border.all(color: const Color(0xFFFFC107)),
+                  ),
+                  child: Text(
+                    "Ada Update",
+                    style: TextStyle(
+                      fontSize: s(10),
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFFB26A00),
+                    ),
+                  ),
+                ),
+            ],
           ),
           SizedBox(height: s(10)),
           GestureDetector(
@@ -743,7 +774,9 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
               opacity: hasFile ? 1 : 0.6,
               child: CustomPaint(
                 painter: _DashedBorderPainter(
-                  color: const Color(0xFFADB5FF),
+                  color: hasFile
+                      ? const Color(0xFFFFC107)
+                      : const Color(0xFFADB5FF),
                   borderRadius: 14,
                   dashWidth: 6,
                   dashSpace: 4,
@@ -756,7 +789,9 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                     horizontal: s(16),
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEEF1FF),
+                    color: hasFile
+                        ? const Color(0xFFFFFBEB)
+                        : const Color(0xFFEEF1FF),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Column(
@@ -766,7 +801,9 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                         children: [
                           Icon(
                             Icons.insert_drive_file_rounded,
-                            color: const Color(0xFF6B7AFF),
+                            color: hasFile
+                                ? const Color(0xFFFFB300)
+                                : const Color(0xFF6B7AFF),
                             size: s(22),
                           ),
                           SizedBox(width: s(8)),
@@ -777,7 +814,9 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                             style: TextStyle(
                               fontSize: s(13),
                               fontWeight: FontWeight.w600,
-                              color: const Color(0xFF6B7AFF),
+                              color: hasFile
+                                  ? const Color(0xFFB26A00)
+                                  : const Color(0xFF6B7AFF),
                             ),
                           ),
                         ],
