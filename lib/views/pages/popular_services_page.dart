@@ -19,13 +19,23 @@ class _PopularServicesPageState extends State<PopularServicesPage> {
   List<ServiceModel> _allPopularServices = [];
   List<ServiceModel> _filteredPopularServices = [];
   String _selectedCategory = 'All';
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
+    _loadServices();
+  }
 
-    _allPopularServices = List<ServiceModel>.from(_servicesController.services);
-    _filteredPopularServices = _allPopularServices;
+   Future<void> _loadServices() async {
+    await _servicesController.fetchServices(); // fetch dulu dari Supabase
+    if (mounted) {
+      setState(() {
+        _allPopularServices = List<ServiceModel>.from(_servicesController.services);
+        _filteredPopularServices = _allPopularServices;
+        _isLoading = false;
+      });
+    }
   }
 
   void _filterByCategory(String category) {
@@ -118,34 +128,36 @@ class _PopularServicesPageState extends State<PopularServicesPage> {
             SizedBox(height: s(16)),
 
             Expanded(
-              child: _filteredPopularServices.isEmpty
-                  ? Center(
-                      child: Text(
-                        'Tidak ada popular service pada kategori ini',
-                        style: TextStyle(
-                          fontSize: s(13),
-                          color: Colors.black45,
-                        ),
-                      ),
-                    )
-                  : ListView.builder(
-                      itemCount: _filteredPopularServices.length,
-                      itemBuilder: (context, index) {
-                        return FreelancerCardHorizontal(
-                          service: _filteredPopularServices[index],
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => ServiceDetailPage(
-                                  service: _filteredPopularServices[index],
-                                ),
-                              ),
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator(color: Color(0xFFFFB74D)))
+                  : _filteredPopularServices.isEmpty
+                      ? Center(
+                          child: Text(
+                            'Tidak ada popular service pada kategori ini',
+                            style: TextStyle(
+                              fontSize: s(13),
+                              color: Colors.black45,
+                            ),
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: _filteredPopularServices.length,
+                          itemBuilder: (context, index) {
+                            return FreelancerCardHorizontal(
+                              service: _filteredPopularServices[index],
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => ServiceDetailPage(
+                                      service: _filteredPopularServices[index],
+                                    ),
+                                  ),
+                                );
+                              },
                             );
                           },
-                        );
-                      },
-                    ),
+                        ),
             ),
           ],
         ),

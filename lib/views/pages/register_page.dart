@@ -18,9 +18,20 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _loading = false;
 
   @override
+  void initState() {
+    super.initState();
+    _loadInterests();
+  }
+
+  @override
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadInterests() async {
+    await _controller.fetchProductInterests();
+    if (mounted) setState(() {});
   }
 
   void _onRegisterPressed() async {

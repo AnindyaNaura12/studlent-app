@@ -20,14 +20,23 @@ class AuthController {
   String? selectedInterest;
   bool agreeToTerms = false;
 
-  final List<String> productInterests = [
-    'Website Development',
-    'Mobile Development',
-    'Graphic Design',
-    'Write & Translation',
-    'Digital Marketing',
-    'Video & Animation',
-  ];
+  List<String> productInterests = [];
+
+  Future<void> fetchProductInterests() async {
+    try {
+      final data = await supabase
+          .from('service_categories')
+          .select('nama')
+          .order('id_category', ascending: true);
+
+      productInterests = (data as List)
+          .map((e) => e['nama'].toString())
+          .toList();
+    } catch (e) {
+      debugPrint('ERROR FETCH INTERESTS: $e');
+      productInterests = [];
+    }
+  }
 
   // ── Visibility Toggles ────────────────────────────────────
   void togglePasswordVisibility(VoidCallback refresh) {

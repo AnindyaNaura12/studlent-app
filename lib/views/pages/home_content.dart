@@ -37,13 +37,15 @@ class _HomeContentState extends State<HomeContent> {
   List<Map<String, dynamic>> _searchResults = [];
   String? _profileImageUrl;
   bool _isLoggedIn = false;
+  bool _isLoadingRecommend = true;
   String _searchQuery = '';
+  String? _userInterest;
 
   @override
   void initState() {
     super.initState();
     _filteredServices = _servicesController.services;
-    _loadUserProfilePhoto();
+     _loadUserData();
   }
 
   @override
@@ -52,7 +54,7 @@ class _HomeContentState extends State<HomeContent> {
     super.dispose();
   }
 
-  Future<void> _loadUserProfilePhoto() async {
+  Future<void> _loadUserData() async {
     final user = _supabase.auth.currentUser;
 
     if (user == null) {
@@ -60,6 +62,7 @@ class _HomeContentState extends State<HomeContent> {
       setState(() {
         _isLoggedIn = false;
         _profileImageUrl = null;
+        _isLoadingRecommend = false;
       });
       return;
     }
@@ -67,25 +70,37 @@ class _HomeContentState extends State<HomeContent> {
     try {
       final data = await _supabase
           .from('users')
-          .select('id_user, email, foto')
+          .select('id_user, email, foto, product_interest')
           .eq('email', user.email!)
           .maybeSingle();
 
       if (!mounted) return;
 
       final imageUrl = data?['foto'] as String?;
+      final interest = data?['product_interest'] as String?;
+
+      // Fetch services berdasarkan interest
+      if (interest != null && interest.trim().isNotEmpty) {
+        await _servicesController.fetchServices(category: interest);
+      } else {
+        await _servicesController.fetchServices();
+      }
 
       setState(() {
         _isLoggedIn = true;
+        _userInterest = interest;
         _profileImageUrl = imageUrl != null && imageUrl.trim().isNotEmpty
             ? imageUrl
             : null;
+        _filteredServices = List<ServiceModel>.from(_servicesController.services);
+        _isLoadingRecommend = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _isLoggedIn = true;
         _profileImageUrl = null;
+        _isLoadingRecommend = false;
       });
     }
   }
@@ -694,13 +709,27 @@ class _HomeContentState extends State<HomeContent> {
 
               SizedBox(height: s(28)),
 
-              Text(
-                "Recommend For You",
-                style: TextStyle(
-                  fontSize: s(16),
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "Recommend For You",
+                    style: TextStyle(
+                      fontSize: s(16),
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  if (_userInterest != null)
+                    Text(
+                      _userInterest!,
+                      style: TextStyle(
+                        fontSize: s(12),
+                        color: Colors.orange,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                ],
               ),
 
               SizedBox(height: s(12)),
