@@ -28,7 +28,28 @@ class ChatController {
     }
   }
 
-  // 2. Mengambil Daftar Kontak Chat Terkini (Versi Future / Statis)
+  String _resolveUserImage(Map<String, dynamic> user) {
+    final fp = user['freelancer_profiles'];
+    if (fp != null) {
+      String? fotoFreelancer;
+      if (fp is List && fp.isNotEmpty) {
+        fotoFreelancer = fp[0]['foto_freelancer']?.toString();
+      } else if (fp is Map) {
+        fotoFreelancer = fp['foto_freelancer']?.toString();
+      }
+      if (fotoFreelancer != null && fotoFreelancer.isNotEmpty) {
+        return fotoFreelancer;
+      }
+    }
+
+    final foto = user['foto']?.toString();
+    if (foto != null && foto.isNotEmpty) {
+      return foto;
+    }
+
+    return 'assets/images/icons/profile.png';
+  }
+
   Future<List<ChatModel>> getRealChatContacts() async {
     final myUserId = await getMyUserId();
     if (myUserId == null) return [];
@@ -79,23 +100,17 @@ class ChatController {
       List<ChatModel> chatList = [];
       for (var user in usersResponse) {
         int userId = user['id_user'];
-        String role = 'Freelancer';
-        String image = 'assets/images/icons/profile.png';
-
+        String role = 'Client'; 
         final fp = user['freelancer_profiles'];
         if (fp != null) {
           if (fp is List && fp.isNotEmpty) {
             role = fp[0]['professional_status'] ?? role;
-            if (fp[0]['foto_freelancer'] != null) image = fp[0]['foto_freelancer'];
           } else if (fp is Map) {
             role = fp['professional_status'] ?? role;
-            if (fp['foto_freelancer'] != null) image = fp['foto_freelancer'];
           }
         }
 
-        if (image == 'assets/images/icons/profile.png' && user['foto'] != null) {
-          image = user['foto'];
-        }
+        final resolvedImage = _resolveUserImage(user);
 
         chatList.add(
           ChatModel(
@@ -103,14 +118,12 @@ class ChatController {
             name: user['nama'] ?? 'Unknown',
             role: role,
             lastMessage: latestMessages[userId]?['lastMessage'] ?? '',
-            time: latestMessages[userId]?['created_at'] != null 
-                ? DateTime.parse(latestMessages[userId]!['created_at']) 
+            time: latestMessages[userId]?['created_at'] != null
+                ? DateTime.parse(latestMessages[userId]!['created_at'])
                 : DateTime.now(),
-            imagePath: (user['foto'] != null && user['foto'].toString().isNotEmpty)
-                ? user['foto']
-                : 'assets/images/freelancers/freelancer_1.png', 
+            imagePath: resolvedImage,
             unreadCount: latestMessages[userId]?['unread'] ?? 0,
-          )
+          ),
         );
       }
 
@@ -192,23 +205,17 @@ class ChatController {
       List<ChatModel> chatList = [];
       for (var user in usersResponse) {
         int userId = user['id_user'];
-        String role = 'Freelancer';
-        String image = 'assets/images/icons/profile.png';
-
+        String role = 'Client';
         final fp = user['freelancer_profiles'];
         if (fp != null) {
           if (fp is List && fp.isNotEmpty) {
             role = fp[0]['professional_status'] ?? role;
-            if (fp[0]['foto_freelancer'] != null) image = fp[0]['foto_freelancer'];
           } else if (fp is Map) {
             role = fp['professional_status'] ?? role;
-            if (fp['foto_freelancer'] != null) image = fp['foto_freelancer'];
           }
         }
 
-        if (image == 'assets/images/icons/profile.png' && user['foto'] != null) {
-          image = user['foto'];
-        }
+        final resolvedImage = _resolveUserImage(user);
 
         chatList.add(
           ChatModel(
@@ -216,16 +223,12 @@ class ChatController {
             name: user['nama'] ?? 'Unknown',
             role: role,
             lastMessage: latestMessages[userId]?['lastMessage'] ?? '',
-            
-            time: latestMessages[userId]?['created_at'] != null 
-                ? DateTime.parse(latestMessages[userId]!['created_at']).toLocal() 
+            time: latestMessages[userId]?['created_at'] != null
+                ? DateTime.parse(latestMessages[userId]!['created_at']).toLocal()
                 : DateTime.now().toLocal(),
-            
-            imagePath: (user['foto'] != null && user['foto'].toString().isNotEmpty)
-                ? user['foto']
-                : 'assets/images/freelancers/freelancer_1.png', 
+            imagePath: resolvedImage,
             unreadCount: latestMessages[userId]?['unread'] ?? 0,
-          )
+          ),
         );
       }
 
@@ -250,7 +253,7 @@ class ChatController {
     yield* supabase
         .from('messages')
         .stream(primaryKey: ['id'])
-        .order('created_at', ascending: true)
+        .order('created_at', ascending: false)
         .map((data) {
           final filteredData = data.where((json) {
             final sender = int.tryParse(json['sender_id'].toString());

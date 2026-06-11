@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../controllers/my_orders_controller.dart';
 import '../../models/order_model.dart';
 import 'booking_detail_page.dart';
+import 'login_page.dart';
+import 'register_page.dart';
 
 class BookingsPage extends StatefulWidget {
   const BookingsPage({super.key});
@@ -163,45 +165,41 @@ class _BookingsPageState extends State<BookingsPage> {
     double s(double size) =>
         (size * (screenWidth / 375)).clamp(size * 0.75, size * 1.3);
 
+    // ── FutureBuilder dipindah ke level body Scaffold ──────────
     return Scaffold(
       backgroundColor: const Color(0xFFFFF8EE),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: EdgeInsets.fromLTRB(s(20), s(16), s(20), s(4)),
-              child: Text(
-                'My Orders',
-                style: TextStyle(fontSize: s(20), fontWeight: FontWeight.bold),
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: s(16), vertical: s(6)),
-              child: Row(
-                children: [
-                  _filter("All", s),
-                  SizedBox(width: s(8)),
-                  _filter("Active", s),
-                  SizedBox(width: s(8)),
-                  _filter("Done", s),
-                ],
-              ),
-            ),
-            SizedBox(height: s(6)),
-            Expanded(
-              child: FutureBuilder<List<OrderModel>>(
-                future: _ordersFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(
-                      child: CircularProgressIndicator(
-                        color: Color(0xFFFFA726),
-                      ),
-                    );
-                  }
+      body: FutureBuilder<List<OrderModel>>(
+        future: _ordersFuture,
+        builder: (context, snapshot) {
+          // ── 1. Cek error belum login SEBELUM render apapun ──
+          if (snapshot.hasError) {
+            final isUnauthorized = snapshot.error
+                .toString()
+                .toLowerCase()
+                .contains('belum login');
 
-                  if (snapshot.hasError) {
-                    return Center(
+            if (isUnauthorized) {
+              // Fullscreen placeholder — filter TIDAK ditampilkan
+              return _buildLoginPlaceholder(context);
+            }
+
+            // Error selain login → tampilan default dengan tombol Coba Lagi
+            // Filter tetap ditampilkan karena user kemungkinan sudah login
+            return SafeArea(
+              child: Column(
+                children: [
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(s(20), s(16), s(20), s(4)),
+                    child: Text(
+                      'My Orders',
+                      style: TextStyle(
+                        fontSize: s(20),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Center(
                       child: Padding(
                         padding: EdgeInsets.all(s(20)),
                         child: Column(
@@ -224,49 +222,288 @@ class _BookingsPageState extends State<BookingsPage> {
                           ],
                         ),
                       ),
-                    );
-                  }
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
 
-                  final allOrders = snapshot.data ?? [];
-                  final bookings = _filteredOrders(allOrders);
+          // ── 2. Kondisi normal (loading / sukses) ──────────────
+          // Header + Filter + List — semua ditampilkan di sini
+          return SafeArea(
+            child: Column(
+              children: [
+                // ── Header ──
+                Padding(
+                  padding: EdgeInsets.fromLTRB(s(20), s(16), s(20), s(4)),
+                  child: Text(
+                    'My Orders',
+                    style: TextStyle(
+                      fontSize: s(20),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
 
-                  if (bookings.isEmpty) {
+                // ── Filter tabs ──
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: s(16),
+                    vertical: s(6),
+                  ),
+                  child: Row(
+                    children: [
+                      _filter("All", s),
+                      SizedBox(width: s(8)),
+                      _filter("Active", s),
+                      SizedBox(width: s(8)),
+                      _filter("Done", s),
+                    ],
+                  ),
+                ),
+
+                SizedBox(height: s(6)),
+
+                // ── List area ──
+                Expanded(
+                  child: () {
+                    // Loading state
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFFFFA726),
+                        ),
+                      );
+                    }
+
+                    final allOrders = snapshot.data ?? [];
+                    final bookings = _filteredOrders(allOrders);
+
+                    // Empty state
+                    if (bookings.isEmpty) {
+                      return RefreshIndicator(
+                        onRefresh: _refresh,
+                        color: const Color(0xFFFFA726),
+                        child: ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: [
+                            SizedBox(height: s(100)),
+                            Icon(
+                              Icons.inbox,
+                              size: s(64),
+                              color: Colors.grey.shade300,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Belum ada order.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Colors.grey.shade600),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    // Data state
                     return RefreshIndicator(
                       onRefresh: _refresh,
                       color: const Color(0xFFFFA726),
-                      child: ListView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        children: [
-                          SizedBox(height: s(100)),
-                          Icon(
-                            Icons.inbox,
-                            size: s(64),
-                            color: Colors.grey.shade300,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Belum ada order.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.grey.shade600),
-                          ),
-                        ],
+                      child: ListView.builder(
+                        physics: const ClampingScrollPhysics(),
+                        padding: EdgeInsets.fromLTRB(
+                          s(16),
+                          s(4),
+                          s(16),
+                          s(16),
+                        ),
+                        itemCount: bookings.length,
+                        itemBuilder: (context, index) {
+                          return _bookingCard(bookings[index], s);
+                        },
                       ),
                     );
-                  }
+                  }(),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
 
-                  return RefreshIndicator(
-                    onRefresh: _refresh,
-                    color: const Color(0xFFFFA726),
-                    child: ListView.builder(
-                      physics: const ClampingScrollPhysics(),
-                      padding: EdgeInsets.fromLTRB(s(16), s(4), s(16), s(16)),
-                      itemCount: bookings.length,
-                      itemBuilder: (context, index) {
-                        return _bookingCard(bookings[index], s);
-                      },
+  // ── Login Placeholder (fullscreen, tanpa filter) ───────────
+  Widget _buildLoginPlaceholder(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFFFD59E), Colors.white],
+          stops: [0.0, 0.55],
+        ),
+      ),
+      child: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 20, 20, 0),
+              child: Text(
+                'My Orders',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                  decoration: TextDecoration.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 36),
+            Center(
+              child: Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.grey.shade300,
+                ),
+                child: const Icon(
+                  Icons.receipt_long_outlined,
+                  size: 36,
+                  color: Colors.grey,
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            const Center(
+              child: Text(
+                'Track Your Orders!',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                  decoration: TextDecoration.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Center(
+              child: Text(
+                'Login or sign up to view\nyour order history',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.black54,
+                  height: 1.5,
+                  decoration: TextDecoration.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 30),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: const Color(0xFFE8D8C0), width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
                     ),
-                  );
-                },
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    const Text(
+                      "You're not logged in yet",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                        decoration: TextDecoration.none,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Login to start booking\nservices from freelancers',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.black54,
+                        height: 1.5,
+                        decoration: TextDecoration.none,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const LoginPage(isFromMyOrders: true),
+                            ),
+                          ).then((_) => _refresh());
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFFB74D),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                        child: const Text(
+                          'Login',
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const RegisterPage(isFromMyOrders: true),
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFFB74D),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                        child: const Text(
+                          'Register',
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -367,7 +604,10 @@ class _BookingsPageState extends State<BookingsPage> {
               ),
               SizedBox(width: s(6)),
               Container(
-                padding: EdgeInsets.symmetric(horizontal: s(8), vertical: s(5)),
+                padding: EdgeInsets.symmetric(
+                  horizontal: s(8),
+                  vertical: s(5),
+                ),
                 decoration: BoxDecoration(
                   color: _statusColor(_uiStatus(b.status)),
                   borderRadius: BorderRadius.circular(s(18)),

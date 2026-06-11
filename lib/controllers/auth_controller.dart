@@ -4,7 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../views/pages/register_cover_page.dart';
 import '../views/pages/register_page.dart';
 import '../views/pages/login_page.dart';
-import '../models/services_model.dart'; // ← untuk goToLogin redirect
+import '../models/services_model.dart'; 
 
 class AuthController {
   final supabase = Supabase.instance.client;
@@ -108,8 +108,8 @@ class AuthController {
     final username = usernameController.text.trim();
     final password = passwordController.text.trim();
 
-    if (username.isEmpty) return 'Username tidak boleh kosong.';
-    if (password.isEmpty) return 'Password tidak boleh kosong.';
+    if (username.isEmpty) return 'Username cannot be empty.';
+    if (password.isEmpty) return 'Password cannot be empty.';
 
     // Generate email dari username
     final email =
@@ -122,12 +122,19 @@ class AuthController {
       );
 
       if (response.user == null) {
-        return 'Login gagal, cek username dan password.';
+        return 'User not found.';
       }
 
       return null; // null = sukses
+    } on AuthException catch (e) {
+      // Tangkap error spesifik dari Supabase
+      if (e.message.contains('Invalid login credentials')) {
+         return 'Login failed, please check your username and password.';
+      }
+      return e.message; // Kembalikan pesan error Supabase lainnya jika ada
     } catch (e) {
-      return e.toString();
+      // Tangkap error umum lainnya
+      return 'An error occurred: $e';
     }
   }
   

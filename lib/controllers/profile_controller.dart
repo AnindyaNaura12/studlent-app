@@ -19,6 +19,14 @@ class ProfileController {
 
   static bool isFreelancerUnlocked = false;
 
+  static void unlockFreelancer() {
+    isFreelancerUnlocked = true;
+  }
+
+  static void lockFreelancer() {
+    isFreelancerUnlocked = false;
+  }
+  
   // ── Get Client User ───────────────────────────────────────
   UserModel getClientUser() {
     return UserModel(

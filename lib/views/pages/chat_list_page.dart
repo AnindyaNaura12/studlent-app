@@ -192,7 +192,7 @@ class _ChatListPageState extends State<ChatListPage> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => const LoginPage(),
+                              builder: (_) => const LoginPage(isFromChat: true),
                             ),
                           ).then((_) => setState(() => _checkAuthAndLoad()));
                         },
@@ -222,7 +222,7 @@ class _ChatListPageState extends State<ChatListPage> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => const RegisterPage(),
+                              builder: (_) => const RegisterPage(isFromChat: true),
                             ),
                           );
                         },

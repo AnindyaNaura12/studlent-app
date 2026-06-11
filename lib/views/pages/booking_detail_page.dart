@@ -104,7 +104,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
 
       if (res == null) {
         if (mounted) {
-          _showSnackBar("Data order tidak ditemukan.");
+          _showSnackBar("Order data not found.");
         }
         return;
       }
@@ -141,7 +141,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
     final String? rawUrl = booking.fileUrl;
 
     if (rawUrl == null || rawUrl.trim().isEmpty) {
-      _showSnackBar("File hasil kerja belum tersedia.");
+      _showSnackBar("The final file is not available yet.");
       return;
     }
 
@@ -151,10 +151,10 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       } else {
-        _showSnackBar("Tidak dapat membuka file. Periksa koneksi Anda.");
+        _showSnackBar("Cannot open the file. Please check your connection.");
       }
     } catch (_) {
-      _showSnackBar("URL file tidak valid atau terjadi kesalahan.");
+      _showSnackBar("Invalid file URL or an error occurred.");
     }
   }
 
@@ -167,11 +167,11 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
       case 'diproses':
       case 'paid':
       case 'in_progress':
-        return 'Diproses';
+        return 'Processing';
       case 'hasil_dikirim':
-        return 'Hasil Dikirim';
+        return 'Delivered';
       case 'revisi':
-        return 'Revisi';
+        return 'Revision';
       case 'done':
       case 'selesai':
         return 'Done';
@@ -188,16 +188,16 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
   String _uiPaymentStatus(String rawStatus) {
     switch (rawStatus.trim().toLowerCase()) {
       case 'pending':
-        return 'Pembayaran Selesai';
+        return 'Payment Completed';
       case 'paid':
       case 'success':
       case 'settlement':
-        return 'Pembayaran Selesai';
+        return 'Payment Completed';
       case 'failed':
       case 'cancel':
       case 'cancelled':
       case 'expired':
-        return 'Pembayaran Gagal';
+        return 'Payment Failed';
       default:
         return rawStatus.isEmpty ? '-' : rawStatus;
     }
@@ -608,7 +608,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                           ),
                         )
                       : Text(
-                          "Request Revisi",
+                          "Request Revision",
                           style: TextStyle(
                             fontSize: s(13),
                             fontWeight: FontWeight.bold,
@@ -757,7 +757,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                     border: Border.all(color: const Color(0xFFFFC107)),
                   ),
                   child: Text(
-                    "Ada Update",
+                    "Update Available",
                     style: TextStyle(
                       fontSize: s(10),
                       fontWeight: FontWeight.bold,
@@ -809,8 +809,8 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                           SizedBox(width: s(8)),
                           Text(
                             hasFile
-                                ? "Lihat File Hasil"
-                                : "File belum tersedia",
+                                ? "View Result File"
+                                : "File not available",
                             style: TextStyle(
                               fontSize: s(13),
                               fontWeight: FontWeight.w600,
@@ -885,15 +885,15 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
         bg = Colors.green.withOpacity(0.15);
         text = Colors.green[700]!;
         break;
-      case "Diproses":
+      case "Processing":
         bg = Colors.blue.withOpacity(0.15);
         text = Colors.blue[700]!;
         break;
-      case "Hasil Dikirim":
+      case "Delivered":
         bg = Colors.purple.withOpacity(0.15);
         text = Colors.purple[700]!;
         break;
-      case "Revisi":
+      case "Revision":
         bg = Colors.deepOrange.withOpacity(0.15);
         text = Colors.deepOrange[700]!;
         break;
