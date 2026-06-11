@@ -7,6 +7,6 @@ class Config {
   // Android Emulator               → http://10.0.2.2:8000/api
   // Device fisik                   → http://192.168.x.x:8000/api
   static const laravelBaseUrl =
-      'http://studlent-backend-well-production.up.railway.app/api';
+      'https://studlent-backend-well-production-b324.up.railway.app/api';
   // 'http://192.168.0.105:8000/api'; // ganti dengan IP komputer kamu
 }
