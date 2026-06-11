@@ -596,19 +596,6 @@ class _RequestRevisionPageState extends State<RequestRevisionPage> {
                       tooltip: "Tambah gambar",
                       disabled: isMaxAttachments,
                     ),
-                    const Spacer(),
-                    Text(
-                      "${_attachments.length}/$_maxAttachments",
-                      style: TextStyle(
-                        fontSize: _s(11),
-                        fontWeight: isMaxAttachments
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                        color: isMaxAttachments
-                            ? Colors.red[400]
-                            : Colors.grey[400],
-                      ),
-                    ),
                   ],
                 ),
               ),

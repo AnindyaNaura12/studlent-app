@@ -133,10 +133,25 @@ class _RatingReviewPageState extends State<RatingReviewPage> {
         }
       }
 
-      await supabase
-          .from('orders')
-          .update({'status': 'selesai'})
-          .eq('id_order', widget.idOrder);
+      try {
+        final updatedOrder = await supabase
+            .from('orders')
+            .update({'status': 'selesai'})
+            .eq('id_order', widget.idOrder)
+            .select('id_order, status')
+            .maybeSingle();
+
+        if (updatedOrder == null) {
+          _showSnackBar("Gagal update status order.");
+          return;
+        }
+      } on PostgrestException catch (e) {
+        _showSnackBar("Gagal menyelesaikan order: ${e.message}");
+        return;
+      } catch (e) {
+        _showSnackBar("Gagal menyelesaikan order: $e");
+        return;
+      }
 
       _showSnackBar(
         existing == null

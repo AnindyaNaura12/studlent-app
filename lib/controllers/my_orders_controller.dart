@@ -312,21 +312,17 @@ class MyOrdersController {
     required int orderId,
     required String resultFileUrl,
   }) async {
-    const int maxRevision = 3;
-
     final latestOrder = await getLatestOrderRevisionData(orderId);
     final int currentRevisionCount =
         (latestOrder['revision_count'] as num?)?.toInt() ?? 0;
 
-    final String newStatus = currentRevisionCount >= maxRevision
-        ? 'selesai'
-        : 'hasil_dikirim';
+    const String newStatus = 'hasil_dikirim';
 
     await _supabase.from('deliverables').insert({
       'id_order': orderId,
       'file_url': resultFileUrl,
-      'catatan': newStatus == 'selesai'
-          ? 'Hasil kerja final (revisi ke-$currentRevisionCount)'
+      'catatan': currentRevisionCount > 0
+          ? 'Hasil revisi freelancer ke-$currentRevisionCount'
           : 'Hasil kerja freelancer',
     });
 
