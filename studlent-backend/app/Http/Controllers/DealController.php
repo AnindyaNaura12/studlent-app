@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Deal;
-use App\Models\User;
+use app\Models\User;
 use Illuminate\Http\Request;
 
 class DealController extends Controller

@@ -55,7 +55,6 @@ class ProfileController {
   }
 
   // ── Client Menu Items ─────────────────────────────────────
-  // "Logout" di sini memanggil supabase.auth.signOut() via onMenuTap
   List<Map<String, dynamic>> getClientMenuItems() {
     return [
       {'title': 'Logout', 'hasTag': false},
@@ -63,8 +62,6 @@ class ProfileController {
   }
 
   // ── Freelancer Menu Items ─────────────────────────────────
-  // "Logout Freelancer" hanya reset lokal (tanpa signOut),
-  // ditangani langsung di View dengan setState.
   List<Map<String, dynamic>> getFreelancerMenuItems() {
     return [
       {'title': 'My Profile', 'hasTag': true},
@@ -72,89 +69,96 @@ class ProfileController {
       {'title': 'My Portfolio', 'hasTag': false},
       {'title': 'My Orders', 'hasTag': false},
       {'title': 'My Services', 'hasTag': false},
-      {'title': 'Logout Freelancer', 'hasTag': false}, // local reset only
+      {'title': 'Logout Freelancer', 'hasTag': false},
     ];
   }
 
   // ── Freelancer Stats ──────────────────────────────────────
+  // Earned diambil langsung dari freelancer_profiles.total_earned
+  // yang sudah diupdate backend saat order selesai.
+  // Period filter tetap ada untuk tampilan UI tapi earned
+  // sudah akumulatif dari backend — filter periode opsional.
   Future<Map<String, dynamic>> getFreelancerStats(
     int idUser,
     String period,
   ) async {
     try {
-      // ==========================
       // Total Services
-      // ==========================
       final services = await supabase
           .from('services')
           .select('id_service')
           .eq('id_freelancer', idUser);
 
-      // ==========================
       // Rating Average
-      // ==========================
       final reviews = await supabase
           .from('reviews')
           .select('rating')
           .eq('id_freelancer', idUser);
 
       double ratingAvg = 0;
-
       if ((reviews as List).isNotEmpty) {
         final total = reviews.fold<double>(
           0,
-          (sum, review) => sum + ((review['rating'] ?? 0) as num).toDouble(),
+          (sum, r) => sum + ((r['rating'] ?? 0) as num).toDouble(),
         );
-
         ratingAvg = total / reviews.length;
       }
 
-      // ==========================
-      // Filter Periode
-      // ==========================
-      final now = DateTime.now();
-      late DateTime fromDate;
-
-      switch (period) {
-        case 'weekly':
-          fromDate = now.subtract(const Duration(days: 7));
-          break;
-        case 'yearly':
-          fromDate = DateTime(now.year, 1, 1);
-          break;
-
-        case 'monthly':
-        default:
-          fromDate = DateTime(now.year, now.month, 1);
-          break;
-      }
-
-      // ==========================
-      // Ambil order freelancer ini
-      // ==========================
-      final orders = await supabase
-          .from('orders')
-          .select('id_order')
-          .eq('id_freelancer', idUser);
-
+      // Earned — ambil dari freelancer_profiles.total_earned
+      // yang sudah di-increment backend saat order selesai
+      // Filter periode tetap didukung via query payments untuk
+      // tampilan breakdown, tapi total utama dari kolom DB
       double earned = 0;
 
-      if ((orders as List).isNotEmpty) {
-        final orderIds = orders.map((e) => e['id_order']).toList();
+      if (period == 'all') {
+        // Ambil total_earned langsung dari profil
+        final profile = await supabase
+            .from('freelancer_profiles')
+            .select('total_earned')
+            .eq('id_user', idUser)
+            .maybeSingle();
 
-        // ==========================
-        // Ambil payment yang sudah released
-        // ==========================
-        final payments = await supabase
-            .from('payments')
-            .select('freelancer_receive, tanggal_bayar')
-            .inFilter('id_order', orderIds)
-            .eq('status', 'paid')
-            .eq('escrow_status', 'released')
-            .gte('tanggal_bayar', fromDate.toIso8601String());
+        earned = ((profile?['total_earned'] ?? 0) as num).toDouble();
+      } else {
+        // Filter berdasarkan periode dari tabel payments
+        final now = DateTime.now();
+        late DateTime fromDate;
 
-        for (final payment in payments as List) {
-          earned += ((payment['freelancer_receive'] ?? 0) as num).toDouble();
+        switch (period) {
+          case 'weekly':
+            fromDate = now.subtract(const Duration(days: 7));
+            break;
+          case 'yearly':
+            fromDate = DateTime(now.year, 1, 1);
+            break;
+          case 'monthly':
+          default:
+            fromDate = DateTime(now.year, now.month, 1);
+            break;
+        }
+
+        // Ambil order milik freelancer ini saja
+        final orders = await supabase
+            .from('orders')
+            .select('id_order')
+            .eq('id_freelancer', idUser) // filter per freelancer
+            .eq('status', 'selesai');    // hanya yang sudah selesai
+
+        if ((orders as List).isNotEmpty) {
+          final orderIds = orders.map((e) => e['id_order']).toList();
+
+          // Ambil payments yang sudah released dalam periode
+          final payments = await supabase
+              .from('payments')
+              .select('freelancer_receive, tanggal_bayar')
+              .inFilter('id_order', orderIds)
+              .eq('status', 'paid')
+              .eq('escrow_status', 'released')
+              .gte('tanggal_bayar', fromDate.toIso8601String());
+
+          for (final p in payments as List) {
+            earned += ((p['freelancer_receive'] ?? 0) as num).toDouble();
+          }
         }
       }
 
@@ -165,7 +169,6 @@ class ProfileController {
       };
     } catch (e) {
       debugPrint('getFreelancerStats error: $e');
-
       return {'services': 0, 'rating': 0.0, 'earned': 0.0};
     }
   }
@@ -210,26 +213,31 @@ class ProfileController {
           .where((o) => o['status'] == 'selesai')
           .length;
 
+      // Total spent: hitung dari payments yang paid
+      // Hanya harga service (amount - admin_fee), bukan total bayar
       double totalSpent = 0;
       if (orders.isNotEmpty) {
         final orderIds = orders.map((o) => o['id_order']).toList();
+
         final payments = await supabase
             .from('payments')
-            .select('amount')
+            .select('amount, admin_fee')
             .inFilter('id_order', orderIds)
             .eq('status', 'paid');
 
-        for (var p in payments as List) {
-          totalSpent += (p['amount'] ?? 0).toDouble();
+        for (final p in payments as List) {
+          final amount   = ((p['amount']    ?? 0) as num).toDouble();
+          final adminFee = ((p['admin_fee'] ?? 0) as num).toDouble();
+          totalSpent += (amount - adminFee);
         }
       }
 
       return {
         ...user,
         'professional_status': professionalStatus,
-        'my_orders': orders.length,
-        'completed_orders': completedOrders,
-        'total_spent': totalSpent,
+        'my_orders'          : orders.length,
+        'completed_orders'   : completedOrders,
+        'total_spent'        : totalSpent,
       };
     } catch (e) {
       debugPrint('getCurrentUser error: $e');
@@ -252,19 +260,19 @@ class ProfileController {
       );
       if (picked == null) return null;
 
-      final bytes = await picked.readAsBytes();
+      final bytes    = await picked.readAsBytes();
       final mimeType = picked.mimeType ?? 'image/jpeg';
       final extension = mimeType.split('/').last;
 
-      final prefix = isFreelancer ? 'freelancer' : 'client';
+      final prefix   = isFreelancer ? 'freelancer' : 'client';
       final fileName = '${prefix}_$idUser.$extension';
 
       final formats = ['jpg', 'jpeg', 'png', 'webp', 'heic'];
       for (final ext in formats) {
         try {
-          await supabase.storage.from('Profile-image').remove([
-            '${prefix}_$idUser.$ext',
-          ]);
+          await supabase.storage
+              .from('Profile-image')
+              .remove(['${prefix}_$idUser.$ext']);
         } catch (_) {}
       }
 
@@ -284,8 +292,8 @@ class ProfileController {
       await supabase
           .from('users')
           .update({
-            updateField: imageUrl,
-            'updated_at': DateTime.now().toIso8601String(),
+            updateField  : imageUrl,
+            'updated_at' : DateTime.now().toIso8601String(),
           })
           .eq('id_user', idUser);
 
@@ -307,10 +315,10 @@ class ProfileController {
       await supabase
           .from('users')
           .update({
-            'nama': nama,
-            'username': username,
-            'no_hp': noHp,
-            'updated_at': DateTime.now().toIso8601String(),
+            'nama'       : nama,
+            'username'   : username,
+            'no_hp'      : noHp,
+            'updated_at' : DateTime.now().toIso8601String(),
           })
           .eq('id_user', idUser);
       return true;
@@ -343,8 +351,6 @@ class ProfileController {
   }
 
   // ── Menu Tap Handler ──────────────────────────────────────
-  // "Logout Freelancer" tidak ada di sini karena ditangani
-  // langsung di View (setState lokal, tanpa signOut).
   void onMenuTap(String title, BuildContext context) {
     switch (title) {
       case 'My Services':
@@ -372,7 +378,6 @@ class ProfileController {
         );
         break;
       case 'Logout':
-        // Hanya dipanggil dari menu Client — signOut penuh
         logout(context);
         break;
     }

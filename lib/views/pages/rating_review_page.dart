@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class RatingReviewPage extends StatefulWidget {
@@ -26,6 +28,10 @@ class RatingReviewPage extends StatefulWidget {
 class _RatingReviewPageState extends State<RatingReviewPage> {
   int _rating = 0;
   bool _isLoading = false;
+
+  // Ganti dengan IP lokal kamu saat testing di device
+  // Contoh: 'http://192.168.1.5:8000/api'
+  static const String _baseUrl = 'http://192.168.0.111:8000/api';
 
   static const List<String> _ratingLabels = [
     '',
@@ -74,6 +80,7 @@ class _RatingReviewPageState extends State<RatingReviewPage> {
       final supabase = Supabase.instance.client;
       final int currentClientId = await _getCurrentClientId();
 
+      // ── 1. Insert review jika belum ada ──────────────────
       final existing = await supabase
           .from('reviews')
           .select('id_review')
@@ -83,14 +90,15 @@ class _RatingReviewPageState extends State<RatingReviewPage> {
 
       if (existing == null) {
         await supabase.from('reviews').insert({
-          'id_order': widget.idOrder,
-          'id_client': currentClientId,
-          'id_freelancer': widget.idFreelancer,
-          'id_service': widget.idService,
-          'rating': _rating,
-          'komentar': null,
+          'id_order'      : widget.idOrder,
+          'id_client'     : currentClientId,
+          'id_freelancer' : widget.idFreelancer,
+          'id_service'    : widget.idService,
+          'rating'        : _rating,
+          'komentar'      : null,
         });
 
+        // Update rating_avg service
         final reviewsData = await supabase
             .from('reviews')
             .select('rating')
@@ -102,14 +110,13 @@ class _RatingReviewPageState extends State<RatingReviewPage> {
 
         if (ratings.isNotEmpty) {
           final avg = ratings.reduce((a, b) => a + b) / ratings.length;
-          final avgRounded = double.parse(avg.toStringAsFixed(1));
-
           await supabase
               .from('services')
-              .update({'rating_avg': avgRounded})
+              .update({'rating_avg': double.parse(avg.toStringAsFixed(1))})
               .eq('id_service', widget.idService);
         }
 
+        // Update rating_avg freelancer
         final allReviews = await supabase
             .from('reviews')
             .select('rating')
@@ -122,17 +129,44 @@ class _RatingReviewPageState extends State<RatingReviewPage> {
         if (allRatings.isNotEmpty) {
           final freelancerAvg =
               allRatings.reduce((a, b) => a + b) / allRatings.length;
-
           await supabase
               .from('freelancer_profiles')
               .update({
-                'rating_avg': double.parse(freelancerAvg.toStringAsFixed(1)),
-                'total_rating': allRatings.length,
+                'rating_avg'   : double.parse(freelancerAvg.toStringAsFixed(1)),
+                'total_rating' : allRatings.length,
               })
               .eq('id_user', widget.idFreelancer);
         }
       }
 
+      // ── 2. Panggil backend: release escrow + update earned ─
+      // Backend yang hitung fee (5%/8%), update escrow,
+      // payments.escrow_status=released, dan increment
+      // total_earned di freelancer_profiles untuk freelancer ini
+      try {
+        final response = await http
+            .post(
+              Uri.parse('$_baseUrl/payment/complete'),
+              headers: {'Content-Type': 'application/json'},
+              body: jsonEncode({'id_order': widget.idOrder}),
+            )
+            .timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == 200) {
+          final body = jsonDecode(response.body);
+          debugPrint('completeOrder success: $body');
+        } else {
+          // Log tapi jangan stop flow — review tetap masuk
+          debugPrint('completeOrder non-200: ${response.statusCode} ${response.body}');
+        }
+      } catch (e) {
+        // Network error: log saja, jangan gagalkan seluruh flow
+        debugPrint('completeOrder call error (non-fatal): $e');
+      }
+
+      // ── 3. Update order status ke selesai ─────────────────
+      // Backend juga update ini via completeOrder,
+      // tapi update dari Flutter juga sebagai fallback
       try {
         final updatedOrder = await supabase
             .from('orders')
@@ -161,10 +195,8 @@ class _RatingReviewPageState extends State<RatingReviewPage> {
       );
 
       await Future.delayed(const Duration(milliseconds: 800));
+      if (mounted) Navigator.pop(context, true);
 
-      if (mounted) {
-        Navigator.pop(context, true);
-      }
     } on PostgrestException catch (e) {
       if (e.code == '42501') {
         _showSnackBar(
@@ -176,9 +208,7 @@ class _RatingReviewPageState extends State<RatingReviewPage> {
     } catch (e) {
       _showSnackBar("Failed to submit rating: $e");
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -210,9 +240,8 @@ class _RatingReviewPageState extends State<RatingReviewPage> {
               onPressed: _isLoading ? null : _submitReview,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFFFB74D),
-                disabledBackgroundColor: const Color(
-                  0xFFFFB74D,
-                ).withOpacity(0.7),
+                disabledBackgroundColor:
+                    const Color(0xFFFFB74D).withOpacity(0.7),
                 foregroundColor: Colors.black,
                 elevation: 0,
                 shadowColor: Colors.transparent,
@@ -226,9 +255,8 @@ class _RatingReviewPageState extends State<RatingReviewPage> {
                       height: _s(22),
                       child: const CircularProgressIndicator(
                         strokeWidth: 2.5,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          Colors.black54,
-                        ),
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(Colors.black54),
                       ),
                     )
                   : Text(
@@ -255,10 +283,7 @@ class _RatingReviewPageState extends State<RatingReviewPage> {
             iconTheme: const IconThemeData(color: Colors.black),
             title: const Text(
               "Ratings",
-              style: TextStyle(
-                color: Colors.black,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
             ),
           ),
           SliverToBoxAdapter(
@@ -289,7 +314,6 @@ class _RatingReviewPageState extends State<RatingReviewPage> {
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
             blurRadius: _s(14),
-            spreadRadius: 0,
             offset: Offset(0, _s(3)),
           ),
         ],
@@ -312,7 +336,6 @@ class _RatingReviewPageState extends State<RatingReviewPage> {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
                   widget.freelancerName,
@@ -331,7 +354,6 @@ class _RatingReviewPageState extends State<RatingReviewPage> {
                   style: TextStyle(
                     fontSize: _s(12),
                     color: Colors.grey[500],
-                    fontWeight: FontWeight.w400,
                     height: 1.3,
                   ),
                   maxLines: 1,
@@ -372,7 +394,6 @@ class _RatingReviewPageState extends State<RatingReviewPage> {
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
             blurRadius: _s(12),
-            spreadRadius: 0,
             offset: Offset(0, _s(3)),
           ),
         ],
@@ -385,7 +406,6 @@ class _RatingReviewPageState extends State<RatingReviewPage> {
               fontSize: _s(14),
               fontWeight: FontWeight.w700,
               color: Colors.black87,
-              letterSpacing: 0.1,
             ),
           ),
           SizedBox(height: _s(18)),
@@ -393,7 +413,7 @@ class _RatingReviewPageState extends State<RatingReviewPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(5, (index) {
               final starIndex = index + 1;
-              final isActive = starIndex <= _rating;
+              final isActive  = starIndex <= _rating;
               return GestureDetector(
                 onTap: () => setState(() => _rating = starIndex),
                 child: Padding(
@@ -428,8 +448,9 @@ class _RatingReviewPageState extends State<RatingReviewPage> {
               style: TextStyle(
                 fontSize: _s(12),
                 fontWeight: _rating > 0 ? FontWeight.w600 : FontWeight.w400,
-                color: _rating > 0 ? const Color(0xFFFFA726) : Colors.grey[400],
-                letterSpacing: 0.1,
+                color: _rating > 0
+                    ? const Color(0xFFFFA726)
+                    : Colors.grey[400],
               ),
             ),
           ),

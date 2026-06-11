@@ -14,16 +14,17 @@ use App\Http\Controllers\RevisionController;
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
-// Midtrans webhook / notification — dipanggil server Midtrans, bukan Flutter
+// Midtrans webhook — dipanggil server Midtrans, bukan Flutter
 Route::post('/payment/notification', [PaymentController::class, 'handleNotification']);
 
-// Payment flow Flutter — public karena Flutter kamu tidak pakai Sanctum
-Route::post('/payment/initiate', [PaymentController::class, 'initiatePayment']);
-Route::post('/payment/complete', [PaymentController::class, 'completeOrder']);
-Route::get('/orders/{id}/status', [PaymentController::class, 'getStatus']);
+// Payment flow Flutter
+Route::post('/payment/initiate',     [PaymentController::class, 'initiatePayment']);
+Route::post('/payment/confirm-paid', [PaymentController::class, 'confirmPaid']);   // sandbox
+Route::post('/payment/complete',     [PaymentController::class, 'completeOrder']); // saat rating submit
+Route::get('/orders/{id}/status',    [PaymentController::class, 'getStatus']);
 
 // ─────────────────────────────────────────────────────────────
-// PROTECTED — Sanctum (untuk fitur admin/panel)
+// PROTECTED — Sanctum
 // ─────────────────────────────────────────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -34,7 +35,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/orders/from-deal/{dealId}', [OrderController::class, 'createFromDeal']);
 
-    Route::post('/payments/{orderId}/pay', [PaymentController::class, 'pay']);
-    Route::post('/escrow/{paymentId}/release', [EscrowController::class, 'release']);
-    Route::post('/revisions', [RevisionController::class, 'request']);
+    Route::post('/payments/{orderId}/pay',    [PaymentController::class, 'pay']);
+    Route::post('/escrow/{paymentId}/release',[EscrowController::class, 'release']);
+    Route::post('/revisions',                 [RevisionController::class, 'request']);
 });
