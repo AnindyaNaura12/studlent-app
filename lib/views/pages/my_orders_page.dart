@@ -40,7 +40,7 @@ class _MyOrdersPageState extends State<MyOrdersPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Color(0xFFFFF8EE),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

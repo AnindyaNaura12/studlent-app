@@ -9,6 +9,7 @@ import '../../controllers/home_controller.dart';
 import '../../controllers/my_services_controller.dart';
 import '../../controllers/auth_controller.dart';
 import '../../models/services_model.dart';
+import '../../models/category_model.dart';
 
 class HomeContent extends StatefulWidget {
   final void Function(String category)? onCategoryTap;
@@ -35,6 +36,7 @@ class _HomeContentState extends State<HomeContent> {
 
   List<ServiceModel> _filteredServices = [];
   List<Map<String, dynamic>> _searchResults = [];
+  List<CategoryModel> _categories = [];
   String? _profileImageUrl;
   bool _isLoggedIn = false;
   bool _isLoadingRecommend = true;
@@ -45,13 +47,19 @@ class _HomeContentState extends State<HomeContent> {
   void initState() {
     super.initState();
     _filteredServices = _servicesController.services;
-     _loadUserData();
+    _loadCategories();
+    _loadUserData();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadCategories() async {
+    final cats = await _controller.getHomeCategories();
+    if (mounted) setState(() => _categories = cats);
   }
 
   Future<void> _loadUserData() async {
@@ -92,7 +100,9 @@ class _HomeContentState extends State<HomeContent> {
         _profileImageUrl = imageUrl != null && imageUrl.trim().isNotEmpty
             ? imageUrl
             : null;
-        _filteredServices = List<ServiceModel>.from(_servicesController.services);
+        _filteredServices = List<ServiceModel>.from(
+          _servicesController.services,
+        );
         _isLoadingRecommend = false;
       });
     } catch (e) {
@@ -261,7 +271,7 @@ class _HomeContentState extends State<HomeContent> {
         },
       ];
 
-      final categoryTargets = categories.map((cat) {
+      final categoryTargets = _categories.map((cat) {
         return {
           'title': cat.title,
           'subtitle': 'Category in Services',
@@ -376,7 +386,6 @@ class _HomeContentState extends State<HomeContent> {
 
   @override
   Widget build(BuildContext context) {
-    final categories = _controller.getCategories();
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
 
@@ -697,7 +706,7 @@ class _HomeContentState extends State<HomeContent> {
                 crossAxisSpacing: s(12),
                 mainAxisSpacing: s(12),
                 childAspectRatio: 2.2,
-                children: categories.map((cat) {
+                children: _categories.map((cat) {
                   return CategoryCard(
                     category: cat,
                     onTap: () {

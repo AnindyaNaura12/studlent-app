@@ -1,6 +1,7 @@
 // lib/views/pages/detail_order_page.dart
 // ignore_for_file: deprecated_member_use
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -78,20 +79,32 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
     final raw = _activePackage.price
         .replaceAll('Rp', '')
         .replaceAll('.', '')
+        .replaceAll(',', '')
         .replaceAll(' ', '')
         .trim();
     return double.tryParse(raw) ?? 0;
   }
 
   String get _packageLabel {
-    final n = _activePackage.name.toString();
+    final n = _activePackage.name.toString().trim();
     if (n.isEmpty) return 'Basic';
     return '${n[0].toUpperCase()}${n.substring(1)}';
   }
 
   String get _deliveryTime => _activePackage.deliveryTime;
 
-  int? get _packageId => widget.selectedPackage?.id ?? widget.service.packageId;
+  int? get _packageId {
+    final dynamic raw = widget.selectedPackage?.id ?? widget.service.packageId;
+    if (raw == null) return null;
+    if (raw is int) return raw;
+    return int.tryParse(raw.toString());
+  }
+
+  int _parseServiceId() {
+    final dynamic raw = widget.service.id;
+    if (raw is int) return raw;
+    return int.tryParse(raw.toString()) ?? 0;
+  }
 
   Future<void> _pickAndUploadFile() async {
     FilePickerResult? result;
@@ -126,10 +139,11 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
       'fig',
     ];
 
-    final ext = picked.name.split('.').last.toLowerCase();
+    final parts = picked.name.split('.');
+    final ext = parts.length > 1 ? parts.last.toLowerCase() : '';
     if (!allowed.contains(ext)) {
       _showSnack(
-        'Format tidak didukung. Gunakan: PDF, DOC, DOCX, ZIP, dll.',
+        'Format tidak didukung. Gunakan: PDF, DOC, DOCX, TXT, ZIP, RAR, PSD, AI, FIG.',
         isError: true,
       );
       return;
@@ -151,6 +165,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
       setState(() {
         _documentFile = file;
       });
+      _showSnack('Dokumen berhasil diupload');
     } catch (e) {
       _showSnack('Gagal upload file: $e', isError: true);
     } finally {
@@ -195,6 +210,7 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
       setState(() {
         _imageFile = file;
       });
+      _showSnack('Gambar berhasil diupload');
     } catch (e) {
       _showSnack('Gagal upload gambar: $e', isError: true);
     } finally {
@@ -207,14 +223,28 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
     required Uint8List bytes,
     required bool isImage,
   }) async {
-    final ext = name.split('.').last.toLowerCase();
+    final parts = name.split('.');
+    final ext = parts.length > 1 ? parts.last.toLowerCase() : '';
     final uniqueName = '${DateTime.now().millisecondsSinceEpoch}_$name';
     final folder = isImage ? 'order_images' : 'order_files';
     final storagePath = '$folder/$uniqueName';
 
     String contentType;
     if (isImage) {
-      contentType = 'image/$ext';
+      switch (ext) {
+        case 'jpg':
+        case 'jpeg':
+          contentType = 'image/jpeg';
+          break;
+        case 'png':
+          contentType = 'image/png';
+          break;
+        case 'webp':
+          contentType = 'image/webp';
+          break;
+        default:
+          contentType = 'image/*';
+      }
     } else {
       switch (ext) {
         case 'pdf':
@@ -247,7 +277,8 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
           storagePath,
           bytes,
           fileOptions: FileOptions(contentType: contentType, upsert: false),
-        );
+        )
+        .timeout(const Duration(seconds: 30));
 
     final url = _supabase.storage
         .from('deliverables')
@@ -264,7 +295,10 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
 
   Future<void> _deleteStorageFile(String path) async {
     try {
-      await _supabase.storage.from('deliverables').remove([path]);
+      await _supabase.storage
+          .from('deliverables')
+          .remove([path])
+          .timeout(const Duration(seconds: 15));
     } catch (_) {}
   }
 
@@ -302,22 +336,31 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
 
     try {
       final currentUser = _supabase.auth.currentUser;
-      if (currentUser == null) {
+      if (currentUser == null || currentUser.email == null) {
         throw Exception('Sesi login tidak ditemukan. Silakan login ulang.');
       }
+
+      debugPrint('STEP 1: current user = ${currentUser.email}');
 
       final userData = await _supabase
           .from('users')
           .select('id_user, nama, email, no_hp')
           .eq('email', currentUser.email!)
-          .maybeSingle();
+          .maybeSingle()
+          .timeout(const Duration(seconds: 15));
+
+      debugPrint('STEP 2: userData = $userData');
 
       if (userData == null) {
         throw Exception('Data pengguna tidak ditemukan.');
       }
 
       final int clientId = userData['id_user'] as int;
-      final int serviceId = int.tryParse(widget.service.id.toString()) ?? widget.service.id as int;
+      final int serviceId = _parseServiceId();
+
+      if (serviceId <= 0) {
+        throw Exception('ID service tidak valid.');
+      }
 
       int freelancerId;
       if (widget.service.freelancerId != null &&
@@ -328,7 +371,10 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
             .from('services')
             .select('id_freelancer')
             .eq('id_service', serviceId)
-            .maybeSingle();
+            .maybeSingle()
+            .timeout(const Duration(seconds: 15));
+
+        debugPrint('STEP 3: freelancer data = $sd');
 
         if (sd == null || sd['id_freelancer'] == null) {
           throw Exception('Data freelancer tidak ditemukan.');
@@ -345,6 +391,29 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
           .toIso8601String()
           .split('T')[0];
 
+      final payload = {
+        'client_id': clientId,
+        'freelancer_id': freelancerId,
+        'service_id': serviceId,
+        'package_id': _packageId,
+        'service_name': widget.service.title,
+        'package_name': _packageLabel,
+        'catatan': _noteController.text.trim(),
+        'deadline': deadline,
+        'amount': total.toInt(),
+        'admin_fee': adminFee.toInt(),
+        'package_price': packagePrice.toInt(),
+        'payment_method': _selectedPayment,
+        'customer': {
+          'name': userData['nama'] ?? 'Client',
+          'email': userData['email'] ?? '',
+          'phone': userData['no_hp'] ?? '',
+        },
+      };
+
+      debugPrint('STEP 4: POST ${Config.laravelBaseUrl}/payment/initiate');
+      debugPrint('STEP 5: payload = ${jsonEncode(payload)}');
+
       final apiResponse = await http
           .post(
             Uri.parse('${Config.laravelBaseUrl}/payment/initiate'),
@@ -352,39 +421,36 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
               'Content-Type': 'application/json',
               'Accept': 'application/json',
             },
-            body: jsonEncode({
-              'client_id': clientId,
-              'freelancer_id': freelancerId,
-              'service_id': serviceId,
-              'package_id': _packageId,
-              'service_name': widget.service.title,
-              'package_name': _packageLabel,
-              'catatan': _noteController.text.trim(),
-              'deadline': deadline,
-              'amount': total.toInt(),
-              'admin_fee': adminFee.toInt(),
-              'package_price': packagePrice.toInt(),
-              'payment_method': _selectedPayment,
-              'customer': {
-                'name': userData['nama'] ?? 'Client',
-                'email': userData['email'] ?? '',
-                'phone': userData['no_hp'] ?? '',
-              },
-            }),
+            body: jsonEncode(payload),
           )
           .timeout(const Duration(seconds: 30));
 
-      if (apiResponse.statusCode != 200) {
-        final err = jsonDecode(apiResponse.body);
-        throw Exception(err['message'] ?? 'Gagal membuat transaksi');
+      debugPrint('STEP 6: status = ${apiResponse.statusCode}');
+      debugPrint('STEP 7: body = ${apiResponse.body}');
+
+      Map<String, dynamic> apiData;
+      try {
+        apiData = jsonDecode(apiResponse.body) as Map<String, dynamic>;
+      } catch (_) {
+        throw Exception('Response server bukan JSON yang valid.');
       }
 
-      final apiData = jsonDecode(apiResponse.body);
+      if (apiResponse.statusCode != 200) {
+        throw Exception(apiData['message'] ?? 'Gagal membuat transaksi');
+      }
+
       final paymentUrl = apiData['payment_url']?.toString() ?? '';
-      final int orderId = apiData['order_id'] as int;
+      final dynamic rawOrderId = apiData['order_id'];
+      final int? orderId = rawOrderId is int
+          ? rawOrderId
+          : int.tryParse(rawOrderId?.toString() ?? '');
 
       if (paymentUrl.isEmpty) {
         throw Exception('Payment URL tidak ditemukan.');
+      }
+
+      if (orderId == null || orderId <= 0) {
+        throw Exception('Order ID tidak valid dari server.');
       }
 
       await _supabase
@@ -398,7 +464,8 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
             'requirement_image_path': _imageFile?.storagePath,
             'updated_at': DateTime.now().toIso8601String(),
           })
-          .eq('id_order', orderId);
+          .eq('id_order', orderId)
+          .timeout(const Duration(seconds: 15));
 
       if (!mounted) return;
 
@@ -412,10 +479,18 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
           ),
         ),
       );
+    } on TimeoutException {
+      _showSnack(
+        'Koneksi ke server terlalu lama. Cek backend Laravel atau payment gateway.',
+        isError: true,
+      );
+    } on http.ClientException catch (e) {
+      _showSnack('Gagal terhubung ke server: $e', isError: true);
     } catch (e) {
-      if (mounted) {
-        _showSnack('❌ ${e.toString()}', isError: true);
-      }
+      _showSnack(
+        '❌ ${e.toString().replaceFirst('Exception: ', '')}',
+        isError: true,
+      );
     } finally {
       if (mounted) setState(() => _isProcessing = false);
     }
@@ -551,12 +626,15 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
                                       const SizedBox(height: 6),
                                       Row(
                                         children: [
-                                          Text(
-                                            widget.service.name,
-                                            style: const TextStyle(
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.bold,
-                                              color: Color(0xFFFFA726),
+                                          Expanded(
+                                            child: Text(
+                                              widget.service.name,
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.bold,
+                                                color: Color(0xFFFFA726),
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
                                             ),
                                           ),
                                           const SizedBox(width: 8),
@@ -931,7 +1009,9 @@ class _DetailOrderPageState extends State<DetailOrderPage> {
   }
 
   Widget _filePreview(_UploadedFile f) {
-    final ext = f.name.split('.').last.toUpperCase();
+    final parts = f.name.split('.');
+    final ext = parts.length > 1 ? parts.last.toUpperCase() : 'FILE';
+
     final color =
         const {
           'PDF': Color(0xFFE53935),

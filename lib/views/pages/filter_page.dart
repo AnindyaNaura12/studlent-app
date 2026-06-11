@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../widgets/category_card.dart';
+import '../../models/category_model.dart';
 import '../../controllers/home_controller.dart';
 
 class FilterSheet extends StatefulWidget {
@@ -20,6 +21,7 @@ class FilterSheet extends StatefulWidget {
 
 class _FilterSheetState extends State<FilterSheet> {
   final HomeController _controller = HomeController();
+  List<CategoryModel> _categories = []; 
 
   int? _selectedCategoryIndex;
   int? _selectedPriceIndex;
@@ -37,6 +39,12 @@ class _FilterSheetState extends State<FilterSheet> {
     super.initState();
     _selectedCategoryIndex = widget.initialCategoryIndex;
     _selectedPriceIndex = widget.initialPriceIndex;
+    _loadCategories();
+  }
+
+  Future<void> _loadCategories() async {
+    final cats = await _controller.getCategories();
+    if (mounted) setState(() => _categories = cats);
   }
 
   void _reset() {
@@ -53,8 +61,6 @@ class _FilterSheetState extends State<FilterSheet> {
     final screenWidth = MediaQuery.of(context).size.width;
     double s(double size) =>
         (size * (screenWidth / 375)).clamp(size * 0.75, size * 1.3);
-
-    final categories = _controller.getCategories();
 
     return DraggableScrollableSheet(
       initialChildSize: widget.onlyPrice ? 0.45 : 0.6,
@@ -144,11 +150,12 @@ class _FilterSheetState extends State<FilterSheet> {
                                 mainAxisSpacing: s(10),
                                 childAspectRatio: 1.1,
                               ),
-                          itemCount: categories.length,
+                          itemCount: _categories.length,
                           itemBuilder: (context, index) {
                             return CategoryCard(
-                              category: categories[index],
+                              category: _categories[index],
                               isSelected: _selectedCategoryIndex == index,
+                              showIcon: false,
                               onTap: () {
                                 setState(() {
                                   _selectedCategoryIndex =
