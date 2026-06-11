@@ -56,9 +56,16 @@ class ChatItemTile extends StatelessWidget {
                 // ================= AVATAR =================
                 CircleAvatar(
                   radius: isWeb ? 28 : scale(24),
-                  backgroundImage: chat.imagePath.startsWith('http')
-                      ? NetworkImage(chat.imagePath) as ImageProvider
-                      : AssetImage(chat.imagePath),
+                  backgroundColor: Colors.white, 
+                  backgroundImage: chat.imagePath.startsWith('http') 
+                      ? NetworkImage(chat.imagePath) as ImageProvider 
+                      : null, 
+                  onBackgroundImageError: chat.imagePath.startsWith('http')
+                  ? (_, __) {}  
+                  : null, 
+                  child: !chat.imagePath.startsWith('http') 
+                      ? Icon(Icons.person, color: Colors.grey, size: isWeb ? 28 : scale(24)) 
+                      : null, 
                 ),
 
                 SizedBox(width: scale(12)),

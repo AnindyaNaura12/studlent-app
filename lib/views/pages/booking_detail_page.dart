@@ -121,9 +121,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
       _revisionFileUrl = res['revision_file_url']?.toString().trim();
     });
   } catch (e) {
-    if (mounted) {
       _showSnackBar("Gagal memuat data terbaru.");
-    }
   }
 }
 

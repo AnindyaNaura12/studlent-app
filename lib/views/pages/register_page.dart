@@ -5,9 +5,13 @@ import 'terms_conditions_page.dart';
 import '../widgets/agreement_widget.dart';
 import '../../controllers/auth_controller.dart';
 import '../pages/home_pages.dart'; 
+import 'login_page.dart';
 
 class RegisterPage extends StatefulWidget {
-  const RegisterPage({super.key});
+  final bool isFromMyOrders;
+  final bool isFromChat;
+
+  const RegisterPage({super.key, this.isFromMyOrders = false, this.isFromChat = false});
 
   @override
   State<RegisterPage> createState() => _RegisterPageState();
@@ -87,10 +91,17 @@ class _RegisterPageState extends State<RegisterPage> {
       const SnackBar(content: Text('Registrasi berhasil!')),
     );
     
-    // Hapus semua route sebelumnya dan langsung ke HomePage
+    final int targetIndex = widget.isFromChat
+    ? 2 
+    : widget.isFromMyOrders
+        ? 3 
+        : 0; 
+
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (_) => const HomePage()),
+      MaterialPageRoute(
+        builder: (_) => HomePage(initialIndex: targetIndex),
+        ),
       (route) => false,
     );
   }
@@ -248,7 +259,15 @@ class _RegisterPageState extends State<RegisterPage> {
                                   ),
                                   recognizer: TapGestureRecognizer()
                                     ..onTap = () {
-                                      _controller.goToLogin(context);
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => LoginPage(
+                                            isFromMyOrders: widget.isFromMyOrders,
+                                            isFromChat: widget.isFromChat,
+                                          ),
+                                        ),
+                                      );
                                     },
                                 ),
                               ],

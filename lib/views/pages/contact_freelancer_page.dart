@@ -20,8 +20,7 @@ class ContactFreelancerPage extends StatefulWidget {
 
 class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
   final TextEditingController _controller = TextEditingController();
-  final ScrollController _scrollController = ScrollController();
-
+  
   // Inisialisasi Controller sesuai arsitektur MVC
   final ChatController _chatController = ChatController();
 
@@ -68,23 +67,11 @@ class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
     try {
       // Mendelegasikan logika pengiriman data ke Controller
       await _chatController.sendMessage(text, widget.freelancerId);
-      _scrollToBottom();
     } catch (e) {
       debugPrint("Gagal memproses pengiriman pesan: $e");
     }
   }
 
-  void _scrollToBottom() {
-    Future.delayed(const Duration(milliseconds: 100), () {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
-    });
-  }
 
   String _formatTime(DateTime time) {
     final localTime = time.toLocal(); 
@@ -95,7 +82,6 @@ class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
   @override
   void dispose() {
     _controller.dispose();
-    _scrollController.dispose();
     super.dispose();
   }
 
@@ -164,11 +150,8 @@ class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
                               }
                               final messages = snapshot.data!;
 
-                              // Otomatis gulir ke pesan terbawah saat ada pesan baru masuk
-                              _scrollToBottom();
-
                               return ListView.builder(
-                                controller: _scrollController,
+                                reverse: true,
                                 itemCount: messages.length,
                                 itemBuilder: (context, index) {
                                   final msg = messages[index];
@@ -190,12 +173,20 @@ class _ContactFreelancerPageState extends State<ContactFreelancerPage> {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.end,
                                       children: [
+                                        // SESUDAH
                                         if (!isSender)
                                           CircleAvatar(
                                             radius: 14,
-                                            backgroundImage: AssetImage(
-                                              widget.image,
-                                            ),
+                                            backgroundColor: Colors.white, 
+                                            backgroundImage: widget.image.startsWith('http') 
+                                                ? NetworkImage(widget.image) as ImageProvider 
+                                                : null, 
+                                            onBackgroundImageError: widget.image.startsWith('http') 
+                                            ? (_, __) {}  
+                                            : null, 
+                                            child: !widget.image.startsWith('http') 
+                                                ? const Icon(Icons.person, color: Colors.grey, size: 14) 
+                                                : null, 
                                           ),
                                         if (!isSender) const SizedBox(width: 6),
 

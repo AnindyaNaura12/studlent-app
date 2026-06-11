@@ -67,11 +67,12 @@ class _ProfilePageState extends State<ProfilePage> {
         if (!mounted) return;
         await Future.delayed(const Duration(milliseconds: 300));
         if (!mounted) return;
+        ProfileController.lockFreelancer(); // ← via controller, bukan direct assign
         setState(() {
           _controller.isLoggedIn = false;
+          _controller.isFreelancer = false;
           _userData = null;
           _loading = false;
-          ProfileController.isFreelancerUnlocked = false;
         });
       }
     });
@@ -127,20 +128,19 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  // ── Navigasi ke Cover Page, tangkap hasil sukses ──────────
   Future<void> _goToFreelancerCoverPage() async {
-  final result = await Navigator.push<bool>(
-    context,
-    MaterialPageRoute(builder: (_) => const RegisterFreelancerCoverPage()),
-  );
+    if (ProfileController.isFreelancerUnlocked) {
+      setState(() => _controller.isFreelancer = true);
+      return;
+    }
 
-  if (result == true && mounted) {
-    setState(() {
-      ProfileController.isFreelancerUnlocked = true;
-      _controller.isFreelancer = true;
-    });
+    await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const RegisterFreelancerCoverPage()),
+    );
+
+    if (mounted) setState(() {});
   }
-}
 
   @override
   void dispose() {
@@ -759,14 +759,13 @@ class _ProfilePageState extends State<ProfilePage> {
                   );
                 }
 
-                // "Logout Freelancer" → local-only reset, tanpa signOut
                 if (title == 'Logout Freelancer') {
                   return _menuItem(
                     'Logout',
                     hasTag: false,
                     onTap: () {
+                      ProfileController.lockFreelancer();
                       setState(() {
-                        ProfileController.isFreelancerUnlocked = false;
                         _controller.isFreelancer = false;
                       });
                     },
