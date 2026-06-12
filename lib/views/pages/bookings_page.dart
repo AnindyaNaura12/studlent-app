@@ -311,12 +311,7 @@ class _BookingsPageState extends State<BookingsPage> {
                       color: const Color(0xFFFFA726),
                       child: ListView.builder(
                         physics: const ClampingScrollPhysics(),
-                        padding: EdgeInsets.fromLTRB(
-                          s(16),
-                          s(4),
-                          s(16),
-                          s(16),
-                        ),
+                        padding: EdgeInsets.fromLTRB(s(16), s(4), s(16), s(16)),
                         itemCount: bookings.length,
                         itemBuilder: (context, index) {
                           return _bookingCard(bookings[index], s);
@@ -451,7 +446,8 @@ class _BookingsPageState extends State<BookingsPage> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => const LoginPage(isFromMyOrders: true),
+                              builder: (_) =>
+                                  const LoginPage(isFromMyOrders: true),
                             ),
                           ).then((_) => _refresh());
                         },
@@ -481,7 +477,8 @@ class _BookingsPageState extends State<BookingsPage> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => const RegisterPage(isFromMyOrders: true),
+                              builder: (_) =>
+                                  const RegisterPage(isFromMyOrders: true),
                             ),
                           );
                         },
@@ -604,10 +601,7 @@ class _BookingsPageState extends State<BookingsPage> {
               ),
               SizedBox(width: s(6)),
               Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: s(8),
-                  vertical: s(5),
-                ),
+                padding: EdgeInsets.symmetric(horizontal: s(8), vertical: s(5)),
                 decoration: BoxDecoration(
                   color: _statusColor(_uiStatus(b.status)),
                   borderRadius: BorderRadius.circular(s(18)),

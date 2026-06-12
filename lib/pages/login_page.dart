@@ -155,9 +155,7 @@ class LoginPage extends StatelessWidget {
                                   fontWeight: FontWeight.bold,
                                 ),
                                 recognizer: TapGestureRecognizer()
-                                  ..onTap = () {
-                                    
-                                  },
+                                  ..onTap = () {},
                               ),
                             ],
                           ),

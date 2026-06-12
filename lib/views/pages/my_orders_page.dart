@@ -130,13 +130,13 @@ class _MyOrdersPageState extends State<MyOrdersPage>
                                       horizontal: 24,
                                     ),
                                     child: Text(
-                                      'Terjadi kesalahan:\n${snapshot.error}',
+                                      'An error occurred:\n${snapshot.error}',
                                       textAlign: TextAlign.center,
                                     ),
                                   ),
                                   TextButton(
                                     onPressed: _refreshOrders,
-                                    child: const Text('Coba Lagi'),
+                                    child: const Text('Try Again'),
                                   ),
                                 ],
                               ),
@@ -180,7 +180,7 @@ class _MyOrdersPageState extends State<MyOrdersPage>
                                           ),
                                           const SizedBox(height: 16),
                                           Text(
-                                            'Tidak ada order di tab ini.',
+                                            'No orders in this tab.',
                                             style: TextStyle(
                                               color: Colors.grey.shade600,
                                             ),

@@ -9,8 +9,8 @@ class MyOrdersController {
   final _supabase = Supabase.instance.client;
 
   Future<int> _getCurrentUserId({
-    String notLoggedInMessage = 'User belum login',
-    String notFoundMessage = 'Data user tidak ditemukan',
+    String notLoggedInMessage = 'User is not logged in',
+    String notFoundMessage = 'User data not found',
   }) async {
     final email = _supabase.auth.currentUser?.email;
     if (email == null) {
@@ -37,8 +37,8 @@ class MyOrdersController {
   Future<List<OrderModel>> fetchClientOrders() async {
     try {
       final clientId = await _getCurrentUserId(
-        notLoggedInMessage: 'Client belum login',
-        notFoundMessage: 'Data client tidak ditemukan',
+        notLoggedInMessage: 'Client is not logged in',
+        notFoundMessage: 'Client data not found',
       );
 
       final response = await _supabase
@@ -83,7 +83,7 @@ class MyOrdersController {
 
       return _mapOrders(response);
     } catch (e) {
-      debugPrint('Error fetch client orders: $e');
+      debugPrint('Error fetching client orders: $e');
       rethrow;
     }
   }
@@ -91,8 +91,8 @@ class MyOrdersController {
   Future<List<OrderModel>> fetchFreelancerOrders() async {
     try {
       final freelancerId = await _getCurrentUserId(
-        notLoggedInMessage: 'Freelancer belum login',
-        notFoundMessage: 'Data freelancer tidak ditemukan',
+        notLoggedInMessage: 'Freelancer is not logged in',
+        notFoundMessage: 'Freelancer data not found',
       );
 
       final response = await _supabase
@@ -137,7 +137,7 @@ class MyOrdersController {
 
       return _mapOrders(response);
     } catch (e) {
-      debugPrint('Error fetch freelancer orders: $e');
+      debugPrint('Error fetching freelancer orders: $e');
       rethrow;
     }
   }
@@ -196,7 +196,7 @@ class MyOrdersController {
     if (tabName == 'All') return allOrders;
 
     if (tabName == 'Active') {
-      const activeStatuses = ['diproses', 'hasil_dikirim', 'revisi', 'paid'];
+      const activeStatuses = ['in_progress', 'delivered', 'revision', 'paid'];
 
       return allOrders.where((o) {
         final status = o.status.trim().toLowerCase();
@@ -245,24 +245,24 @@ class MyOrdersController {
   String formatDisplayStatus(String status) {
     switch (status.trim().toLowerCase()) {
       case 'menunggu_pembayaran':
-        return 'Menunggu Pembayaran';
+        return 'Waiting for Payment';
       case 'pending':
         return 'Pending';
       case 'paid':
-        return 'Dibayar';
+        return 'Paid';
       case 'diproses':
-        return 'Diproses';
+        return 'In Progress';
       case 'hasil_dikirim':
-        return 'Hasil Dikirim';
+        return 'Delivered';
       case 'revisi':
-        return 'Revisi';
+        return 'Revision';
       case 'selesai':
-        return 'Selesai';
+        return 'done';
       case 'dibatalkan':
-        return 'Dibatalkan';
+        return 'Cancelled';
       case 'pembayaran_gagal':
       case 'failed':
-        return 'Pembayaran Gagal';
+        return 'Payment Failed';
       case 'expired':
         return 'Expired';
       default:
@@ -290,7 +290,7 @@ class MyOrdersController {
 
     if (currentRevisionCount >= maxRevision) {
       throw Exception(
-        'Batas maksimal revisi ($maxRevision kali) sudah tercapai.',
+        'The maximum revision limit ($maxRevision times) has been reached.',
       );
     }
 
@@ -322,8 +322,8 @@ class MyOrdersController {
       'id_order': orderId,
       'file_url': resultFileUrl,
       'catatan': currentRevisionCount > 0
-          ? 'Hasil revisi freelancer ke-$currentRevisionCount'
-          : 'Hasil kerja freelancer',
+          ? 'Freelancer revision result #$currentRevisionCount'
+          : 'Freelancer work result',
     });
 
     await _supabase
@@ -352,7 +352,7 @@ class MyOrdersController {
 
     if (currentRevisionCount >= maxRevision) {
       throw Exception(
-        'Batas maksimal revisi ($maxRevision kali) sudah tercapai.',
+        'The maximum revision limit ($maxRevision times) has been reached.',
       );
     }
 

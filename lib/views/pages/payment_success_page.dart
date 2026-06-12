@@ -23,6 +23,7 @@ class PaymentSuccessPage extends StatefulWidget {
 
 class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
   bool _isLoading = true;
+  bool _isConfirmingPaid = false;
   String _metode = '-';
   String _serviceName = '-';
   String _date = '';
@@ -37,6 +38,37 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
     _fetchData();
   }
 
+  // ─────────────────────────────────────────────────────────
+  // Panggil endpoint confirm-paid dari Laravel
+  // ─────────────────────────────────────────────────────────
+  Future<void> _confirmPaid() async {
+    if (_isConfirmingPaid) return;
+
+    _isConfirmingPaid = true;
+
+    try {
+      final response = await http.post(
+        Uri.parse('${Config.laravelBaseUrl}/payment/confirm-paid'),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({'id_order': widget.idOrder}),
+      );
+
+      debugPrint(
+        'confirmPaid response: ${response.statusCode} ${response.body}',
+      );
+    } catch (e) {
+      debugPrint('confirmPaid error: $e');
+    } finally {
+      _isConfirmingPaid = false;
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // Fetch status + jika paid/success/settlement → panggil confirmPaid
+  // ─────────────────────────────────────────────────────────
   Future<void> _fetchData() async {
     try {
       final response = await http.get(
@@ -46,6 +78,19 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+
+        final paymentStatus = data['payment_status']?.toString() ?? 'pending';
+
+        // Jika payment sudah sukses → panggil confirmPaid
+        if (paymentStatus == 'paid' ||
+            paymentStatus == 'success' ||
+            paymentStatus == 'settlement') {
+          await _confirmPaid();
+          // Update data agar langsung jadi diproses
+          data['status'] = 'diproses';
+          data['payment_status'] = 'paid';
+          data['is_paid'] = true;
+        }
 
         if (!mounted) return;
 
@@ -282,9 +327,14 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
                                             valueBold: true,
                                           ),
                                           _buildRow(
-                                            'Status',
+                                            'Status Pembayaran',
                                             _statusLabel(),
                                             valueColor: _statusColor(),
+                                            valueBold: true,
+                                          ),
+                                          _buildRow(
+                                            'Status Order',
+                                            _formatOrderStatus(_orderStatus),
                                             valueBold: true,
                                           ),
                                         ],

@@ -26,7 +26,7 @@ class ProfileController {
   static void lockFreelancer() {
     isFreelancerUnlocked = false;
   }
-  
+
   // ── Get Client User ───────────────────────────────────────
   UserModel getClientUser() {
     return UserModel(
@@ -90,17 +90,11 @@ class ProfileController {
     String period,
   ) async {
     try {
-      // ==========================
-      // Total Services
-      // ==========================
       final services = await supabase
           .from('services')
           .select('id_service')
           .eq('id_freelancer', idUser);
 
-      // ==========================
-      // Rating Average
-      // ==========================
       final reviews = await supabase
           .from('reviews')
           .select('rating')
@@ -113,13 +107,9 @@ class ProfileController {
           0,
           (sum, review) => sum + ((review['rating'] ?? 0) as num).toDouble(),
         );
-
         ratingAvg = total / reviews.length;
       }
 
-      // ==========================
-      // Filter Periode
-      // ==========================
       final now = DateTime.now();
       late DateTime fromDate;
 
@@ -130,39 +120,59 @@ class ProfileController {
         case 'yearly':
           fromDate = DateTime(now.year, 1, 1);
           break;
-
         case 'monthly':
         default:
           fromDate = DateTime(now.year, now.month, 1);
           break;
       }
 
-      // ==========================
-      // Ambil order freelancer ini
-      // ==========================
+      final freelancerProfile = await supabase
+          .from('freelancer_profiles')
+          .select('created_at')
+          .eq('id_user', idUser)
+          .maybeSingle();
+
+      final freelancerCreatedAt = DateTime.tryParse(
+            freelancerProfile?['created_at']?.toString() ?? '',
+          ) ??
+          now;
+
       final orders = await supabase
           .from('orders')
           .select('id_order')
-          .eq('id_freelancer', idUser);
+          .eq('id_freelancer', idUser)
+          .eq('status', 'selesai');
 
       double earned = 0;
 
       if ((orders as List).isNotEmpty) {
         final orderIds = orders.map((e) => e['id_order']).toList();
 
-        // ==========================
-        // Ambil payment yang sudah released
-        // ==========================
         final payments = await supabase
             .from('payments')
-            .select('freelancer_receive, tanggal_bayar')
-            .inFilter('id_order', orderIds)
-            .eq('status', 'paid')
-            .eq('escrow_status', 'released')
-            .gte('tanggal_bayar', fromDate.toIso8601String());
+            .select('amount, admin_fee, freelancer_receive, tanggal_bayar')
+            .inFilter('id_order', orderIds);
 
         for (final payment in payments as List) {
-          earned += ((payment['freelancer_receive'] ?? 0) as num).toDouble();
+          final amount = (payment['amount'] as num?)?.toDouble() ?? 0;
+          final adminFee = (payment['admin_fee'] as num?)?.toDouble() ?? 0;
+          final servicePrice = amount - adminFee;
+
+          final trxDate = DateTime.tryParse(
+                payment['tanggal_bayar']?.toString() ?? '',
+              ) ??
+              now;
+
+          if (trxDate.isBefore(fromDate)) continue;
+
+          final monthDiff =
+              (trxDate.year - freelancerCreatedAt.year) * 12 +
+                  (trxDate.month - freelancerCreatedAt.month);
+
+          final feePercent = monthDiff < 2 ? 0.05 : 0.08;
+          final netEarned = servicePrice * (1 - feePercent);
+
+          earned += netEarned;
         }
       }
 
@@ -173,7 +183,6 @@ class ProfileController {
       };
     } catch (e) {
       debugPrint('getFreelancerStats error: $e');
-
       return {'services': 0, 'rating': 0.0, 'earned': 0.0};
     }
   }
@@ -221,14 +230,17 @@ class ProfileController {
       double totalSpent = 0;
       if (orders.isNotEmpty) {
         final orderIds = orders.map((o) => o['id_order']).toList();
+
         final payments = await supabase
             .from('payments')
-            .select('amount')
+            .select('amount, admin_fee')
             .inFilter('id_order', orderIds)
-            .eq('status', 'paid');
+            .eq('status', 'pending');
 
-        for (var p in payments as List) {
-          totalSpent += (p['amount'] ?? 0).toDouble();
+        for (final p in payments as List) {
+          final amount = (p['amount'] as num?)?.toDouble() ?? 0;
+          final adminFee = (p['admin_fee'] as num?)?.toDouble() ?? 0;
+          totalSpent += (amount - adminFee);
         }
       }
 
