@@ -1,14 +1,16 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../models/order_model.dart';
-import 'dart:io';
 
 class MyOrdersController {
   final _supabase = Supabase.instance.client;
 
   Future<int> _getCurrentUserId({
-    String notLoggedInMessage = 'User belum login',
-    String notFoundMessage = 'Data user tidak ditemukan',
+    String notLoggedInMessage = 'User is not logged in',
+    String notFoundMessage = 'User data not found',
   }) async {
     final email = _supabase.auth.currentUser?.email;
     if (email == null) {
@@ -35,8 +37,8 @@ class MyOrdersController {
   Future<List<OrderModel>> fetchClientOrders() async {
     try {
       final clientId = await _getCurrentUserId(
-        notLoggedInMessage: 'Client belum login',
-        notFoundMessage: 'Data client tidak ditemukan',
+        notLoggedInMessage: 'Client is not logged in',
+        notFoundMessage: 'Client data not found',
       );
 
       final response = await _supabase
@@ -51,6 +53,10 @@ class MyOrdersController {
             catatan,
             deadline,
             created_at,
+            revision_count,
+            revision_note,
+            revision_file_url,
+            result_file_url,
             freelancer:id_freelancer(
               nama,
               foto
@@ -77,7 +83,7 @@ class MyOrdersController {
 
       return _mapOrders(response);
     } catch (e) {
-      debugPrint('Error fetch client orders: $e');
+      debugPrint('Error fetching client orders: $e');
       rethrow;
     }
   }
@@ -85,8 +91,8 @@ class MyOrdersController {
   Future<List<OrderModel>> fetchFreelancerOrders() async {
     try {
       final freelancerId = await _getCurrentUserId(
-        notLoggedInMessage: 'Freelancer belum login',
-        notFoundMessage: 'Data freelancer tidak ditemukan',
+        notLoggedInMessage: 'Freelancer is not logged in',
+        notFoundMessage: 'Freelancer data not found',
       );
 
       final response = await _supabase
@@ -101,6 +107,10 @@ class MyOrdersController {
             catatan,
             deadline,
             created_at,
+            revision_count,
+            revision_note,
+            revision_file_url,
+            result_file_url,
             freelancer:id_freelancer(
               nama,
               foto
@@ -127,7 +137,7 @@ class MyOrdersController {
 
       return _mapOrders(response);
     } catch (e) {
-      debugPrint('Error fetch freelancer orders: $e');
+      debugPrint('Error fetching freelancer orders: $e');
       rethrow;
     }
   }
@@ -186,7 +196,7 @@ class MyOrdersController {
     if (tabName == 'All') return allOrders;
 
     if (tabName == 'Active') {
-      const activeStatuses = ['diproses', 'hasil_dikirim', 'revisi', 'paid'];
+      const activeStatuses = ['in_progress', 'delivered', 'revision', 'paid'];
 
       return allOrders.where((o) {
         final status = o.status.trim().toLowerCase();
@@ -235,24 +245,24 @@ class MyOrdersController {
   String formatDisplayStatus(String status) {
     switch (status.trim().toLowerCase()) {
       case 'menunggu_pembayaran':
-        return 'Menunggu Pembayaran';
+        return 'Waiting for Payment';
       case 'pending':
         return 'Pending';
       case 'paid':
-        return 'Dibayar';
+        return 'Paid';
       case 'diproses':
-        return 'Diproses';
+        return 'In Progress';
       case 'hasil_dikirim':
-        return 'Hasil Dikirim';
+        return 'Delivered';
       case 'revisi':
-        return 'Revisi';
+        return 'Revision';
       case 'selesai':
-        return 'Selesai';
+        return 'done';
       case 'dibatalkan':
-        return 'Dibatalkan';
+        return 'Cancelled';
       case 'pembayaran_gagal':
       case 'failed':
-        return 'Pembayaran Gagal';
+        return 'Payment Failed';
       case 'expired':
         return 'Expired';
       default:
@@ -260,17 +270,31 @@ class MyOrdersController {
     }
   }
 
-  Future<int> requestRevision({
-    required int orderId,
-    required int currentRevisionCount,
-  }) async {
+  Future<Map<String, dynamic>> getLatestOrderRevisionData(int orderId) async {
+    final data = await _supabase
+        .from('orders')
+        .select('id_order, revision_count, status')
+        .eq('id_order', orderId)
+        .limit(1)
+        .single();
+
+    return Map<String, dynamic>.from(data);
+  }
+
+  Future<int> requestRevision({required int orderId}) async {
     const int maxRevision = 3;
 
+    final latestOrder = await getLatestOrderRevisionData(orderId);
+    final int currentRevisionCount =
+        (latestOrder['revision_count'] as num?)?.toInt() ?? 0;
+
     if (currentRevisionCount >= maxRevision) {
-      throw Exception('Batas maksimal revisi ($maxRevision kali) sudah tercapai.');
+      throw Exception(
+        'The maximum revision limit ($maxRevision times) has been reached.',
+      );
     }
 
-    final newCount = currentRevisionCount + 1;
+    final int newCount = currentRevisionCount + 1;
 
     await _supabase
         .from('orders')
@@ -285,54 +309,54 @@ class MyOrdersController {
   }
 
   Future<String> submitResultWithRevisionCheck({
-  required int orderId,
-  required String resultFileUrl,
-  required int currentRevisionCount,
-}) async {
-  const int maxRevision = 3;
-
-  // Jika ini adalah pengiriman setelah revisi ke-3, langsung selesai
-  final String newStatus =
-      currentRevisionCount >= maxRevision ? 'selesai' : 'hasil_dikirim';
-
-  // Insert ke tabel deliverables
-  await _supabase.from('deliverables').insert({
-    'id_order': orderId,
-    'file_url': resultFileUrl,
-    'catatan': newStatus == 'selesai'
-        ? 'Hasil kerja final (revisi ke-$currentRevisionCount)'
-        : 'Hasil kerja freelancer',
-  });
-
-  // Update status order
-  await _supabase
-      .from('orders')
-      .update({
-        'status': newStatus,
-        'result_file_url': resultFileUrl,
-        'updated_at': DateTime.now().toIso8601String(),
-      })
-      .eq('id_order', orderId);
-
-  return newStatus;
-  }
-  
-  Future<void> submitRequestRevision({
     required int orderId,
-    required int currentRevisionCount,
+    required String resultFileUrl,
+  }) async {
+    final latestOrder = await getLatestOrderRevisionData(orderId);
+    final int currentRevisionCount =
+        (latestOrder['revision_count'] as num?)?.toInt() ?? 0;
+
+    const String newStatus = 'hasil_dikirim';
+
+    await _supabase.from('deliverables').insert({
+      'id_order': orderId,
+      'file_url': resultFileUrl,
+      'catatan': currentRevisionCount > 0
+          ? 'Freelancer revision result #$currentRevisionCount'
+          : 'Freelancer work result',
+    });
+
+    await _supabase
+        .from('orders')
+        .update({
+          'status': newStatus,
+          'result_file_url': resultFileUrl,
+          'updated_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id_order', orderId);
+
+    return newStatus;
+  }
+
+  Future<int> submitRequestRevision({
+    required int orderId,
     required String revisionNote,
     required List<File> attachmentFiles,
     required List<String> attachmentNames,
   }) async {
     const int maxRevision = 3;
 
+    final latestOrder = await getLatestOrderRevisionData(orderId);
+    final int currentRevisionCount =
+        (latestOrder['revision_count'] as num?)?.toInt() ?? 0;
+
     if (currentRevisionCount >= maxRevision) {
       throw Exception(
-        'Batas maksimal revisi ($maxRevision kali) sudah tercapai.',
+        'The maximum revision limit ($maxRevision times) has been reached.',
       );
     }
 
-    final newCount = currentRevisionCount + 1;
+    final int newCount = currentRevisionCount + 1;
 
     String? uploadedFileUrl;
     if (attachmentFiles.isNotEmpty) {
@@ -340,8 +364,7 @@ class MyOrdersController {
       final firstName = attachmentNames.isNotEmpty
           ? attachmentNames.first
           : 'revision_file';
-      final uniqueName =
-          '${DateTime.now().millisecondsSinceEpoch}_$firstName';
+      final uniqueName = '${DateTime.now().millisecondsSinceEpoch}_$firstName';
       final storagePath = 'revision_files/$orderId/$uniqueName';
 
       final bytes = await firstFile.readAsBytes();
@@ -367,11 +390,14 @@ class MyOrdersController {
         .update({
           'revision_count': newCount,
           'status': 'revisi',
-          'revision_note':
-              revisionNote.trim().isEmpty ? null : revisionNote.trim(),
+          'revision_note': revisionNote.trim().isEmpty
+              ? null
+              : revisionNote.trim(),
           'revision_file_url': uploadedFileUrl,
           'updated_at': DateTime.now().toIso8601String(),
         })
         .eq('id_order', orderId);
+
+    return newCount;
   }
 }

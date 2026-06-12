@@ -12,11 +12,16 @@ import '../../controllers/profile_controller.dart';
 class LoginPage extends StatefulWidget {
   final ServiceModel? redirectToService;
   final bool isFromFreelancerCover;
+  final bool isFromMyOrders;
+  final bool isFromChat;
 
   const LoginPage({
     super.key, 
     this.redirectToService,
-    this.isFromFreelancerCover = false,});
+    this.isFromFreelancerCover = false,
+    this.isFromMyOrders = false,
+    this.isFromChat = false,
+  });
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -50,7 +55,7 @@ Future<void> _handleLogin() async {
 
   // ── Login sukses ──────────────────────────────────────────
   if (widget.redirectToService != null) {
-    // Dari "Order Now" → langsung ke DetailOrderPage (gembok tidak diubah)
+    // Dari "Order Now" → langsung ke DetailOrderPage
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
@@ -61,8 +66,21 @@ Future<void> _handleLogin() async {
     // Dari Cover Freelancer → buka gembok, pop balik ke tab Profile
     ProfileController.isFreelancerUnlocked = true;
     Navigator.of(context).popUntil((route) => route.isFirst);
+  } else if (widget.isFromMyOrders) {
+    ProfileController.isFreelancerUnlocked = false;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const HomePage(initialIndex: 3)),
+      (route) => false,
+    );
+  } else if (widget.isFromChat) { 
+  ProfileController.isFreelancerUnlocked = false; 
+  Navigator.pushAndRemoveUntil( 
+    context, 
+    MaterialPageRoute(builder: (_) => const HomePage(initialIndex: 2)), 
+    (route) => false, 
+  );  
   } else {
-    // Login normal sebagai Client → pastikan gembok tetap terkunci
     ProfileController.isFreelancerUnlocked = false;
     Navigator.pushAndRemoveUntil(
       context,
@@ -71,7 +89,6 @@ Future<void> _handleLogin() async {
     );
   }
 }
-
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;

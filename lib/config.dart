@@ -6,6 +6,7 @@ class Config {
   // Browser (flutter run -d chrome) → http://127.0.0.1:8000/api
   // Android Emulator               → http://10.0.2.2:8000/api
   // Device fisik                   → http://192.168.x.x:8000/api
-  static const laravelBaseUrl = 'http://192.168.0.110:8000/api';
+  static const laravelBaseUrl =
+      'https://studlent-backend-production-b62f.up.railway.app/api';
   // 'http://192.168.0.105:8000/api'; // ganti dengan IP komputer kamu
 }

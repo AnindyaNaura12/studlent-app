@@ -19,6 +19,14 @@ class ProfileController {
 
   static bool isFreelancerUnlocked = false;
 
+  static void unlockFreelancer() {
+    isFreelancerUnlocked = true;
+  }
+
+  static void lockFreelancer() {
+    isFreelancerUnlocked = false;
+  }
+
   // ── Get Client User ───────────────────────────────────────
   UserModel getClientUser() {
     return UserModel(
@@ -85,8 +93,7 @@ class ProfileController {
       final services = await supabase
           .from('services')
           .select('id_service')
-          .eq('id_freelancer', idUser)
-          .eq('status', 'active');
+          .eq('id_freelancer', idUser);
 
       final reviews = await supabase
           .from('reviews')
@@ -94,16 +101,17 @@ class ProfileController {
           .eq('id_freelancer', idUser);
 
       double ratingAvg = 0;
+
       if ((reviews as List).isNotEmpty) {
         final total = reviews.fold<double>(
           0,
-          (sum, r) => sum + (r['rating'] ?? 0),
+          (sum, review) => sum + ((review['rating'] ?? 0) as num).toDouble(),
         );
         ratingAvg = total / reviews.length;
       }
 
-      DateTime fromDate;
       final now = DateTime.now();
+      late DateTime fromDate;
 
       switch (period) {
         case 'weekly':
@@ -112,19 +120,60 @@ class ProfileController {
         case 'yearly':
           fromDate = DateTime(now.year, 1, 1);
           break;
+        case 'monthly':
         default:
           fromDate = DateTime(now.year, now.month, 1);
+          break;
       }
 
-      final payments = await supabase
-          .from('payments')
-          .select('freelancer_receive, tanggal_bayar')
-          .eq('status', 'paid')
-          .gte('tanggal_bayar', fromDate.toIso8601String());
+      final freelancerProfile = await supabase
+          .from('freelancer_profiles')
+          .select('created_at')
+          .eq('id_user', idUser)
+          .maybeSingle();
+
+      final freelancerCreatedAt = DateTime.tryParse(
+            freelancerProfile?['created_at']?.toString() ?? '',
+          ) ??
+          now;
+
+      final orders = await supabase
+          .from('orders')
+          .select('id_order')
+          .eq('id_freelancer', idUser)
+          .eq('status', 'selesai');
 
       double earned = 0;
-      for (var p in payments as List) {
-        earned += (p['freelancer_receive'] ?? 0).toDouble();
+
+      if ((orders as List).isNotEmpty) {
+        final orderIds = orders.map((e) => e['id_order']).toList();
+
+        final payments = await supabase
+            .from('payments')
+            .select('amount, admin_fee, freelancer_receive, tanggal_bayar')
+            .inFilter('id_order', orderIds);
+
+        for (final payment in payments as List) {
+          final amount = (payment['amount'] as num?)?.toDouble() ?? 0;
+          final adminFee = (payment['admin_fee'] as num?)?.toDouble() ?? 0;
+          final servicePrice = amount - adminFee;
+
+          final trxDate = DateTime.tryParse(
+                payment['tanggal_bayar']?.toString() ?? '',
+              ) ??
+              now;
+
+          if (trxDate.isBefore(fromDate)) continue;
+
+          final monthDiff =
+              (trxDate.year - freelancerCreatedAt.year) * 12 +
+                  (trxDate.month - freelancerCreatedAt.month);
+
+          final feePercent = monthDiff < 2 ? 0.05 : 0.08;
+          final netEarned = servicePrice * (1 - feePercent);
+
+          earned += netEarned;
+        }
       }
 
       return {
@@ -134,11 +183,7 @@ class ProfileController {
       };
     } catch (e) {
       debugPrint('getFreelancerStats error: $e');
-      return {
-        'services': 0,
-        'rating': 0.0,
-        'earned': 0.0,
-      };
+      return {'services': 0, 'rating': 0.0, 'earned': 0.0};
     }
   }
 
@@ -166,8 +211,8 @@ class ProfileController {
             .from('freelancer_profiles')
             .select('professional_status')
             .eq('id_user', user['id_user'])
-            .maybeSingle(); 
-            
+            .maybeSingle();
+
         if (profileData != null) {
           professionalStatus = profileData['professional_status'] ?? '';
         }
@@ -185,14 +230,17 @@ class ProfileController {
       double totalSpent = 0;
       if (orders.isNotEmpty) {
         final orderIds = orders.map((o) => o['id_order']).toList();
+
         final payments = await supabase
             .from('payments')
-            .select('amount')
+            .select('amount, admin_fee')
             .inFilter('id_order', orderIds)
-            .eq('status', 'paid');
+            .eq('status', 'pending');
 
-        for (var p in payments as List) {
-          totalSpent += (p['amount'] ?? 0).toDouble();
+        for (final p in payments as List) {
+          final amount = (p['amount'] as num?)?.toDouble() ?? 0;
+          final adminFee = (p['admin_fee'] as num?)?.toDouble() ?? 0;
+          totalSpent += (amount - adminFee);
         }
       }
 
@@ -202,7 +250,6 @@ class ProfileController {
         'my_orders': orders.length,
         'completed_orders': completedOrders,
         'total_spent': totalSpent,
-
       };
     } catch (e) {
       debugPrint('getCurrentUser error: $e');
@@ -235,13 +282,15 @@ class ProfileController {
       final formats = ['jpg', 'jpeg', 'png', 'webp', 'heic'];
       for (final ext in formats) {
         try {
-          await supabase.storage
-              .from('Profile-image')
-              .remove(['${prefix}_$idUser.$ext']);
+          await supabase.storage.from('Profile-image').remove([
+            '${prefix}_$idUser.$ext',
+          ]);
         } catch (_) {}
       }
 
-      await supabase.storage.from('Profile-image').uploadBinary(
+      await supabase.storage
+          .from('Profile-image')
+          .uploadBinary(
             fileName,
             bytes,
             fileOptions: FileOptions(upsert: true, contentType: mimeType),

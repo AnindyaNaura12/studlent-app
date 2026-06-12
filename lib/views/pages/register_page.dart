@@ -4,10 +4,18 @@ import 'register_cover_page.dart';
 import 'terms_conditions_page.dart';
 import '../widgets/agreement_widget.dart';
 import '../../controllers/auth_controller.dart';
-import '../pages/home_pages.dart'; 
+import '../pages/home_pages.dart';
+import 'login_page.dart';
 
 class RegisterPage extends StatefulWidget {
-  const RegisterPage({super.key});
+  final bool isFromMyOrders;
+  final bool isFromChat;
+
+  const RegisterPage({
+    super.key,
+    this.isFromMyOrders = false,
+    this.isFromChat = false,
+  });
 
   @override
   State<RegisterPage> createState() => _RegisterPageState();
@@ -37,27 +45,27 @@ class _RegisterPageState extends State<RegisterPage> {
   void _onRegisterPressed() async {
     // ================= VALIDASI =================
     if (_controller.usernameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Username wajib diisi')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Username wajib diisi')));
       return;
     }
     if (_controller.phoneController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nomor HP wajib diisi')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Nomor HP wajib diisi')));
       return;
     }
     if (_controller.passwordController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password wajib diisi')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Password wajib diisi')));
       return;
     }
     if (_controller.selectedInterest == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pilih Product Interest')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Pilih Product Interest')));
       return;
     }
     if (!_controller.agreeToTerms) {
@@ -77,20 +85,25 @@ class _RegisterPageState extends State<RegisterPage> {
     setState(() => _loading = false);
 
     if (error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
       return;
     }
     // ================= LANGSUNG KE HOME =================
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Registrasi berhasil!')),
-    );
-    
-    // Hapus semua route sebelumnya dan langsung ke HomePage
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Registrasi berhasil!')));
+
+    final int targetIndex = widget.isFromChat
+        ? 2
+        : widget.isFromMyOrders
+        ? 3
+        : 0;
+
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (_) => const HomePage()),
+      MaterialPageRoute(builder: (_) => HomePage(initialIndex: targetIndex)),
       (route) => false,
     );
   }
@@ -114,10 +127,7 @@ class _RegisterPageState extends State<RegisterPage> {
               Align(
                 alignment: Alignment.topLeft,
                 child: IconButton(
-                  icon: const Icon(
-                    Icons.arrow_back,
-                    size: 28,
-                  ),
+                  icon: const Icon(Icons.arrow_back, size: 28),
                   onPressed: () => Navigator.pop(context),
                 ),
               ),
@@ -160,7 +170,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         _buildLabel('Username'),
                         _buildTextField(
                           controller: _controller.usernameController,
-                          hint: 'Hasbiy Fernandes',
+                          hint: 'Your Username',
                         ),
                         const SizedBox(height: 18),
 
@@ -239,7 +249,9 @@ class _RegisterPageState extends State<RegisterPage> {
                                 fontSize: 13,
                               ),
                               children: [
-                                const TextSpan(text: 'Already have an account? '),
+                                const TextSpan(
+                                  text: 'Already have an account? ',
+                                ),
                                 TextSpan(
                                   text: 'Sign In',
                                   style: const TextStyle(
@@ -248,7 +260,16 @@ class _RegisterPageState extends State<RegisterPage> {
                                   ),
                                   recognizer: TapGestureRecognizer()
                                     ..onTap = () {
-                                      _controller.goToLogin(context);
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => LoginPage(
+                                            isFromMyOrders:
+                                                widget.isFromMyOrders,
+                                            isFromChat: widget.isFromChat,
+                                          ),
+                                        ),
+                                      );
                                     },
                                 ),
                               ],
@@ -335,9 +356,8 @@ class _RegisterPageState extends State<RegisterPage> {
                   : Icons.visibility_outlined,
               color: Colors.grey,
             ),
-            onPressed: () => _controller.togglePasswordVisibility(
-              () => setState(() {}),
-            ),
+            onPressed: () =>
+                _controller.togglePasswordVisibility(() => setState(() {})),
           ),
         ),
       ),
@@ -359,15 +379,10 @@ class _RegisterPageState extends State<RegisterPage> {
           hint: const Text(''),
           icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
           items: _controller.productInterests.map((String value) {
-            return DropdownMenuItem<String>(
-              value: value,
-              child: Text(value),
-            );
+            return DropdownMenuItem<String>(value: value, child: Text(value));
           }).toList(),
-          onChanged: (val) => _controller.setProductInterest(
-            val,
-            () => setState(() {}),
-          ),
+          onChanged: (val) =>
+              _controller.setProductInterest(val, () => setState(() {})),
         ),
       ),
     );

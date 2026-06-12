@@ -4,6 +4,7 @@ import '../models/freelancer_model.dart';
 import '../models/skill_model.dart';
 import '../views/pages/register_freelancer_step2_page.dart';
 import '../views/pages/home_pages.dart';
+import 'profile_controller.dart';
 
 class RegistrationController {
   final supabase = Supabase.instance.client;
@@ -125,6 +126,7 @@ class RegistrationController {
       if (context.mounted) Navigator.pop(context); // tutup loading
 
       if (context.mounted) {
+        ProfileController.unlockFreelancer();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content        : Text('Selamat! Kamu sekarang terdaftar sebagai freelancer 🎉'),

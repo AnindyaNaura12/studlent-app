@@ -23,9 +23,13 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
 
   final _ordersController = MyOrdersController();
   bool _isRequestingRevision = false;
-  int _revisionCount = 0; 
+  int _revisionCount = 0;
   String? _revisionNote;
   String? _revisionFileUrl;
+
+  bool get _hasOrderFileUpdate {
+    return booking.fileUrl != null && booking.fileUrl!.trim().isNotEmpty;
+  }
 
   @override
   void initState() {
@@ -35,17 +39,27 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
   }
 
   Future<void> _handleRequestRevision() async {
-  final result = await Navigator.push<bool>(
-    context,
-    MaterialPageRoute(
-      builder: (_) => RequestRevisionPage(booking: booking),
-    ),
-  );
+    if (_isRequestingRevision) return;
 
-  if (result == true) {
-    await _refreshBooking();
+    setState(() => _isRequestingRevision = true);
+
+    try {
+      final result = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RequestRevisionPage(booking: booking),
+        ),
+      );
+
+      if (result == true) {
+        await _refreshBooking();
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isRequestingRevision = false);
+      }
+    }
   }
-}
 
   void _showSnackBar(String message, {Color? bgColor}) {
     if (!mounted) return;
@@ -63,75 +77,71 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
   }
 
   Future<void> _refreshBooking() async {
-  try {
-    final supabase = Supabase.instance.client;
-    final orderId = int.tryParse(booking.id) ?? 0;
+    try {
+      final supabase = Supabase.instance.client;
+      final orderId = int.tryParse(booking.id) ?? 0;
 
-    final Map<String, dynamic>? res = await supabase
-        .from('orders')
-        .select('''
-          id_order,
-          id_freelancer,
-          id_service,
-          status,
-          catatan,
-          deadline,
-          result_file_url,
-          revision_count,
-          revision_note,
-          revision_file_url,
-          created_at,
-          freelancer:id_freelancer (nama, foto),
-          service:id_service (judul, thumbnail_url, service_images(image_url)),
-          payment:payments (amount, admin_fee, status, metode)
-        ''')
-        .eq('id_order', orderId)
-        .maybeSingle();
-
-    if (res == null) {
-      if (mounted) {
-        _showSnackBar("Data order tidak ditemukan.");
-      }
-      return;
-    }
-
-    if (res['result_file_url'] == null ||
-        res['result_file_url'].toString().trim().isEmpty) {
-      final Map<String, dynamic>? latestDeliverable = await supabase
-          .from('deliverables')
-          .select('file_url, created_at')
+      final Map<String, dynamic>? res = await supabase
+          .from('orders')
+          .select('''
+            id_order,
+            id_freelancer,
+            id_service,
+            status,
+            catatan,
+            deadline,
+            result_file_url,
+            revision_count,
+            revision_note,
+            revision_file_url,
+            created_at,
+            freelancer:id_freelancer (nama, foto),
+            service:id_service (judul, thumbnail_url, service_images(image_url)),
+            payment:payments (amount, admin_fee, status, metode)
+          ''')
           .eq('id_order', orderId)
-          .order('created_at', ascending: false)
-          .limit(1)
           .maybeSingle();
 
-      if (latestDeliverable != null &&
-          latestDeliverable['file_url'] != null &&
-          latestDeliverable['file_url'].toString().trim().isNotEmpty) {
-        res['result_file_url'] = latestDeliverable['file_url'];
+      if (res == null) {
+        if (mounted) {
+          _showSnackBar("Order data not found.");
+        }
+        return;
       }
-    }
 
-    if (!mounted) return;
+      if (res['result_file_url'] == null ||
+          res['result_file_url'].toString().trim().isEmpty) {
+        final Map<String, dynamic>? latestDeliverable = await supabase
+            .from('deliverables')
+            .select('file_url, created_at')
+            .eq('id_order', orderId)
+            .order('created_at', ascending: false)
+            .limit(1)
+            .maybeSingle();
 
-    setState(() {
-      booking = OrderModel.fromJson(res);
-      _revisionCount = (res['revision_count'] as num?)?.toInt() ?? 0;
-      _revisionNote = res['revision_note']?.toString().trim();
-      _revisionFileUrl = res['revision_file_url']?.toString().trim();
-    });
-  } catch (e) {
-    if (mounted) {
-      _showSnackBar("Gagal memuat data terbaru.");
-    }
+        if (latestDeliverable != null &&
+            latestDeliverable['file_url'] != null &&
+            latestDeliverable['file_url'].toString().trim().isNotEmpty) {
+          res['result_file_url'] = latestDeliverable['file_url'];
+        }
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        booking = OrderModel.fromJson(res);
+        _revisionCount = (res['revision_count'] as num?)?.toInt() ?? 0;
+        _revisionNote = res['revision_note']?.toString().trim();
+        _revisionFileUrl = res['revision_file_url']?.toString().trim();
+      });
+    } catch (_) {}
   }
-}
 
   Future<void> _openCompletedFile() async {
     final String? rawUrl = booking.fileUrl;
 
     if (rawUrl == null || rawUrl.trim().isEmpty) {
-      _showSnackBar("File hasil kerja belum tersedia.");
+      _showSnackBar("The final file is not available yet.");
       return;
     }
 
@@ -141,10 +151,10 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       } else {
-        _showSnackBar("Tidak dapat membuka file. Periksa koneksi Anda.");
+        _showSnackBar("Cannot open the file. Please check your connection.");
       }
     } catch (_) {
-      _showSnackBar("URL file tidak valid atau terjadi kesalahan.");
+      _showSnackBar("Invalid file URL or an error occurred.");
     }
   }
 
@@ -154,28 +164,22 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
       case 'menunggu_pembayaran':
       case 'menunggu_verifikasi':
         return 'Pending';
-
       case 'diproses':
       case 'paid':
       case 'in_progress':
-        return 'Diproses';
-
+        return 'Processing';
       case 'hasil_dikirim':
-        return 'Hasil Dikirim';
-
+        return 'Delivered';
       case 'revisi':
-        return 'Revisi';
-
+        return 'Revision';
       case 'done':
       case 'selesai':
         return 'Done';
-
       case 'dibatalkan':
       case 'pembayaran_gagal':
       case 'failed':
       case 'expired':
         return 'Cancelled';
-
       default:
         return 'Pending';
     }
@@ -184,16 +188,16 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
   String _uiPaymentStatus(String rawStatus) {
     switch (rawStatus.trim().toLowerCase()) {
       case 'pending':
-        return 'Pembayaran Selesai';
+        return 'Payment Completed';
       case 'paid':
       case 'success':
       case 'settlement':
-        return 'Pembayaran Selesai';
+        return 'Payment Completed';
       case 'failed':
       case 'cancel':
       case 'cancelled':
       case 'expired':
-        return 'Pembayaran Gagal';
+        return 'Payment Failed';
       default:
         return rawStatus.isEmpty ? '-' : rawStatus;
     }
@@ -206,7 +210,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
 
   bool _canClientReview(String rawStatus) {
     final s = rawStatus.trim().toLowerCase();
-    return s == 'hasil_dikirim' || s == 'done' || s == 'selesai';
+    return s == 'hasil_dikirim';
   }
 
   bool _canRequestRevision(String rawStatus) {
@@ -344,12 +348,10 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
               ),
             ),
             SizedBox(height: s(18)),
-
             if (_canViewOrderFile(booking.status)) ...[
               _buildViewOrderSection(s),
               SizedBox(height: s(18)),
             ],
-
             Container(
               padding: EdgeInsets.all(s(14)),
               decoration: BoxDecoration(
@@ -381,7 +383,6 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                 ],
               ),
             ),
-
             if (_revisionCount > 0 || booking.status == 'revisi') ...[
               SizedBox(height: s(14)),
               Container(
@@ -412,7 +413,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                     ),
                     SizedBox(width: s(8)),
                     Text(
-                      'Revisi ke-$_revisionCount dari 3',
+                      'Revision $_revisionCount of 3',
                       style: TextStyle(
                         fontSize: s(12),
                         fontWeight: FontWeight.w600,
@@ -424,7 +425,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                     if (_revisionCount >= 3) ...[
                       const Spacer(),
                       Text(
-                        'Batas tercapai',
+                        'Limit Reached',
                         style: TextStyle(
                           fontSize: s(11),
                           color: Colors.red.shade600,
@@ -434,8 +435,6 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                   ],
                 ),
               ),
-
-              // --- Catatan Revisi ---
               SizedBox(height: s(10)),
               Container(
                 width: double.infinity,
@@ -449,7 +448,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Catatan Revisi Anda:',
+                      'Revision Notes:',
                       style: TextStyle(
                         fontSize: s(12),
                         fontWeight: FontWeight.bold,
@@ -457,7 +456,8 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                       ),
                     ),
                     SizedBox(height: s(6)),
-                    if (_revisionNote != null && _revisionNote!.trim().isNotEmpty)
+                    if (_revisionNote != null &&
+                        _revisionNote!.trim().isNotEmpty)
                       Text(
                         _revisionNote!,
                         style: TextStyle(
@@ -468,7 +468,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                       )
                     else
                       Text(
-                        'Tidak ada catatan revisi.',
+                        'No revision notes available.',
                         style: TextStyle(
                           fontSize: s(12),
                           color: Colors.grey,
@@ -478,15 +478,17 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                   ],
                 ),
               ),
-
-              // --- File Lampiran Revisi ---
               SizedBox(height: s(8)),
-              if (_revisionFileUrl != null && _revisionFileUrl!.trim().isNotEmpty)
+              if (_revisionFileUrl != null &&
+                  _revisionFileUrl!.trim().isNotEmpty)
                 GestureDetector(
                   onTap: () async {
                     final uri = Uri.tryParse(_revisionFileUrl!);
                     if (uri != null && await canLaunchUrl(uri)) {
-                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      await launchUrl(
+                        uri,
+                        mode: LaunchMode.externalApplication,
+                      );
                     } else {
                       _showSnackBar('Tidak dapat membuka lampiran.');
                     }
@@ -512,7 +514,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                         SizedBox(width: s(10)),
                         Expanded(
                           child: Text(
-                            'Lihat Lampiran Revisi',
+                            'View Revision Attachment',
                             style: TextStyle(
                               fontSize: s(13),
                               fontWeight: FontWeight.w600,
@@ -533,7 +535,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                 Padding(
                   padding: EdgeInsets.only(left: s(4)),
                   child: Text(
-                    'Tidak ada lampiran file revisi.',
+                    'No revision attachment available.',
                     style: TextStyle(
                       fontSize: s(12),
                       color: Colors.grey,
@@ -542,9 +544,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                   ),
                 ),
             ],
-
             SizedBox(height: s(24)),
-
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -578,16 +578,20 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                 ),
               ),
             ),
-
             if (_canRequestRevision(booking.status)) ...[
               SizedBox(height: s(12)),
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
-                  onPressed: _isRequestingRevision ? null : _handleRequestRevision,
+                  onPressed: _isRequestingRevision
+                      ? null
+                      : _handleRequestRevision,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFFFFA726),
-                    side: const BorderSide(color: Color(0xFFFFA726), width: 1.5),
+                    side: const BorderSide(
+                      color: Color(0xFFFFA726),
+                      width: 1.5,
+                    ),
                     padding: EdgeInsets.symmetric(vertical: s(14)),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(s(25)),
@@ -604,7 +608,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                           ),
                         )
                       : Text(
-                          "Request Revisi",
+                          "Request Revision",
                           style: TextStyle(
                             fontSize: s(13),
                             fontWeight: FontWeight.bold,
@@ -614,7 +618,6 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                 ),
               ),
             ],
-
             if (_canClientReview(booking.status)) ...[
               SizedBox(height: s(12)),
               SizedBox(
@@ -653,12 +656,11 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                             onPressed: () async {
                               Navigator.pop(ctx);
 
-                              final result = await Navigator.push(
+                              final bool? result = await Navigator.push<bool>(
                                 context,
                                 MaterialPageRoute(
                                   builder: (_) => RatingReviewPage(
                                     idOrder: int.tryParse(booking.id) ?? 0,
-                                    idClient: 0,
                                     idFreelancer: booking.freelancerId,
                                     idService: booking.serviceId,
                                     freelancerName: booking.freelancerName,
@@ -704,7 +706,6 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                 ),
               ),
             ],
-
             SizedBox(height: s(16)),
           ],
         ),
@@ -733,13 +734,38 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            "View Order",
-            style: TextStyle(
-              fontSize: s(14),
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
-            ),
+          Row(
+            children: [
+              Text(
+                "View Order",
+                style: TextStyle(
+                  fontSize: s(14),
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+              ),
+              const Spacer(),
+              if (_hasOrderFileUpdate)
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: s(10),
+                    vertical: s(4),
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF3CD),
+                    borderRadius: BorderRadius.circular(s(20)),
+                    border: Border.all(color: const Color(0xFFFFC107)),
+                  ),
+                  child: Text(
+                    "Update Available",
+                    style: TextStyle(
+                      fontSize: s(10),
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFFB26A00),
+                    ),
+                  ),
+                ),
+            ],
           ),
           SizedBox(height: s(10)),
           GestureDetector(
@@ -748,7 +774,9 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
               opacity: hasFile ? 1 : 0.6,
               child: CustomPaint(
                 painter: _DashedBorderPainter(
-                  color: const Color(0xFFADB5FF),
+                  color: hasFile
+                      ? const Color(0xFFFFC107)
+                      : const Color(0xFFADB5FF),
                   borderRadius: 14,
                   dashWidth: 6,
                   dashSpace: 4,
@@ -761,7 +789,9 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                     horizontal: s(16),
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEEF1FF),
+                    color: hasFile
+                        ? const Color(0xFFFFFBEB)
+                        : const Color(0xFFEEF1FF),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Column(
@@ -771,18 +801,22 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                         children: [
                           Icon(
                             Icons.insert_drive_file_rounded,
-                            color: const Color(0xFF6B7AFF),
+                            color: hasFile
+                                ? const Color(0xFFFFB300)
+                                : const Color(0xFF6B7AFF),
                             size: s(22),
                           ),
                           SizedBox(width: s(8)),
                           Text(
                             hasFile
-                                ? "Lihat File Hasil"
-                                : "File belum tersedia",
+                                ? "View Result File"
+                                : "File not available",
                             style: TextStyle(
                               fontSize: s(13),
                               fontWeight: FontWeight.w600,
-                              color: const Color(0xFF6B7AFF),
+                              color: hasFile
+                                  ? const Color(0xFFB26A00)
+                                  : const Color(0xFF6B7AFF),
                             ),
                           ),
                         ],
@@ -851,15 +885,15 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
         bg = Colors.green.withOpacity(0.15);
         text = Colors.green[700]!;
         break;
-      case "Diproses":
+      case "Processing":
         bg = Colors.blue.withOpacity(0.15);
         text = Colors.blue[700]!;
         break;
-      case "Hasil Dikirim":
+      case "Delivered":
         bg = Colors.purple.withOpacity(0.15);
         text = Colors.purple[700]!;
         break;
-      case "Revisi":
+      case "Revision":
         bg = Colors.deepOrange.withOpacity(0.15);
         text = Colors.deepOrange[700]!;
         break;

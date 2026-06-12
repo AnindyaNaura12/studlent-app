@@ -100,7 +100,9 @@ class _HomeContentState extends State<HomeContent> {
         _profileImageUrl = imageUrl != null && imageUrl.trim().isNotEmpty
             ? imageUrl
             : null;
-        _filteredServices = List<ServiceModel>.from(_servicesController.services);
+        _filteredServices = List<ServiceModel>.from(
+          _servicesController.services,
+        );
         _isLoadingRecommend = false;
       });
     } catch (e) {

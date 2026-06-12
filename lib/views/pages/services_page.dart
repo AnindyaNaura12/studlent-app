@@ -172,7 +172,9 @@ class _ServicesPageState extends State<ServicesPage> {
         matchCategory = service.category.toLowerCase().trim() == cat;
       } else if (_activeCategoryIndex != null &&
           _activeCategoryIndex! < _categories.length) {
-        final cat = _categories[_activeCategoryIndex!].title.toLowerCase().trim();
+        final cat = _categories[_activeCategoryIndex!].title
+            .toLowerCase()
+            .trim();
         matchCategory = service.category.toLowerCase().trim() == cat;
       }
 
