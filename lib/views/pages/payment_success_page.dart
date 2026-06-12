@@ -332,11 +332,6 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
                                             valueColor: _statusColor(),
                                             valueBold: true,
                                           ),
-                                          _buildRow(
-                                            'Status Order',
-                                            _formatOrderStatus(_orderStatus),
-                                            valueBold: true,
-                                          ),
                                         ],
                                       ),
                                     ),
